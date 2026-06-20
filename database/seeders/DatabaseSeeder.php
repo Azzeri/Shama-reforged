@@ -16,11 +16,15 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-            'password' => Hash::make('password'),
-        ]);
+        $this->call(RecipeCatalogSeeder::class);
+
+        User::query()->updateOrCreate(
+            ['email' => 'test@example.com'],
+            [
+                'name' => 'Test User',
+                'password' => Hash::make('password'),
+            ]
+        );
 
     }
 }
