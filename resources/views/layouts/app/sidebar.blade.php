@@ -3,44 +3,30 @@
     <head>
         @include('partials.head')
     </head>
-    <body class="min-h-screen bg-white dark:bg-zinc-800">
-        <flux:sidebar sticky collapsible="mobile" class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
+    <body class="min-h-screen bg-amber-50/40 dark:bg-zinc-900">
+        <flux:sidebar sticky collapsible="mobile" class="border-e border-amber-200/70 bg-gradient-to-b from-amber-50 to-orange-50 dark:border-zinc-700 dark:from-zinc-900 dark:to-zinc-800">
             <flux:sidebar.header>
-                <x-app-logo :sidebar="true" href="{{ route('dashboard') }}" wire:navigate />
+                <x-app-logo :sidebar="true" href="{{ route('meals.index') }}" wire:navigate />
                 <flux:sidebar.collapse class="lg:hidden" />
             </flux:sidebar.header>
 
             <flux:sidebar.nav>
-                <flux:sidebar.group :heading="__('Platform')" class="grid">
-                    <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
-                        {{ __('Dashboard') }}
-                    </flux:sidebar.item>
-
+                <flux:sidebar.group :heading="__('Shama')" class="grid">
                     <flux:sidebar.item icon="book-open-text" :href="route('recipes.index')" :current="request()->routeIs('recipes.*')" wire:navigate>
                         {{ __('Przepisy') }}
                     </flux:sidebar.item>
 
-                    <flux:sidebar.item icon="calendar" :href="route('meals.index')" :current="request()->routeIs('meals.*')" wire:navigate>
-                        {{ __('Kalendarz') }}
+                    <flux:sidebar.item icon="calendar-days" :href="route('meals.index')" :current="request()->routeIs('meals.*')" wire:navigate>
+                        {{ __('Plan tygodnia') }}
                     </flux:sidebar.item>
 
                     <flux:sidebar.item icon="shopping-cart" :href="route('shopping-list.index')" :current="request()->routeIs('shopping-list.*')" wire:navigate>
-                        {{ __('Lista zakupów') }}
+                        {{ __('Koszyk zakupów') }}
                     </flux:sidebar.item>
                 </flux:sidebar.group>
             </flux:sidebar.nav>
 
             <flux:spacer />
-
-            <flux:sidebar.nav>
-                <flux:sidebar.item icon="folder-git-2" href="https://github.com/laravel/livewire-starter-kit" target="_blank">
-                    {{ __('Repository') }}
-                </flux:sidebar.item>
-
-                <flux:sidebar.item icon="book-open-text" href="https://laravel.com/docs/starter-kits#livewire" target="_blank">
-                    {{ __('Documentation') }}
-                </flux:sidebar.item>
-            </flux:sidebar.nav>
 
             <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
         </flux:sidebar>
