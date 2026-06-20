@@ -21,4 +21,11 @@ class Recipe extends Model
             ->withPivot('quantity')
             ->withTimestamps();
     }
+
+    public function meals(): BelongsToMany
+    {
+        return $this->belongsToMany(Meal::class, 'recipe_meal_assignments')
+            ->using(RecipeMealAssignment::class)
+            ->withTimestamps();
+    }
 }

@@ -19,6 +19,10 @@
                     <flux:sidebar.item icon="book-open-text" :href="route('recipes.index')" :current="request()->routeIs('recipes.*')" wire:navigate>
                         {{ __('Przepisy') }}
                     </flux:sidebar.item>
+
+                    <flux:sidebar.item icon="calendar" :href="route('meals.index')" :current="request()->routeIs('meals.*')" wire:navigate>
+                        {{ __('Kalendarz') }}
+                    </flux:sidebar.item>
                 </flux:sidebar.group>
             </flux:sidebar.nav>
 
