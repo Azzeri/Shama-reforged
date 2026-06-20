@@ -28,4 +28,10 @@ class Recipe extends Model
             ->using(RecipeMealAssignment::class)
             ->withTimestamps();
     }
+
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(Tag::class, 'recipe_tag_assignments')
+            ->withTimestamps();
+    }
 }

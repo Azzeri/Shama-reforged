@@ -4,34 +4,61 @@ namespace App\Http\Controllers;
 
 use App\Models\Ingredient;
 use App\Models\Recipe;
+use App\Models\Tag;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class RecipeController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        $recipes = Recipe::query()
-            ->with('ingredients:id,name')
+        $tagOptions = $this->ensureDefaultTags();
+        $search = trim((string) $request->query('q', ''));
+        $selectedTagIds = collect($request->input('tags', []))
+            ->filter(fn ($value) => is_scalar($value) && (string) $value !== '')
+            ->map(fn ($value) => (int) $value)
+            ->filter(fn (int $value) => $value > 0)
+            ->values();
+
+        $recipesQuery = Recipe::query()
+            ->with(['ingredients:id,name', 'tags:id,name'])
             ->latest()
-            ->paginate(10);
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(Recipe::NAME_COLUMN, 'like', '%'.$search.'%');
+            })
+            ->when($selectedTagIds->isNotEmpty(), function ($query) use ($selectedTagIds) {
+                $query->whereHas('tags', function ($tagQuery) use ($selectedTagIds) {
+                    $tagQuery->whereIn('tags.id', $selectedTagIds->all());
+                });
+            });
+
+        $recipes = $recipesQuery->paginate(12)->withQueryString();
 
         return view('recipes.index', [
             'recipes' => $recipes,
+            'tagOptions' => $tagOptions,
+            'search' => $search,
+            'selectedTagIds' => $selectedTagIds,
         ]);
     }
 
     public function create(): View
     {
+        $tagOptions = $this->ensureDefaultTags();
+
         return view('recipes.create', [
             'ingredientOptions' => Ingredient::query()->get(['id', Ingredient::NAME_COLUMN])->sortBy(Ingredient::NAME_COLUMN)->values(),
             'ingredientRows' => old('ingredients', [['ingredient_id' => '', 'ingredient_name' => '', 'custom_name' => '', 'quantity' => '']]),
+            'tagOptions' => $tagOptions,
+            'selectedTagIds' => old('tags', []),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
+        $this->ensureDefaultTags();
         $validated = $this->validateRecipe($request);
 
         $recipe = Recipe::query()->create([
@@ -40,6 +67,7 @@ class RecipeController extends Controller
         ]);
 
         $this->syncIngredients($recipe, $validated['ingredients'] ?? []);
+        $this->syncTags($recipe, $validated['tags'] ?? []);
 
         return redirect()
             ->route('recipes.index')
@@ -48,7 +76,7 @@ class RecipeController extends Controller
 
     public function show(Recipe $recipe): View
     {
-        $recipe->load('ingredients:id,name');
+        $recipe->load(['ingredients:id,name', 'tags:id,name']);
 
         return view('recipes.show', [
             'recipe' => $recipe,
@@ -57,7 +85,8 @@ class RecipeController extends Controller
 
     public function edit(Recipe $recipe): View
     {
-        $recipe->load('ingredients:id,name');
+        $tagOptions = $this->ensureDefaultTags();
+        $recipe->load(['ingredients:id,name', 'tags:id,name']);
 
         $ingredientRows = old('ingredients');
         if (! is_array($ingredientRows)) {
@@ -80,11 +109,14 @@ class RecipeController extends Controller
             'recipe' => $recipe,
             'ingredientOptions' => Ingredient::query()->get(['id', Ingredient::NAME_COLUMN])->sortBy(Ingredient::NAME_COLUMN)->values(),
             'ingredientRows' => $ingredientRows,
+            'tagOptions' => $tagOptions,
+            'selectedTagIds' => old('tags', $recipe->tags->pluck('id')->all()),
         ]);
     }
 
     public function update(Request $request, Recipe $recipe): RedirectResponse
     {
+        $this->ensureDefaultTags();
         $validated = $this->validateRecipe($request);
 
         $recipe->update([
@@ -93,6 +125,7 @@ class RecipeController extends Controller
         ]);
 
         $this->syncIngredients($recipe, $validated['ingredients'] ?? []);
+        $this->syncTags($recipe, $validated['tags'] ?? []);
 
         return redirect()
             ->route('recipes.index')
@@ -109,13 +142,15 @@ class RecipeController extends Controller
     }
 
     /**
-     * @return array{name: string, content: string, ingredients?: array<int, array{ingredient_id?: string, ingredient_name?: string, custom_name?: string, quantity?: string}>}
+     * @return array{name: string, content: string, ingredients?: array<int, array{ingredient_id?: string, ingredient_name?: string, custom_name?: string, quantity?: string}>, tags?: array<int, int|string>}
      */
     private function validateRecipe(Request $request): array
     {
         return $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'content' => ['required', 'string'],
+            'tags' => ['nullable', 'array'],
+            'tags.*' => ['integer', 'exists:tags,id'],
             'ingredients' => ['nullable', 'array'],
             'ingredients.*.ingredient_id' => ['nullable', 'string', 'max:255'],
             'ingredients.*.ingredient_name' => ['nullable', 'string', 'max:255'],
@@ -169,5 +204,32 @@ class RecipeController extends Controller
         }
 
         $recipe->ingredients()->sync($syncPayload);
+    }
+
+    /**
+     * @param  array<int, int|string>  $tags
+     */
+    private function syncTags(Recipe $recipe, array $tags): void
+    {
+        $tagIds = collect($tags)
+            ->map(fn ($tagId) => (int) $tagId)
+            ->filter(fn (int $tagId) => $tagId > 0)
+            ->values();
+
+        $recipe->tags()->sync($tagIds->all());
+    }
+
+    /**
+     * @return Collection<int, Tag>
+     */
+    private function ensureDefaultTags(): Collection
+    {
+        foreach (Tag::DEFAULT_NAMES as $tagName) {
+            Tag::query()->firstOrCreate([
+                Tag::NAME_COLUMN => $tagName,
+            ]);
+        }
+
+        return Tag::query()->orderBy(Tag::NAME_COLUMN)->get(['id', Tag::NAME_COLUMN]);
     }
 }

@@ -2,6 +2,8 @@
     /** @var array<int, array{ingredient_id?: string, ingredient_name?: string, custom_name?: string, quantity?: string}> $ingredientRows */
     $ingredientRows = $ingredientRows ?? [['ingredient_id' => '', 'ingredient_name' => '', 'custom_name' => '', 'quantity' => '']];
     $ingredientOptions = $ingredientOptions ?? collect();
+    $tagOptions = $tagOptions ?? collect();
+    $selectedTagIds = collect($selectedTagIds ?? [])->map(fn ($id) => (int) $id);
     $errors = $errors ?? new \Illuminate\Support\ViewErrorBag();
 @endphp
 
@@ -29,6 +31,25 @@
     rows="6"
     required
 >{{ old('content', $recipe->content ?? '') }}</flux:textarea>
+
+<div class="space-y-2">
+    <label class="block text-sm font-medium text-zinc-800 dark:text-zinc-200">Tagi przepisu</label>
+    <p class="text-xs text-zinc-500 dark:text-zinc-400">Możesz przypisać wiele tagów do jednego przepisu.</p>
+
+    <div class="flex flex-wrap gap-2">
+        @foreach ($tagOptions as $tagOption)
+            <label class="inline-flex items-center gap-2 rounded-full border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700">
+                <input
+                    type="checkbox"
+                    name="tags[]"
+                    value="{{ $tagOption->id }}"
+                    @checked($selectedTagIds->contains((int) $tagOption->id))
+                >
+                <span>{{ $tagOption->name }}</span>
+            </label>
+        @endforeach
+    </div>
+</div>
 
 <div class="space-y-3">
     <div class="flex items-center justify-between">

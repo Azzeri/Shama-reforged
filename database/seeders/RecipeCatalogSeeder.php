@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Ingredient;
 use App\Models\Recipe;
+use App\Models\Tag;
 use Illuminate\Database\Seeder;
 
 class RecipeCatalogSeeder extends Seeder
@@ -32,11 +33,26 @@ class RecipeCatalogSeeder extends Seeder
             }
 
             $recipe->ingredients()->sync($syncPayload);
+
+            if (isset($recipeData['tags']) && is_array($recipeData['tags'])) {
+                $tagIds = collect($recipeData['tags'])
+                    ->map(function (string $tagName) {
+                        $tag = Tag::query()->firstOrCreate([
+                            Tag::NAME_COLUMN => $tagName,
+                        ]);
+
+                        return $tag->id;
+                    })
+                    ->values()
+                    ->all();
+
+                $recipe->tags()->sync($tagIds);
+            }
         }
     }
 
     /**
-     * @return array<int, array{name: string, content: string, ingredients: array<string, string>}>
+     * @return array<int, array{name: string, content: string, ingredients: array<string, string>, tags: array<int, string>}>
      */
     private function recipes(): array
     {
@@ -51,6 +67,7 @@ class RecipeCatalogSeeder extends Seeder
                     'Banan' => '1 sztuka',
                     'Miod' => '1 lyzka',
                 ],
+                'tags' => ['sniadanie'],
             ],
             [
                 'name' => 'Jajecznica z pomidorem',
@@ -61,6 +78,7 @@ class RecipeCatalogSeeder extends Seeder
                     'Pomidor' => '1 sztuka',
                     'Szczypiorek' => '1 garsc',
                 ],
+                'tags' => ['sniadanie'],
             ],
             [
                 'name' => 'Tosty z awokado',
@@ -71,6 +89,7 @@ class RecipeCatalogSeeder extends Seeder
                     'Sok z cytryny' => '1 lyzeczka',
                     'Sol' => 'szczypta',
                 ],
+                'tags' => ['sniadanie'],
             ],
             [
                 'name' => 'Jogurt z granola i owocami',
@@ -81,6 +100,7 @@ class RecipeCatalogSeeder extends Seeder
                     'Truskawki' => '100 g',
                     'Borowki' => '50 g',
                 ],
+                'tags' => ['sniadanie'],
             ],
             [
                 'name' => 'Omlet ze szpinakiem',
@@ -91,6 +111,7 @@ class RecipeCatalogSeeder extends Seeder
                     'Ser feta' => '40 g',
                     'Oliwa' => '1 lyzeczka',
                 ],
+                'tags' => ['sniadanie'],
             ],
 
             // 5 obiadow
@@ -103,6 +124,7 @@ class RecipeCatalogSeeder extends Seeder
                     'Mleczko kokosowe' => '400 ml',
                     'Pasta curry' => '2 lyzki',
                 ],
+                'tags' => ['obiad'],
             ],
             [
                 'name' => 'Spaghetti bolognese',
@@ -113,6 +135,7 @@ class RecipeCatalogSeeder extends Seeder
                     'Passata pomidorowa' => '500 ml',
                     'Cebula' => '1 sztuka',
                 ],
+                'tags' => ['obiad'],
             ],
             [
                 'name' => 'Pieczony losos z ziemniakami',
@@ -123,6 +146,7 @@ class RecipeCatalogSeeder extends Seeder
                     'Cytryna' => '1 sztuka',
                     'Koper' => '1 garsc',
                 ],
+                'tags' => ['obiad'],
             ],
             [
                 'name' => 'Risotto z grzybami',
@@ -133,6 +157,7 @@ class RecipeCatalogSeeder extends Seeder
                     'Bulion warzywny' => '1 l',
                     'Parmezan' => '50 g',
                 ],
+                'tags' => ['obiad'],
             ],
             [
                 'name' => 'Chili con carne',
@@ -143,6 +168,7 @@ class RecipeCatalogSeeder extends Seeder
                     'Pomidory krojone' => '1 puszka',
                     'Papryczka chili' => '1 sztuka',
                 ],
+                'tags' => ['obiad'],
             ],
 
             // 5 deserow
@@ -155,6 +181,7 @@ class RecipeCatalogSeeder extends Seeder
                     'Cukier puder' => '80 g',
                     'Zelatyna' => '2 lyzki',
                 ],
+                'tags' => ['deser'],
             ],
             [
                 'name' => 'Brownie czekoladowe',
@@ -165,6 +192,7 @@ class RecipeCatalogSeeder extends Seeder
                     'Jajka' => '3 sztuki',
                     'Maka pszenna' => '100 g',
                 ],
+                'tags' => ['deser'],
             ],
             [
                 'name' => 'Nalesniki z twarogiem',
@@ -175,6 +203,7 @@ class RecipeCatalogSeeder extends Seeder
                     'Twarog poltlusty' => '250 g',
                     'Cukier waniliowy' => '1 opakowanie',
                 ],
+                'tags' => ['deser'],
             ],
             [
                 'name' => 'Tiramisu',
@@ -185,6 +214,7 @@ class RecipeCatalogSeeder extends Seeder
                     'Kawa espresso' => '250 ml',
                     'Kakao' => '2 lyzki',
                 ],
+                'tags' => ['deser'],
             ],
             [
                 'name' => 'Crumble jablkowe',
@@ -195,6 +225,7 @@ class RecipeCatalogSeeder extends Seeder
                     'Maslo' => '100 g',
                     'Cukier trzcinowy' => '80 g',
                 ],
+                'tags' => ['deser'],
             ],
 
             // 5 kolacji
@@ -207,6 +238,7 @@ class RecipeCatalogSeeder extends Seeder
                     'Ser feta' => '150 g',
                     'Oliwki czarne' => '80 g',
                 ],
+                'tags' => ['kolacja'],
             ],
             [
                 'name' => 'Tortilla z kurczakiem',
@@ -217,6 +249,7 @@ class RecipeCatalogSeeder extends Seeder
                     'Salata' => '1 glowka',
                     'Jogurt naturalny' => '150 g',
                 ],
+                'tags' => ['kolacja'],
             ],
             [
                 'name' => 'Zapiekanki z pieczarkami',
@@ -227,6 +260,7 @@ class RecipeCatalogSeeder extends Seeder
                     'Ser zolty' => '120 g',
                     'Cebula' => '1 sztuka',
                 ],
+                'tags' => ['kolacja'],
             ],
             [
                 'name' => 'Krem z pomidorow',
@@ -237,6 +271,7 @@ class RecipeCatalogSeeder extends Seeder
                     'Czosnek' => '2 zabki',
                     'Smietanka 18%' => '100 ml',
                 ],
+                'tags' => ['kolacja'],
             ],
             [
                 'name' => 'Kanapki z pasta jajeczna',
@@ -247,6 +282,7 @@ class RecipeCatalogSeeder extends Seeder
                     'Szczypiorek' => '1 garsc',
                     'Chleb pelnoziarnisty' => '6 kromek',
                 ],
+                'tags' => ['kolacja'],
             ],
         ];
     }
