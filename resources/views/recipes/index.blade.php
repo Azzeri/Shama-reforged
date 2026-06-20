@@ -35,14 +35,14 @@
                             <td class="px-4 py-3 text-sm font-medium text-zinc-900 dark:text-zinc-100">{{ $recipe->name }}</td>
                             <td class="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300">{{ $recipe->ingredients->pluck('name')->join(', ') ?: '-' }}</td>
                             <td class="px-4 py-3">
-                                <div class="flex justify-end gap-3 text-sm">
-                                    <a href="{{ route('recipes.show', $recipe) }}" class="text-zinc-700 hover:underline dark:text-zinc-300">Podgląd</a>
-                                    <a href="{{ route('recipes.edit', $recipe) }}" class="text-blue-700 hover:underline dark:text-blue-300">Edytuj</a>
+                                <div class="flex justify-end gap-2">
+                                    <flux:button as="a" href="{{ route('recipes.show', $recipe) }}" icon="eye" variant="ghost" size="sm" />
+                                    <flux:button as="a" href="{{ route('recipes.edit', $recipe) }}" icon="pencil" variant="ghost" size="sm" />
 
                                     <form method="POST" action="{{ route('recipes.destroy', $recipe) }}" onsubmit="return confirm('Na pewno usunąć ten przepis?')">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="text-rose-700 hover:underline dark:text-rose-300">Usuń</button>
+                                        <flux:button type="submit" icon="trash" variant="danger" size="sm" />
                                     </form>
                                 </div>
                             </td>

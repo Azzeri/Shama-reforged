@@ -14,17 +14,18 @@ test('authenticated user can create recipe with existing and new ingredients', f
         'name' => 'Pasta al pomodoro',
         'content' => 'Ugotuj makaron i dodaj sos.',
         'ingredients' => [
-            ['name' => 'Sól', 'quantity' => '1 łyżeczka'],
-            ['name' => 'Pomidor', 'quantity' => '4 sztuki'],
+            ['ingredient_id' => (string) $salt->id, 'custom_name' => '', 'quantity' => '1 łyżeczka'],
+            ['ingredient_id' => '__new__', 'custom_name' => 'Pomidor', 'quantity' => '4 sztuki'],
         ],
     ]);
 
     $response->assertRedirect(route('recipes.index'));
 
-    $recipe = Recipe::query()->where('name', 'Pasta al pomodoro')->firstOrFail();
+    $recipe = Recipe::query()->get()->firstWhere(Recipe::NAME_COLUMN, 'Pasta al pomodoro');
+    expect($recipe)->not->toBeNull();
     expect($recipe->ingredients()->count())->toBe(2);
-    expect(Ingredient::query()->where('name', 'Pomidor')->exists())->toBeTrue();
-    expect($recipe->ingredients()->where('ingredients.id', $salt->id)->first()?->pivot?->quantity)->toBe('1 łyżeczka');
+    expect(Ingredient::query()->get()->contains(fn (Ingredient $ingredient) => $ingredient->name === 'Pomidor'))->toBeTrue();
+    expect($recipe->ingredients->firstWhere('id', $salt->id)?->pivot?->quantity)->toBe('1 łyżeczka');
 });
 
 test('authenticated user can update recipe and ingredient quantities', function () {
@@ -45,8 +46,8 @@ test('authenticated user can update recipe and ingredient quantities', function 
         'name' => 'Sałatka grecka',
         'content' => 'Wymieszaj składniki i podawaj schłodzone.',
         'ingredients' => [
-            ['name' => 'Feta', 'quantity' => '200 g'],
-            ['name' => 'Pomidor', 'quantity' => '2 sztuki'],
+            ['ingredient_id' => '__new__', 'custom_name' => 'Feta', 'quantity' => '200 g'],
+            ['ingredient_id' => '__new__', 'custom_name' => 'Pomidor', 'quantity' => '2 sztuki'],
         ],
     ]);
 
@@ -55,8 +56,8 @@ test('authenticated user can update recipe and ingredient quantities', function 
     $recipe->refresh();
     expect($recipe->name)->toBe('Sałatka grecka');
     expect($recipe->ingredients()->count())->toBe(2);
-    expect($recipe->ingredients()->where('name', 'Feta')->exists())->toBeTrue();
-    expect($recipe->ingredients()->where('name', 'Ogórek')->exists())->toBeFalse();
+    expect($recipe->ingredients->contains(fn (Ingredient $ingredient) => $ingredient->name === 'Feta'))->toBeTrue();
+    expect($recipe->ingredients->contains(fn (Ingredient $ingredient) => $ingredient->name === 'Ogórek'))->toBeFalse();
 });
 
 test('authenticated user can delete recipe', function () {

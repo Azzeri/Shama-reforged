@@ -12,6 +12,8 @@ class Recipe extends Model
 {
     use HasFactory;
 
+    public const NAME_COLUMN = 'name';
+
     public function ingredients(): BelongsToMany
     {
         return $this->belongsToMany(Ingredient::class, 'recipe_ingredient_assignments')
