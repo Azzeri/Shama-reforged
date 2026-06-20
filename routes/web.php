@@ -17,7 +17,9 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('ingredients', IngredientController::class)->except(['show']);
     Route::resource('recipes', RecipeController::class);
-    Route::resource('meals', MealController::class);
+    Route::resource('meals', MealController::class)->except(['show', 'edit', 'update']);
+    Route::get('meals/day/{date}/edit', [MealController::class, 'editDay'])->name('meals.day.edit');
+    Route::put('meals/day/{date}', [MealController::class, 'updateDay'])->name('meals.day.update');
     Route::get('meals/day/{date}', [MealController::class, 'day'])->name('meals.day');
 
     Route::get('shopping-list', [ShoppingListController::class, 'index'])->name('shopping-list.index');

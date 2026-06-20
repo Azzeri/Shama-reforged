@@ -71,15 +71,6 @@ class MealController extends Controller
             ->with('status', 'Posiłek został utworzony.');
     }
 
-    public function show(Meal $meal): View
-    {
-        $meal->load('recipes:id,name');
-
-        return view('meals.show', [
-            'meal' => $meal,
-        ]);
-    }
-
     public function day(string $date): View
     {
         $day = Carbon::parse($date)->startOfDay();
@@ -96,46 +87,72 @@ class MealController extends Controller
         ]);
     }
 
-    public function edit(Meal $meal): View
+    public function editDay(string $date): View
     {
-        $meal->load('recipes:id,name');
+        $day = Carbon::parse($date)->startOfDay();
 
-        $mealRecipeRows = old('recipes');
-        if (! is_array($mealRecipeRows)) {
-            $mealRecipeRows = $meal->recipes
-                ->map(fn (Recipe $recipe) => [
-                    'recipe_id' => (string) $recipe->id,
-                ])
-                ->values()
-                ->all();
-        }
+        $meals = Meal::query()
+            ->with('recipes:id,name')
+            ->whereDate('date', $day->toDateString())
+            ->orderBy('date')
+            ->get();
 
-        if ($mealRecipeRows === []) {
-            $mealRecipeRows = [['recipe_id' => '']];
-        }
-
-        return view('meals.edit', [
-            'meal' => $meal,
+        return view('meals.day-edit', [
+            'day' => $day,
+            'meals' => $meals,
             'recipeOptions' => Recipe::query()->get(['id', Recipe::NAME_COLUMN])->sortBy(Recipe::NAME_COLUMN)->values(),
-            'mealRecipeRows' => $mealRecipeRows,
             'typeOptions' => Meal::TYPE_LABELS,
         ]);
     }
 
-    public function update(Request $request, Meal $meal): RedirectResponse
+    public function updateDay(Request $request, string $date): RedirectResponse
     {
-        $validated = $this->validateMeal($request);
+        $day = Carbon::parse($date)->startOfDay();
 
-        $meal->update([
-            'type' => $validated['type'],
-            'date' => Carbon::parse($validated['date']),
+        $validated = $request->validate([
+            'meals' => ['required', 'array', 'min:1'],
+            'meals.*.id' => ['required', 'integer', 'exists:meals,id'],
+            'meals.*.type' => ['required', 'string', Rule::in(Meal::TYPES)],
+            'meals.*.recipes' => ['required', 'array', 'min:1'],
+            'meals.*.recipes.*.recipe_id' => ['required', 'integer', 'distinct', 'exists:recipes,id'],
         ]);
 
-        $this->syncRecipes($meal, $validated['recipes'] ?? []);
+        $dayMealIds = Meal::query()
+            ->whereDate('date', $day->toDateString())
+            ->pluck('id');
+
+        $submittedMealIds = collect($validated['meals'])
+            ->pluck('id')
+            ->map(static function ($mealId): int {
+                return (int) $mealId;
+            });
+
+        if ($submittedMealIds->diff($dayMealIds)->isNotEmpty()) {
+            return back()
+                ->withErrors(['meals' => 'Nie można zapisać posiłków spoza wybranego dnia.'])
+                ->withInput();
+        }
+
+        foreach ($validated['meals'] as $mealPayload) {
+            $meal = Meal::query()->findOrFail((int) $mealPayload['id']);
+
+            $meal->update([
+                'type' => $mealPayload['type'],
+            ]);
+
+            $recipeIds = collect($mealPayload['recipes'])
+                ->map(fn (array $recipeRow): int => (int) ($recipeRow['recipe_id'] ?? 0))
+                ->filter(fn (int $recipeId): bool => $recipeId > 0)
+                ->unique()
+                ->values()
+                ->all();
+
+            $meal->recipes()->sync($recipeIds);
+        }
 
         return redirect()
-            ->route('meals.index')
-            ->with('status', 'Posiłek został zaktualizowany.');
+            ->route('meals.day', $day->toDateString())
+            ->with('status', 'Zapisano zmiany dla całego dnia.');
     }
 
     public function destroy(Meal $meal): RedirectResponse
