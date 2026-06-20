@@ -26,12 +26,27 @@ class ShoppingListController extends Controller
         $activeItems = $items->where(ShoppingListItem::IS_CHECKED_COLUMN, false);
         $checkedItems = $items->where(ShoppingListItem::IS_CHECKED_COLUMN, true);
 
+        $weekStart = now()->startOfWeek();
+        $weekEnd   = now()->endOfWeek();
+        $currentWeekDays = collect(range(0, 6))
+            ->map(fn (int $i) => strtolower($weekStart->copy()->addDays($i)->englishDayOfWeek))
+            ->all();
+
+        $checkedThisWeek = $checkedItems->filter(function (ShoppingListItem $item) use ($currentWeekDays) {
+            return in_array($item->{ShoppingListItem::WEEK_DAY_COLUMN}, $currentWeekDays, true);
+        });
+
+        $checkedUnscheduledThisWeek = $checkedItems
+            ->whereNull(ShoppingListItem::WEEK_DAY_COLUMN)
+            ->filter(fn (ShoppingListItem $item) => $item->created_at?->betweenIncluded($weekStart, $weekEnd))
+            ->values();
+
         return view('shopping-list.index', [
             'shoppingList' => $shoppingList,
             'activeItemsByDay' => $this->groupByDay($activeItems->whereNotNull(ShoppingListItem::WEEK_DAY_COLUMN)),
-            'checkedItemsByDay' => $this->groupByDay($checkedItems->whereNotNull(ShoppingListItem::WEEK_DAY_COLUMN)),
+            'checkedItemsByDay' => $this->groupByDay($checkedThisWeek->whereNotNull(ShoppingListItem::WEEK_DAY_COLUMN)),
             'activeUnscheduledItems' => $activeItems->whereNull(ShoppingListItem::WEEK_DAY_COLUMN)->values(),
-            'checkedUnscheduledItems' => $checkedItems->whereNull(ShoppingListItem::WEEK_DAY_COLUMN)->values(),
+            'checkedUnscheduledItems' => $checkedUnscheduledThisWeek,
             'weekDayLabels' => ShoppingListItem::WEEK_DAY_LABELS,
         ]);
     }
@@ -40,14 +55,14 @@ class ShoppingListController extends Controller
     {
         $validated = $request->validate([
             ShoppingListItem::NAME_COLUMN => ['required', 'string', 'max:255'],
-            ShoppingListItem::QUANTITY_COLUMN => ['required', 'string', 'max:255'],
+            ShoppingListItem::QUANTITY_COLUMN => ['nullable', 'string', 'max:255'],
             ShoppingListItem::WEEK_DAY_COLUMN => ['nullable', 'string', Rule::in(ShoppingListItem::WEEK_DAYS)],
             'notes' => ['nullable', 'string', 'max:500'],
         ]);
 
         $this->mainList()->items()->create([
             ShoppingListItem::NAME_COLUMN => $validated[ShoppingListItem::NAME_COLUMN],
-            ShoppingListItem::QUANTITY_COLUMN => $validated[ShoppingListItem::QUANTITY_COLUMN],
+            ShoppingListItem::QUANTITY_COLUMN => $validated[ShoppingListItem::QUANTITY_COLUMN] ?? null,
             ShoppingListItem::WEEK_DAY_COLUMN => $validated[ShoppingListItem::WEEK_DAY_COLUMN] ?? null,
             ShoppingListItem::IS_CHECKED_COLUMN => false,
             'notes' => $validated['notes'] ?? null,
@@ -62,7 +77,7 @@ class ShoppingListController extends Controller
             ShoppingListItem::IS_CHECKED_COLUMN => ! $shoppingListItem->{ShoppingListItem::IS_CHECKED_COLUMN},
         ]);
 
-        return redirect()->route('shopping-list.index')->with('status', 'Zaktualizowano status pozycji.');
+        return redirect()->route('shopping-list.index');
     }
 
     public function generate(Request $request): RedirectResponse
