@@ -1,6 +1,6 @@
 @php
-    /** @var array<int, array{ingredient_id?: string, custom_name?: string, quantity?: string}> $ingredientRows */
-    $ingredientRows = $ingredientRows ?? [['ingredient_id' => '', 'custom_name' => '', 'quantity' => '']];
+    /** @var array<int, array{ingredient_id?: string, ingredient_name?: string, custom_name?: string, quantity?: string}> $ingredientRows */
+    $ingredientRows = $ingredientRows ?? [['ingredient_id' => '', 'ingredient_name' => '', 'custom_name' => '', 'quantity' => '']];
     $ingredientOptions = $ingredientOptions ?? collect();
     $errors = $errors ?? new \Illuminate\Support\ViewErrorBag();
 @endphp
@@ -38,45 +38,46 @@
         </flux:button>
     </div>
 
-    <p class="text-xs text-zinc-500 dark:text-zinc-400">Wpisz nazwę i wybierz z listy. Jeśli składnika nie ma, wpisz nową nazwę i zostanie utworzony automatycznie.</p>
+    <p class="text-xs text-zinc-500 dark:text-zinc-400">Wpisz nazwę składnika i wybierz z podpowiedzi. Jeśli nie znajdziesz, zostaw wpisaną nazwę - składnik zostanie utworzony automatycznie.</p>
+
+    <datalist id="ingredient-name-options">
+        @foreach ($ingredientOptions as $ingredientOption)
+            <option value="{{ $ingredientOption->name }}"></option>
+        @endforeach
+    </datalist>
 
     <div id="ingredients-container" class="space-y-2">
         @foreach ($ingredientRows as $index => $row)
-            <div class="ingredient-row grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)_auto] md:items-start" data-row-index="{{ $index }}">
-                <flux:select searchable variant="default" :name="'ingredients['.$index.'][ingredient_id]'" :placeholder="__('Wybierz składnik')">
-                    <flux:select.option value="" :selected="empty($row['ingredient_id'] ?? '')">{{ __('Wybierz składnik') }}</flux:select.option>
-                    @foreach ($ingredientOptions as $ingredientOption)
-                        <flux:select.option value="{{ $ingredientOption->id }}" :selected="(string) ($row['ingredient_id'] ?? '') === (string) $ingredientOption->id">{{ $ingredientOption->name }}</flux:select.option>
-                    @endforeach
-                    <flux:select.option value="__new__" :selected="($row['ingredient_id'] ?? '') === '__new__'">{{ __('Dodaj nowy składnik') }}</flux:select.option>
-                </flux:select>
-
-                <flux:input
-                    :name="'ingredients['.$index.'][quantity]'"
-                    type="text"
-                    :label="__('Ilość')"
-                    :value="$row['quantity'] ?? ''"
-                    :placeholder="__('np. 2 łyżki')"
-                />
-
-                <div class="flex items-start pt-7">
-                    <flux:button
-                        type="button"
-                        icon="trash"
-                        variant="danger"
-                        size="sm"
-                        data-remove-ingredient-row
-                    />
-                </div>
-
-                <div class="custom-ingredient-row col-span-full @if (($row['ingredient_id'] ?? '') !== '__new__') hidden @endif">
+            <div class="ingredient-row rounded-xl border border-zinc-200 p-3 dark:border-zinc-700">
+                <div class="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1.3fr)_minmax(0,0.8fr)_auto] md:items-start" data-row-index="{{ $index }}">
                     <flux:input
-                        :name="'ingredients['.$index.'][custom_name]'"
-                        type="text"
-                        :label="__('Nowy składnik')"
-                        :value="$row['custom_name'] ?? ''"
-                        :placeholder="__('Wpisz nazwę nowego składnika')"
+                        :name="'ingredients['.$index.'][ingredient_name]'"
+                        :label="__('Składnik')"
+                        :value="$row['ingredient_name'] ?? ($row['custom_name'] ?? '')"
+                        :placeholder="__('Zacznij wpisywać nazwę składnika')"
+                        list="ingredient-name-options"
+                        required
                     />
+
+                    <input type="hidden" :name="'ingredients['.$index.'][ingredient_id]'" value="{{ $row['ingredient_id'] ?? '' }}" />
+
+                    <flux:input
+                        :name="'ingredients['.$index.'][quantity]'"
+                        type="text"
+                        :label="__('Ilość')"
+                        :value="$row['quantity'] ?? ''"
+                        :placeholder="__('np. 2 łyżki')"
+                    />
+
+                    <div class="flex items-start pt-7">
+                        <flux:button
+                            type="button"
+                            icon="trash"
+                            variant="danger"
+                            size="sm"
+                            data-remove-ingredient-row
+                        />
+                    </div>
                 </div>
             </div>
         @endforeach
@@ -89,33 +90,28 @@
 </div>
 
 <template id="ingredient-row-template">
-    <div class="ingredient-row grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)_auto] md:items-start" data-row-index="__INDEX__">
-        <flux:select searchable variant="default" :name="'ingredients[__INDEX__][ingredient_id]'" :placeholder="__('Wybierz składnik')">
-            <flux:select.option value="" selected>{{ __('Wybierz składnik') }}</flux:select.option>
-            @foreach ($ingredientOptions as $ingredientOption)
-                <flux:select.option value="{{ $ingredientOption->id }}">{{ $ingredientOption->name }}</flux:select.option>
-            @endforeach
-            <flux:select.option value="__new__">{{ __('Dodaj nowy składnik') }}</flux:select.option>
-        </flux:select>
-
-        <flux:input
-            :name="'ingredients[__INDEX__][quantity]'"
-            type="text"
-            :label="__('Ilość')"
-            :placeholder="__('np. 2 łyżki')"
-        />
-
-        <div class="flex items-start pt-7">
-            <flux:button type="button" icon="trash" variant="danger" size="sm" data-remove-ingredient-row />
-        </div>
-
-        <div class="custom-ingredient-row col-span-full hidden">
+    <div class="ingredient-row rounded-xl border border-zinc-200 p-3 dark:border-zinc-700">
+        <div class="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1.3fr)_minmax(0,0.8fr)_auto] md:items-start" data-row-index="__INDEX__">
             <flux:input
-                :name="'ingredients[__INDEX__][custom_name]'"
-                type="text"
-                :label="__('Nowy składnik')"
-                :placeholder="__('Wpisz nazwę nowego składnika')"
+                :name="'ingredients[__INDEX__][ingredient_name]'"
+                :label="__('Składnik')"
+                :placeholder="__('Zacznij wpisywać nazwę składnika')"
+                list="ingredient-name-options"
+                required
             />
+
+            <input type="hidden" :name="'ingredients[__INDEX__][ingredient_id]'" value="" />
+
+            <flux:input
+                :name="'ingredients[__INDEX__][quantity]'"
+                type="text"
+                :label="__('Ilość')"
+                :placeholder="__('np. 2 łyżki')"
+            />
+
+            <div class="flex items-start pt-7">
+                <flux:button type="button" icon="trash" variant="danger" size="sm" data-remove-ingredient-row />
+            </div>
         </div>
     </div>
 </template>
@@ -139,6 +135,10 @@
                         input.name = `ingredients[${index}][ingredient_id]`;
                     }
 
+                    if (input.name.includes('[ingredient_name]')) {
+                        input.name = `ingredients[${index}][ingredient_name]`;
+                    }
+
                     if (input.name.includes('[custom_name]')) {
                         input.name = `ingredients[${index}][custom_name]`;
                     }
@@ -148,17 +148,6 @@
                     }
                 });
             });
-        };
-
-        const syncCustomIngredientVisibility = (row) => {
-            const select = row.querySelector('[name*="[ingredient_id]"]');
-            const customRow = row.querySelector('.custom-ingredient-row');
-
-            if (!select || !customRow) {
-                return;
-            }
-
-            customRow.classList.toggle('hidden', select.value !== '__new__');
         };
 
         const attachRemoveHandler = (button) => {
@@ -178,17 +167,8 @@
             });
         };
 
-        container.querySelectorAll('.remove-ingredient-row').forEach((button) => {
+        container.querySelectorAll('[data-remove-ingredient-row]').forEach((button) => {
             attachRemoveHandler(button);
-        });
-
-        container.querySelectorAll('.ingredient-row').forEach((row) => {
-            syncCustomIngredientVisibility(row);
-
-            const select = row.querySelector('[name*="[ingredient_id]"]');
-            if (select) {
-                select.addEventListener('change', () => syncCustomIngredientVisibility(row));
-            }
         });
 
         addButton.addEventListener('click', () => {
@@ -196,19 +176,9 @@
             const html = template.innerHTML.replaceAll('__INDEX__', String(index));
             container.insertAdjacentHTML('beforeend', html);
 
-            const inserted = container.querySelector('.ingredient-row:last-child .remove-ingredient-row');
+            const inserted = container.querySelector('.ingredient-row:last-child [data-remove-ingredient-row]');
             if (inserted) {
                 attachRemoveHandler(inserted);
-            }
-
-            const insertedRow = container.querySelector('.ingredient-row:last-child');
-            if (insertedRow) {
-                const select = insertedRow.querySelector('[name*="[ingredient_id]"]');
-                if (select) {
-                    select.addEventListener('change', () => syncCustomIngredientVisibility(insertedRow));
-                }
-
-                syncCustomIngredientVisibility(insertedRow);
             }
         });
     });

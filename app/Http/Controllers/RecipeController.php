@@ -26,7 +26,7 @@ class RecipeController extends Controller
     {
         return view('recipes.create', [
             'ingredientOptions' => Ingredient::query()->get(['id', Ingredient::NAME_COLUMN])->sortBy(Ingredient::NAME_COLUMN)->values(),
-            'ingredientRows' => old('ingredients', [['ingredient_id' => '', 'custom_name' => '', 'quantity' => '']]),
+            'ingredientRows' => old('ingredients', [['ingredient_id' => '', 'ingredient_name' => '', 'custom_name' => '', 'quantity' => '']]),
         ]);
     }
 
@@ -64,6 +64,7 @@ class RecipeController extends Controller
             $ingredientRows = $recipe->ingredients
                 ->map(fn (Ingredient $ingredient) => [
                     'ingredient_id' => (string) $ingredient->id,
+                    'ingredient_name' => (string) $ingredient->name,
                     'custom_name' => '',
                     'quantity' => (string) $ingredient->pivot?->quantity,
                 ])
@@ -72,7 +73,7 @@ class RecipeController extends Controller
         }
 
         if ($ingredientRows === []) {
-            $ingredientRows = [['ingredient_id' => '', 'custom_name' => '', 'quantity' => '']];
+            $ingredientRows = [['ingredient_id' => '', 'ingredient_name' => '', 'custom_name' => '', 'quantity' => '']];
         }
 
         return view('recipes.edit', [
@@ -108,7 +109,7 @@ class RecipeController extends Controller
     }
 
     /**
-     * @return array{name: string, content: string, ingredients?: array<int, array{name?: string, quantity?: string}>}
+     * @return array{name: string, content: string, ingredients?: array<int, array{ingredient_id?: string, ingredient_name?: string, custom_name?: string, quantity?: string}>}
      */
     private function validateRecipe(Request $request): array
     {
@@ -117,13 +118,14 @@ class RecipeController extends Controller
             'content' => ['required', 'string'],
             'ingredients' => ['nullable', 'array'],
             'ingredients.*.ingredient_id' => ['nullable', 'string', 'max:255'],
+            'ingredients.*.ingredient_name' => ['nullable', 'string', 'max:255'],
             'ingredients.*.custom_name' => ['nullable', 'string', 'max:255'],
             'ingredients.*.quantity' => ['nullable', 'string', 'max:255'],
         ]);
     }
 
     /**
-     * @param  array<int, array{name?: string, quantity?: string}>  $ingredients
+     * @param  array<int, array{ingredient_id?: string, ingredient_name?: string, custom_name?: string, quantity?: string}>  $ingredients
      */
     private function syncIngredients(Recipe $recipe, array $ingredients): void
     {
@@ -131,6 +133,7 @@ class RecipeController extends Controller
 
         foreach ($ingredients as $ingredientRow) {
             $ingredientId = trim((string) ($ingredientRow['ingredient_id'] ?? ''));
+            $ingredientName = trim((string) ($ingredientRow['ingredient_name'] ?? ''));
             $customName = trim((string) ($ingredientRow['custom_name'] ?? ''));
             $quantity = trim((string) ($ingredientRow['quantity'] ?? ''));
 
@@ -144,9 +147,15 @@ class RecipeController extends Controller
                 $ingredient = Ingredient::query()->find($ingredientId);
             }
 
+            if (! $ingredient && $ingredientName !== '') {
+                $ingredient = Ingredient::query()->firstOrCreate([
+                    Ingredient::NAME_COLUMN => $ingredientName,
+                ]);
+            }
+
             if (! $ingredient && $customName !== '') {
                 $ingredient = Ingredient::query()->firstOrCreate([
-                    'name' => $customName,
+                    Ingredient::NAME_COLUMN => $customName,
                 ]);
             }
 
