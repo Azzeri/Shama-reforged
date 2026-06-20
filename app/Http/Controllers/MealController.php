@@ -41,6 +41,7 @@ class MealController extends Controller
             'weekStart' => $weekStart,
             'previousWeek' => $weekStart->copy()->subWeek()->toDateString(),
             'nextWeek' => $weekStart->copy()->addWeek()->toDateString(),
+            'isCurrentWeek' => $weekStart->isSameWeek(now()),
         ]);
     }
 
