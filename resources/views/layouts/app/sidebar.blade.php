@@ -23,6 +23,10 @@
                     <flux:sidebar.item icon="calendar" :href="route('meals.index')" :current="request()->routeIs('meals.*')" wire:navigate>
                         {{ __('Kalendarz') }}
                     </flux:sidebar.item>
+
+                    <flux:sidebar.item icon="shopping-cart" :href="route('shopping-list.index')" :current="request()->routeIs('shopping-list.*')" wire:navigate>
+                        {{ __('Lista zakupów') }}
+                    </flux:sidebar.item>
                 </flux:sidebar.group>
             </flux:sidebar.nav>
 

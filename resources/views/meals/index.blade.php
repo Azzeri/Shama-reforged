@@ -21,6 +21,36 @@
             </div>
         @endif
 
+        <div class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <form method="POST" action="{{ route('shopping-list.generate') }}" class="flex-1 space-y-3">
+                    @csrf
+                    <input type="hidden" name="week_start" value="{{ $weekStart->toDateString() }}">
+                    <input type="hidden" name="mode" value="selected-days">
+
+                    <p class="text-sm font-medium text-zinc-800 dark:text-zinc-200">Dodaj składniki do listy zakupów z wybranych dni:</p>
+                    <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+                        @foreach ($days as $dayData)
+                            <label class="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700">
+                                <input type="checkbox" name="days[]" value="{{ $dayData['date']->toDateString() }}" class="rounded border-zinc-300 text-zinc-900">
+                                <span>{{ $dayData['date']->isoFormat('ddd D.MM') }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+
+                    <flux:button type="submit" variant="primary" icon="plus">Dodaj z zaznaczonych dni</flux:button>
+                </form>
+
+                <form method="POST" action="{{ route('shopping-list.generate') }}" class="lg:ms-4">
+                    @csrf
+                    <input type="hidden" name="week_start" value="{{ $weekStart->toDateString() }}">
+                    <input type="hidden" name="mode" value="full-week">
+
+                    <flux:button type="submit" variant="ghost" icon="calendar-days">Dodaj z całego tygodnia</flux:button>
+                </form>
+            </div>
+        </div>
+
         <div class="grid gap-3 md:grid-cols-7">
             @foreach ($days as $dayData)
                 @php

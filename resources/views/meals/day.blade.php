@@ -8,6 +8,13 @@
 
             <div class="flex items-center gap-2">
                 <flux:button as="a" href="{{ route('meals.index', ['week' => $day->toDateString()]) }}" variant="ghost" size="sm">Powrót do tygodnia</flux:button>
+                <form method="POST" action="{{ route('shopping-list.generate') }}">
+                    @csrf
+                    <input type="hidden" name="week_start" value="{{ $day->copy()->startOfWeek()->toDateString() }}">
+                    <input type="hidden" name="mode" value="selected-days">
+                    <input type="hidden" name="days[]" value="{{ $day->toDateString() }}">
+                    <flux:button type="submit" variant="ghost" icon="shopping-cart" size="sm">Dodaj składniki z dnia</flux:button>
+                </form>
                 <flux:button as="a" href="{{ route('meals.create', ['date' => $day->format('Y-m-d\TH:i')]) }}" variant="primary" icon="plus" size="sm">
                     Dodaj posiłek
                 </flux:button>
