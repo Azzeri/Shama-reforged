@@ -63,9 +63,9 @@
                 <article class="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
                     <div class="flex items-start justify-between gap-3">
                         <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{{ $recipe->name }}</h2>
-                        <div class="flex items-center gap-1">
-                            <flux:button as="a" href="{{ route('recipes.show', $recipe) }}" icon="eye" variant="ghost" size="sm" />
-                            <flux:button as="a" href="{{ route('recipes.edit', $recipe) }}" icon="pencil" variant="ghost" size="sm" />
+                        <div class="flex flex-wrap items-center justify-end gap-1.5">
+                            <flux:button as="a" href="{{ route('recipes.show', $recipe) }}" icon="eye" variant="ghost" size="sm">Podgląd</flux:button>
+                            <flux:button as="a" href="{{ route('recipes.edit', $recipe) }}" icon="pencil" variant="ghost" size="sm">Edycja</flux:button>
                         </div>
                     </div>
 

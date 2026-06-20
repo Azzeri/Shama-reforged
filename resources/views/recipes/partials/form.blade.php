@@ -54,7 +54,7 @@
 <div class="space-y-3">
     <div class="flex items-center justify-between">
         <label class="block text-sm font-medium text-zinc-800 dark:text-zinc-200">Składniki</label>
-        <flux:button type="button" id="add-ingredient-row" variant="ghost" size="sm">
+        <flux:button type="button" id="add-ingredient-row" variant="primary" icon="plus" size="sm">
             Dodaj składnik
         </flux:button>
     </div>
@@ -70,15 +70,28 @@
     <div id="ingredients-container" class="space-y-2">
         @foreach ($ingredientRows as $index => $row)
             <div class="ingredient-row rounded-xl border border-zinc-200 p-3 dark:border-zinc-700">
-                <div class="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1.3fr)_minmax(0,0.8fr)_auto] md:items-start" data-row-index="{{ $index }}">
-                    <flux:input
-                        :name="'ingredients['.$index.'][ingredient_name]'"
-                        :label="__('Składnik')"
-                        :value="$row['ingredient_name'] ?? ($row['custom_name'] ?? '')"
-                        :placeholder="__('Zacznij wpisywać nazwę składnika')"
-                        list="ingredient-name-options"
-                        required
-                    />
+                <div class="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1.3fr)_minmax(0,0.8fr)] md:items-start" data-row-index="{{ $index }}">
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between gap-2">
+                            <label class="block text-sm font-medium text-zinc-800 dark:text-zinc-200">Składnik</label>
+                            <flux:button
+                                type="button"
+                                icon="trash"
+                                variant="danger"
+                                size="sm"
+                                class="h-7 min-h-0 px-1.5"
+                                data-remove-ingredient-row
+                            />
+                        </div>
+
+                        <flux:input
+                            :name="'ingredients['.$index.'][ingredient_name]'"
+                            :value="$row['ingredient_name'] ?? ($row['custom_name'] ?? '')"
+                            :placeholder="__('Zacznij wpisywać nazwę składnika')"
+                            list="ingredient-name-options"
+                            required
+                        />
+                    </div>
 
                     <input type="hidden" :name="'ingredients['.$index.'][ingredient_id]'" value="{{ $row['ingredient_id'] ?? '' }}" />
 
@@ -89,16 +102,6 @@
                         :value="$row['quantity'] ?? ''"
                         :placeholder="__('np. 2 łyżki')"
                     />
-
-                    <div class="flex items-start pt-7">
-                        <flux:button
-                            type="button"
-                            icon="trash"
-                            variant="danger"
-                            size="sm"
-                            data-remove-ingredient-row
-                        />
-                    </div>
                 </div>
             </div>
         @endforeach
@@ -112,14 +115,20 @@
 
 <template id="ingredient-row-template">
     <div class="ingredient-row rounded-xl border border-zinc-200 p-3 dark:border-zinc-700">
-        <div class="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1.3fr)_minmax(0,0.8fr)_auto] md:items-start" data-row-index="__INDEX__">
-            <flux:input
-                :name="'ingredients[__INDEX__][ingredient_name]'"
-                :label="__('Składnik')"
-                :placeholder="__('Zacznij wpisywać nazwę składnika')"
-                list="ingredient-name-options"
-                required
-            />
+        <div class="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1.3fr)_minmax(0,0.8fr)] md:items-start" data-row-index="__INDEX__">
+            <div class="space-y-1.5">
+                <div class="flex items-center justify-between gap-2">
+                    <label class="block text-sm font-medium text-zinc-800 dark:text-zinc-200">Składnik</label>
+                    <flux:button type="button" icon="trash" variant="danger" size="sm" class="h-7 min-h-0 px-1.5" data-remove-ingredient-row />
+                </div>
+
+                <flux:input
+                    :name="'ingredients[__INDEX__][ingredient_name]'"
+                    :placeholder="__('Zacznij wpisywać nazwę składnika')"
+                    list="ingredient-name-options"
+                    required
+                />
+            </div>
 
             <input type="hidden" :name="'ingredients[__INDEX__][ingredient_id]'" value="" />
 
@@ -129,10 +138,6 @@
                 :label="__('Ilość')"
                 :placeholder="__('np. 2 łyżki')"
             />
-
-            <div class="flex items-start pt-7">
-                <flux:button type="button" icon="trash" variant="danger" size="sm" data-remove-ingredient-row />
-            </div>
         </div>
     </div>
 </template>
@@ -197,9 +202,16 @@
             const html = template.innerHTML.replaceAll('__INDEX__', String(index));
             container.insertAdjacentHTML('beforeend', html);
 
-            const inserted = container.querySelector('.ingredient-row:last-child [data-remove-ingredient-row]');
-            if (inserted) {
-                attachRemoveHandler(inserted);
+            const newRow = container.querySelector('.ingredient-row:last-child');
+            const removeButton = newRow ? newRow.querySelector('[data-remove-ingredient-row]') : null;
+            if (removeButton) {
+                attachRemoveHandler(removeButton);
+            }
+
+            const ingredientNameInput = newRow ? newRow.querySelector('input[name$="[ingredient_name]"]') : null;
+            if (ingredientNameInput instanceof HTMLInputElement) {
+                ingredientNameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                ingredientNameInput.focus();
             }
         });
     });

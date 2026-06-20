@@ -1,11 +1,15 @@
 <x-layouts::app :title="__('Podgląd przepisu')">
     <div class="mx-auto w-full max-w-3xl space-y-6">
-        <div class="flex items-center justify-between">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h1 class="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">{{ $recipe->name }}</h1>
 
-            <div class="flex items-center gap-3 text-sm">
-                <a href="{{ route('recipes.edit', $recipe) }}" class="text-blue-700 hover:underline dark:text-blue-300">Edytuj</a>
-                <a href="{{ route('recipes.index') }}" class="text-zinc-700 hover:underline dark:text-zinc-300">Wróć do listy</a>
+            <div class="flex flex-wrap items-center gap-2">
+                <flux:button as="a" href="{{ route('recipes.edit', $recipe) }}" variant="primary" icon="pencil" size="sm">
+                    Edytuj
+                </flux:button>
+                <flux:button as="a" href="{{ route('recipes.index') }}" variant="ghost" icon="arrow-left" size="sm">
+                    Wróć do listy
+                </flux:button>
             </div>
         </div>
 
