@@ -12,6 +12,10 @@
 
             <flux:sidebar.nav>
                 <flux:sidebar.group :heading="__('Shama')" class="grid">
+                    <flux:sidebar.item icon="list-bullet" :href="route('ingredients.index')" :current="request()->routeIs('ingredients.*')" wire:navigate>
+                        {{ __('Składniki') }}
+                    </flux:sidebar.item>
+
                     <flux:sidebar.item icon="book-open-text" :href="route('recipes.index')" :current="request()->routeIs('recipes.*')" wire:navigate>
                         {{ __('Przepisy') }}
                     </flux:sidebar.item>
