@@ -14,7 +14,7 @@ class Tag extends Model
 
     public const NAME_COLUMN = 'name';
 
-    public const DEFAULT_NAMES = ['sniadanie', 'obiad', 'kolacja', 'deser'];
+    public const DEFAULT_NAMES = ['sniadanie', 'lunch', 'obiad', 'kolacja', 'deser'];
 
     public function recipes(): BelongsToMany
     {
