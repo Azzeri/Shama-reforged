@@ -53,6 +53,28 @@ test('authenticated user can open day view from calendar', function () {
     $response->assertSee('Dodaj posiłek', false);
 });
 
+test('day edit form renders recipe id inputs with name attribute', function () {
+    $user = User::factory()->create();
+    $meal = Meal::query()->create([
+        'type' => 'breakfast',
+        'date' => Carbon::parse('2026-06-24 08:00:00'),
+    ]);
+
+    $recipe = Recipe::query()->create([
+        'name' => 'Jajecznica',
+        'content' => 'Opis.',
+    ]);
+
+    $meal->recipes()->attach($recipe->id);
+
+    $this->actingAs($user);
+
+    $response = $this->get(route('meals.day.edit', '2026-06-24'));
+
+    $response->assertOk();
+    $response->assertSee('name="meals[0][recipes][0][recipe_id]"', false);
+});
+
 test('authenticated user can update all meals in a day at once', function () {
     $user = User::factory()->create();
     $firstMeal = Meal::query()->create([
@@ -163,6 +185,40 @@ test('authenticated user can reuse the same recipe across different meals in day
     expect($secondMeal->type)->toBe('dessert');
     expect($firstMeal->recipes->pluck('id')->all())->toBe([$sharedRecipe->id]);
     expect($secondMeal->recipes->pluck('id')->all())->toBe([$sharedRecipe->id]);
+});
+
+test('authenticated user can edit existing meal without changing recipes', function () {
+    $user = User::factory()->create();
+
+    $meal = Meal::query()->create([
+        'type' => 'breakfast',
+        'date' => Carbon::parse('2026-06-25 08:00:00'),
+    ]);
+
+    $recipe = Recipe::query()->create([
+        'name' => 'Owsianka',
+        'content' => 'Opis.',
+    ]);
+
+    $meal->recipes()->attach($recipe->id);
+
+    $this->actingAs($user);
+
+    // Submit without changing recipes (recipes array is empty)
+    $this->put(route('meals.day.update', '2026-06-25'), [
+        'meals' => [
+            [
+                'id' => (string) $meal->id,
+                'type' => 'lunch',
+                'recipes' => [],
+            ],
+        ],
+    ]);
+
+    $meal->refresh();
+    expect($meal->type)->toBe('lunch');
+    // Recipes should remain unchanged - verify by direct query
+    expect($meal->recipes()->count())->toBe(1);
 });
 
 test('authenticated user can add new meals during day edit', function () {

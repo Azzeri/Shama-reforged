@@ -99,7 +99,7 @@
 
                                         <input
                                             type="hidden"
-                                            :name="'meals['.$index.'][recipes]['.$recipeIndex.'][recipe_id]'"
+                                            name="meals[{{ $index }}][recipes][{{ $recipeIndex }}][recipe_id]"
                                             value="{{ $selectedRecipeId }}"
                                             data-day-recipe-id
                                         >
@@ -121,7 +121,7 @@
 
                                     <input
                                         type="hidden"
-                                        :name="'meals['.$index.'][recipes][__ROW_INDEX__][recipe_id]'"
+                                        name="meals[{{ $index }}][recipes][__ROW_INDEX__][recipe_id]"
                                         value=""
                                         data-day-recipe-id
                                     >

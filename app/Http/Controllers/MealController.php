@@ -113,7 +113,7 @@ class MealController extends Controller
             'meals' => ['required', 'array', 'min:1'],
             'meals.*.id' => ['nullable', 'integer', 'exists:meals,id'],
             'meals.*.type' => ['required', 'string', Rule::in(Meal::TYPES)],
-            'meals.*.recipes' => ['required', 'array'],
+            'meals.*.recipes' => ['nullable', 'array'],
             'meals.*.recipes.*.recipe_id' => ['nullable', 'integer', 'exists:recipes,id'],
         ]);
 
@@ -127,14 +127,19 @@ class MealController extends Controller
                 return $mealPayload;
             })
             ->filter(function (array $mealPayload): bool {
-                return ! empty($mealPayload['recipes']);
+                $isExistingMeal = ! empty($mealPayload['id']);
+                $hasRecipes = ! empty($mealPayload['recipes']);
+                
+                // For existing meals, don't require recipes (they keep their existing ones)
+                // For new meals, require at least one recipe
+                return $isExistingMeal || $hasRecipes;
             })
             ->values()
             ->all();
 
         if (empty($validated['meals'])) {
             return back()
-                ->withErrors(['meals' => 'Każdy posiłek musi mieć co najmniej jeden przepis.'])
+                ->withErrors(['meals' => 'Należy dodać co najmniej jeden posiłek lub przepis.'])
                 ->withInput();
         }
 
@@ -184,7 +189,10 @@ class MealController extends Controller
                 ->values()
                 ->all();
 
-            $meal->recipes()->sync($recipeIds);
+            // Only sync recipes if new meal or if recipes are submitted
+            if ($mealId === 0 || ! empty($recipeIds)) {
+                $meal->recipes()->sync($recipeIds);
+            }
         }
 
         return redirect()
