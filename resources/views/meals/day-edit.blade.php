@@ -28,21 +28,17 @@
             </div>
         @endif
 
-        @if ($meals->isEmpty())
-            <div class="rounded-2xl border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
-                Brak posiłków dla tego dnia.
-            </div>
-        @else
-            <datalist id="day-recipe-name-options">
-                @foreach ($recipeOptions as $recipeOption)
-                    <option value="{{ $recipeOption->name }}"></option>
-                @endforeach
-            </datalist>
+        <datalist id="day-recipe-name-options">
+            @foreach ($recipeOptions as $recipeOption)
+                <option value="{{ $recipeOption->name }}"></option>
+            @endforeach
+        </datalist>
 
-            <form method="POST" action="{{ route('meals.day.update', $day->toDateString()) }}" class="space-y-4">
-                @csrf
-                @method('PUT')
+        <form method="POST" action="{{ route('meals.day.update', $day->toDateString()) }}" class="space-y-4" id="day-edit-form">
+            @csrf
+            @method('PUT')
 
+            <div id="day-meals-container">
                 @foreach ($meals as $index => $meal)
                     @php
                         $oldMeal = old('meals.'.$index, []);
@@ -60,18 +56,16 @@
                         }
                     @endphp
 
-                    <div class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
+                    <div class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900" data-meal-index="{{ $index }}">
                         <input type="hidden" name="meals[{{ $index }}][id]" value="{{ $meal->id }}">
 
-                        <div class="grid gap-4">
-                            <div>
-                                <label class="mb-1 block text-sm font-medium text-zinc-800 dark:text-zinc-200">Typ posiłku</label>
-                                <select name="meals[{{ $index }}][type]" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" required>
-                                    @foreach ($typeOptions as $value => $label)
-                                        <option value="{{ $value }}" @selected((string) $selectedType === (string) $value)>{{ $label }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
+                        <div>
+                            <label class="mb-1 block text-sm font-medium text-zinc-800 dark:text-zinc-200">Typ posiłku</label>
+                            <select name="meals[{{ $index }}][type]" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" required>
+                                @foreach ($typeOptions as $value => $label)
+                                    <option value="{{ $value }}" @selected((string) $selectedType === (string) $value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
                         </div>
 
                         <div class="mt-4 space-y-2">
@@ -138,19 +132,94 @@
                         </div>
                     </div>
                 @endforeach
+            </div>
 
-                <div class="flex items-center justify-end gap-3">
-                    <flux:button as="a" href="{{ route('meals.day', $day->toDateString()) }}" variant="ghost">Anuluj</flux:button>
-                    <flux:button type="submit" variant="primary" icon="check">Zapisz cały dzień</flux:button>
+            <template id="day-meal-template">
+                <div class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900" data-meal-index="__MEAL_INDEX__">
+                    <input type="hidden" name="meals[__MEAL_INDEX__][id]" value="">
+
+                    <div class="flex items-center justify-end gap-3 mb-4">
+                        <flux:button type="button" icon="trash" variant="danger" size="sm" data-remove-day-meal />
+                    </div>
+
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-zinc-800 dark:text-zinc-200">Typ posiłku</label>
+                        <select name="meals[__MEAL_INDEX__][type]" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" required>
+                            <option value="breakfast">Śniadanie</option>
+                            <option value="lunch">Obiad</option>
+                            <option value="dinner">Kolacja</option>
+                            <option value="dessert">Deser</option>
+                        </select>
+                    </div>
+
+                    <div class="mt-4 space-y-2">
+                        <div class="flex items-center justify-between gap-3">
+                            <p class="text-sm font-medium text-zinc-800 dark:text-zinc-200">Przepisy</p>
+                            <flux:button type="button" variant="ghost" size="sm" icon="plus" data-add-day-recipe-row="__MEAL_INDEX__" />
+                        </div>
+
+                        <p class="text-xs text-zinc-500 dark:text-zinc-400">Wpisz nazwę przepisu i wybierz z podpowiedzi.</p>
+
+                        <div class="space-y-2" data-day-recipes-container="__MEAL_INDEX__">
+                            <div class="day-recipe-row grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2" data-row-index="0">
+                                <flux:input
+                                    name="meals[__MEAL_INDEX__][recipes][0][recipe_name]"
+                                    placeholder="Zacznij wpisywać nazwę przepisu"
+                                    list="day-recipe-name-options"
+                                    data-day-recipe-name
+                                    required
+                                />
+
+                                <input
+                                    type="hidden"
+                                    name="meals[__MEAL_INDEX__][recipes][0][recipe_id]"
+                                    value=""
+                                    data-day-recipe-id
+                                >
+
+                                <flux:button type="button" icon="trash" variant="danger" size="sm" data-remove-day-recipe-row />
+                            </div>
+                        </div>
+
+                        <template data-day-recipes-template="__MEAL_INDEX__">
+                            <div class="day-recipe-row grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2" data-row-index="__ROW_INDEX__">
+                                <flux:input
+                                    name="meals[__MEAL_INDEX__][recipes][__ROW_INDEX__][recipe_name]"
+                                    placeholder="Zacznij wpisywać nazwę przepisu"
+                                    list="day-recipe-name-options"
+                                    data-day-recipe-name
+                                    required
+                                />
+
+                                <input
+                                    type="hidden"
+                                    name="meals[__MEAL_INDEX__][recipes][__ROW_INDEX__][recipe_id]"
+                                    value=""
+                                    data-day-recipe-id
+                                >
+
+                                <flux:button type="button" icon="trash" variant="danger" size="sm" data-remove-day-recipe-row />
+                            </div>
+                        </template>
+                    </div>
                 </div>
-            </form>
-        @endif
+            </template>
+
+            <div class="flex items-center justify-end gap-3">
+                <flux:button type="button" variant="ghost" icon="plus" id="add-day-meal-btn">Dodaj posiłek</flux:button>
+                <flux:button as="a" href="{{ route('meals.day', $day->toDateString()) }}" variant="ghost">Anuluj</flux:button>
+                <flux:button type="submit" variant="primary" icon="check">Zapisz cały dzień</flux:button>
+            </div>
+        </form>
     </div>
 </x-layouts::app>
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        const containers = document.querySelectorAll('[data-day-recipes-container]');
+        const form = document.getElementById('day-edit-form');
+        const mealsContainer = document.getElementById('day-meals-container');
+        const mealTemplate = document.getElementById('day-meal-template');
+        const addMealBtn = document.getElementById('add-day-meal-btn');
         const recipeNameMap = new Map();
 
         @foreach ($recipeOptions as $recipeOption)
@@ -232,18 +301,14 @@
             });
         };
 
-        containers.forEach((container) => {
-            const mealIndex = container.getAttribute('data-day-recipes-container');
-            if (!mealIndex) {
-                return;
-            }
+        const setupMealRecipeHandlers = (mealIndex) => {
+            const container = document.querySelector(`[data-day-recipes-container="${mealIndex}"]`);
+            if (!container) return;
 
             const template = document.querySelector(`[data-day-recipes-template="${mealIndex}"]`);
             const addButton = document.querySelector(`[data-add-day-recipe-row="${mealIndex}"]`);
 
-            if (!template || !addButton) {
-                return;
-            }
+            if (!template || !addButton) return;
 
             container.querySelectorAll('.day-recipe-row').forEach((row) => {
                 attachNameHandlers(row);
@@ -269,6 +334,62 @@
                 attachRemoveHandlers(container, mealIndex);
                 reindexRows(container, mealIndex);
             });
+        };
+
+        const getMealIndex = () => {
+            const existingMeals = mealsContainer.querySelectorAll('[data-meal-index]');
+            return existingMeals.length;
+        };
+
+        const addNewMeal = () => {
+            const mealIndex = getMealIndex();
+            const html = mealTemplate.innerHTML.replaceAll(/__MEAL_INDEX__/g, String(mealIndex));
+            mealsContainer.insertAdjacentHTML('beforeend', html);
+
+            setupMealRecipeHandlers(mealIndex);
+
+            const newMeal = mealsContainer.querySelector(`[data-meal-index="${mealIndex}"]`);
+            if (newMeal) {
+                const typeSelect = newMeal.querySelector('select[name*="[type]"]');
+                if (typeSelect instanceof HTMLElement) {
+                    typeSelect.focus();
+                }
+            }
+        };
+
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('[data-remove-day-meal]')) {
+                const mealCard = e.target.closest('[data-meal-index]');
+                if (mealCard) {
+                    mealCard.remove();
+                }
+            }
+        });
+
+        form.addEventListener('submit', (e) => {
+            document.querySelectorAll('[data-meal-index]').forEach((mealCard) => {
+                const mealIndex = mealCard.getAttribute('data-meal-index');
+                const container = document.querySelector(`[data-day-recipes-container="${mealIndex}"]`);
+                if (!container) return;
+
+                const rowsToRemove = [];
+                container.querySelectorAll('.day-recipe-row').forEach((row) => {
+                    const recipeIdInput = row.querySelector('[data-day-recipe-id]');
+                    if (recipeIdInput instanceof HTMLInputElement && recipeIdInput.value.trim() === '') {
+                        rowsToRemove.push(row);
+                    }
+                });
+
+                rowsToRemove.forEach(row => row.remove());
+                reindexRows(container, mealIndex);
+            });
+        });
+
+        addMealBtn.addEventListener('click', addNewMeal);
+
+        document.querySelectorAll('[data-meal-index]').forEach((mealCard) => {
+            const mealIndex = mealCard.getAttribute('data-meal-index');
+            setupMealRecipeHandlers(mealIndex);
         });
     });
 </script>

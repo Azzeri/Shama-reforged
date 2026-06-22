@@ -115,6 +115,181 @@ test('authenticated user can update all meals in a day at once', function () {
     expect($secondMeal->recipes->pluck('id')->all())->toBe([$newRecipeB->id]);
 });
 
+test('authenticated user can reuse the same recipe across different meals in day edit', function () {
+    $user = User::factory()->create();
+
+    $firstMeal = Meal::query()->create([
+        'type' => 'breakfast',
+        'date' => Carbon::parse('2026-06-25 08:00:00'),
+    ]);
+
+    $secondMeal = Meal::query()->create([
+        'type' => 'dinner',
+        'date' => Carbon::parse('2026-06-25 19:00:00'),
+    ]);
+
+    $sharedRecipe = Recipe::query()->create([
+        'name' => 'Rosół',
+        'content' => 'Opis.',
+    ]);
+
+    $this->actingAs($user);
+
+    $response = $this->put(route('meals.day.update', '2026-06-25'), [
+        'meals' => [
+            [
+                'id' => (string) $firstMeal->id,
+                'type' => 'lunch',
+                'recipes' => [
+                    ['recipe_id' => (string) $sharedRecipe->id],
+                ],
+            ],
+            [
+                'id' => (string) $secondMeal->id,
+                'type' => 'dessert',
+                'recipes' => [
+                    ['recipe_id' => (string) $sharedRecipe->id],
+                ],
+            ],
+        ],
+    ]);
+
+    $response->assertRedirect(route('meals.day', '2026-06-25'));
+
+    $firstMeal->refresh();
+    $secondMeal->refresh();
+
+    expect($firstMeal->type)->toBe('lunch');
+    expect($secondMeal->type)->toBe('dessert');
+    expect($firstMeal->recipes->pluck('id')->all())->toBe([$sharedRecipe->id]);
+    expect($secondMeal->recipes->pluck('id')->all())->toBe([$sharedRecipe->id]);
+});
+
+test('authenticated user can add new meals during day edit', function () {
+    $user = User::factory()->create();
+
+    $existingMeal = Meal::query()->create([
+        'type' => 'breakfast',
+        'date' => Carbon::parse('2026-06-26 08:00:00'),
+    ]);
+
+    $recipe1 = Recipe::query()->create([
+        'name' => 'Jajka',
+        'content' => 'Opis.',
+    ]);
+
+    $recipe2 = Recipe::query()->create([
+        'name' => 'Napój',
+        'content' => 'Opis.',
+    ]);
+
+    $recipe3 = Recipe::query()->create([
+        'name' => 'Zupa',
+        'content' => 'Opis.',
+    ]);
+
+    $existingMeal->recipes()->attach($recipe1->id);
+
+    $this->actingAs($user);
+
+    $response = $this->put(route('meals.day.update', '2026-06-26'), [
+        'meals' => [
+            [
+                'id' => (string) $existingMeal->id,
+                'type' => 'lunch',
+                'recipes' => [
+                    ['recipe_id' => (string) $recipe1->id],
+                ],
+            ],
+            [
+                'id' => '',
+                'type' => 'dinner',
+                'recipes' => [
+                    ['recipe_id' => (string) $recipe2->id],
+                ],
+            ],
+            [
+                'id' => '',
+                'type' => 'dessert',
+                'recipes' => [
+                    ['recipe_id' => (string) $recipe3->id],
+                ],
+            ],
+        ],
+    ]);
+
+    $response->assertRedirect(route('meals.day', '2026-06-26'));
+
+    $existingMeal->refresh();
+    expect($existingMeal->type)->toBe('lunch');
+    expect($existingMeal->date->format('Y-m-d H:i'))->toBe('2026-06-26 08:00');
+    expect($existingMeal->recipes->pluck('id')->all())->toBe([$recipe1->id]);
+
+    $newMeals = Meal::query()
+        ->whereDate('date', '2026-06-26')
+        ->where('id', '!=', $existingMeal->id)
+        ->orderBy('date')
+        ->get();
+
+    expect($newMeals->count())->toBe(2);
+
+    expect($newMeals[0]->type)->toBe('dinner');
+    expect($newMeals[0]->date->format('Y-m-d H:i'))->toBe('2026-06-26 12:00');
+    expect($newMeals[0]->recipes->pluck('id')->all())->toBe([$recipe2->id]);
+
+    expect($newMeals[1]->type)->toBe('dessert');
+    expect($newMeals[1]->date->format('Y-m-d H:i'))->toBe('2026-06-26 12:00');
+    expect($newMeals[1]->recipes->pluck('id')->all())->toBe([$recipe3->id]);
+});
+
+test('authenticated user can add two new meals with recipes at once', function () {
+    $user = User::factory()->create();
+
+    $recipe1 = Recipe::query()->create([
+        'name' => 'Obiad1',
+        'content' => 'Opis.',
+    ]);
+
+    $recipe2 = Recipe::query()->create([
+        'name' => 'Obiad2',
+        'content' => 'Opis.',
+    ]);
+
+    $this->actingAs($user);
+
+    $response = $this->put(route('meals.day.update', '2026-06-27'), [
+        'meals' => [
+            [
+                'id' => '',
+                'type' => 'lunch',
+                'recipes' => [
+                    ['recipe_id' => (string) $recipe1->id],
+                ],
+            ],
+            [
+                'id' => '',
+                'type' => 'dinner',
+                'recipes' => [
+                    ['recipe_id' => (string) $recipe2->id],
+                ],
+            ],
+        ],
+    ]);
+
+    $response->assertRedirect(route('meals.day', '2026-06-27'));
+
+    $meals = Meal::query()
+        ->whereDate('date', '2026-06-27')
+        ->orderBy('date')
+        ->get();
+
+    expect($meals->count())->toBe(2);
+    expect($meals[0]->type)->toBe('lunch');
+    expect($meals[0]->recipes->pluck('id')->all())->toBe([$recipe1->id]);
+    expect($meals[1]->type)->toBe('dinner');
+    expect($meals[1]->recipes->pluck('id')->all())->toBe([$recipe2->id]);
+});
+
 test('authenticated user can create meal with recipes', function () {
     $user = User::factory()->create();
     $firstRecipe = Recipe::query()->create([

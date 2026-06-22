@@ -111,34 +111,71 @@ class MealController extends Controller
 
         $validated = $request->validate([
             'meals' => ['required', 'array', 'min:1'],
-            'meals.*.id' => ['required', 'integer', 'exists:meals,id'],
+            'meals.*.id' => ['nullable', 'integer', 'exists:meals,id'],
             'meals.*.type' => ['required', 'string', Rule::in(Meal::TYPES)],
-            'meals.*.recipes' => ['required', 'array', 'min:1'],
-            'meals.*.recipes.*.recipe_id' => ['required', 'integer', 'distinct', 'exists:recipes,id'],
+            'meals.*.recipes' => ['required', 'array'],
+            'meals.*.recipes.*.recipe_id' => ['nullable', 'integer', 'exists:recipes,id'],
         ]);
 
-        $dayMealIds = Meal::query()
-            ->whereDate('date', $day->toDateString())
-            ->pluck('id');
+        $validated['meals'] = collect($validated['meals'])
+            ->map(function (array $mealPayload): array {
+                $mealPayload['recipes'] = collect($mealPayload['recipes'] ?? [])
+                    ->filter(fn (array $recipeRow): bool => ! empty($recipeRow['recipe_id']))
+                    ->values()
+                    ->all();
 
-        $submittedMealIds = collect($validated['meals'])
+                return $mealPayload;
+            })
+            ->filter(function (array $mealPayload): bool {
+                return ! empty($mealPayload['recipes']);
+            })
+            ->values()
+            ->all();
+
+        if (empty($validated['meals'])) {
+            return back()
+                ->withErrors(['meals' => 'Każdy posiłek musi mieć co najmniej jeden przepis.'])
+                ->withInput();
+        }
+
+        $existingMealIds = Meal::query()
+            ->whereDate('date', $day->toDateString())
+            ->pluck('id')
+            ->toArray();
+
+        $submittedExistingMealIds = collect($validated['meals'])
+            ->filter(fn (array $mealPayload): bool => ! empty($mealPayload['id']))
             ->pluck('id')
             ->map(static function ($mealId): int {
                 return (int) $mealId;
-            });
+            })
+            ->toArray();
 
-        if ($submittedMealIds->diff($dayMealIds)->isNotEmpty()) {
+        $unknownMealIds = array_diff($submittedExistingMealIds, $existingMealIds);
+        if (! empty($unknownMealIds)) {
             return back()
                 ->withErrors(['meals' => 'Nie można zapisać posiłków spoza wybranego dnia.'])
                 ->withInput();
         }
 
         foreach ($validated['meals'] as $mealPayload) {
-            $meal = Meal::query()->findOrFail((int) $mealPayload['id']);
+            $mealId = (int) ($mealPayload['id'] ?? 0);
 
-            $meal->update([
+            if ($mealId > 0) {
+                $meal = Meal::query()->findOrFail($mealId);
+            } else {
+                $meal = new Meal();
+            }
+
+            $meal->fill([
                 'type' => $mealPayload['type'],
             ]);
+
+            if ($mealId === 0) {
+                $meal->date = $day->copy()->setTime(12, 0);
+            }
+
+            $meal->save();
 
             $recipeIds = collect($mealPayload['recipes'])
                 ->map(fn (array $recipeRow): int => (int) ($recipeRow['recipe_id'] ?? 0))
