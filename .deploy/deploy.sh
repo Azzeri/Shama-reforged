@@ -25,7 +25,7 @@ sudo chmod -R 755 public/build
 
 # 6. Wykonanie migracji bazy danych
 echo "🗄️ Uruchamianie migracji bazy danych..."
-sudo docker compose -f .deploy/docker-compose.yml exec -T app php artisan migrate --force
+sudo docker compose -f .deploy/docker-compose.yml exec -T app php artisan migrate --force --seed
 
 # 7. Czyszczenie i budowanie produkcyjnego cache Laravela
 echo "⚡ Optymalizacja i cache'owanie aplikacji..."
