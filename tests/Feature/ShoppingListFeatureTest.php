@@ -142,3 +142,37 @@ test('authenticated user can generate shopping list items from full week', funct
     expect(ShoppingListItem::query()->get()->contains(fn (ShoppingListItem $item) => $item->name === 'Płatki owsiane'))->toBeTrue();
     expect(ShoppingListItem::query()->get()->contains(fn (ShoppingListItem $item) => $item->name === 'Ogórek'))->toBeTrue();
 });
+
+test('authenticated user can clear unchecked shopping list items', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user);
+
+    $this->post(route('shopping-list.items.store'), [
+        'name' => 'Mleko',
+        'quantity' => '2 l',
+    ]);
+    $this->post(route('shopping-list.items.store'), [
+        'name' => 'Chleb',
+        'quantity' => '1 sztuka',
+    ]);
+    $this->post(route('shopping-list.items.store'), [
+        'name' => 'Jajka',
+        'quantity' => '10 sztuk',
+    ]);
+
+    expect(ShoppingListItem::query()->count())->toBe(3);
+    expect(ShoppingListItem::query()->where('is_checked', false)->count())->toBe(3);
+
+    $itemToCheck = ShoppingListItem::query()->first();
+    $this->patch(route('shopping-list.items.toggle', $itemToCheck));
+
+    expect(ShoppingListItem::query()->where('is_checked', false)->count())->toBe(2);
+
+    $response = $this->delete(route('shopping-list.clear-unchecked'));
+
+    $response->assertRedirect(route('shopping-list.index'));
+    expect(ShoppingListItem::query()->count())->toBe(1);
+    expect(ShoppingListItem::query()->first()?->name)->toBe('Mleko');
+    expect(ShoppingListItem::query()->first()?->is_checked)->toBeTrue();
+});

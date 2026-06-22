@@ -80,6 +80,17 @@ class ShoppingListController extends Controller
         return redirect()->route('shopping-list.index');
     }
 
+    public function clearUnchecked(): RedirectResponse
+    {
+        $deleted = $this->mainList()->items()
+            ->where(ShoppingListItem::IS_CHECKED_COLUMN, false)
+            ->delete();
+
+        return redirect()
+            ->route('shopping-list.index')
+            ->with('status', "Usunięto {$deleted} niekupionych pozycji.");
+    }
+
     public function generate(Request $request): RedirectResponse
     {
         $validated = $request->validate([

@@ -20,9 +20,12 @@
             </div>
         @endif
 
-        <div class="flex justify-end">
+        <div class="flex justify-end gap-3">
             <flux:modal.trigger name="add-shopping-item">
                 <flux:button variant="primary" icon="plus">Dodaj pozycję</flux:button>
+            </flux:modal.trigger>
+            <flux:modal.trigger name="clear-unchecked">
+                <flux:button variant="ghost" icon="trash">Wyczyść niekupione</flux:button>
             </flux:modal.trigger>
         </div>
 
@@ -53,6 +56,22 @@
                     <flux:button type="submit" variant="primary" icon="plus">Dodaj</flux:button>
                 </div>
             </form>
+        </flux:modal>
+
+        <flux:modal name="clear-unchecked" class="w-full max-w-lg">
+            <flux:heading size="lg">Wyczyść niekupione pozycje</flux:heading>
+            <flux:subheading>Ta akcja usunie wszystkie niekupione pozycje z listy zakupów. Nie można tego cofnąć.</flux:subheading>
+
+            <div class="mt-6 flex justify-end gap-3">
+                <flux:modal.close>
+                    <flux:button variant="ghost">Anuluj</flux:button>
+                </flux:modal.close>
+                <form method="POST" action="{{ route('shopping-list.clear-unchecked') }}" style="display: inline;">
+                    @csrf
+                    @method('DELETE')
+                    <flux:button type="submit" variant="danger" icon="trash">Usuń niekupione</flux:button>
+                </form>
+            </div>
         </flux:modal>
 
         <section class="space-y-4">

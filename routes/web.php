@@ -26,6 +26,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('shopping-list/items', [ShoppingListController::class, 'store'])->name('shopping-list.items.store');
     Route::patch('shopping-list/items/{shoppingListItem}/toggle', [ShoppingListController::class, 'toggle'])->name('shopping-list.items.toggle');
     Route::post('shopping-list/generate', [ShoppingListController::class, 'generate'])->name('shopping-list.generate');
+    Route::delete('shopping-list/clear-unchecked', [ShoppingListController::class, 'clearUnchecked'])->name('shopping-list.clear-unchecked');
 });
 
 require __DIR__.'/settings.php';
