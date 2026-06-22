@@ -5,10 +5,6 @@ set -e
 
 echo "🚀 Rozpoczynam wdrażanie nowej wersji aplikacji..."
 
-# 1. Pobranie najnowszego kodu z repozytorium
-echo "📥 Pobieranie zmian z Git..."
-git pull origin main
-
 # 2. Upewnienie się, że foldery tymczasowe istnieją
 echo "📁 Sprawdzanie struktury folderów..."
 mkdir -p storage/framework/{cache,sessions,views} storage/app/tmp public/build

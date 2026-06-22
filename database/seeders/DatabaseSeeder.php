@@ -19,10 +19,18 @@ class DatabaseSeeder extends Seeder
         $this->call(RecipeCatalogSeeder::class);
 
         User::query()->updateOrCreate(
-            ['email' => 'test@example.com'],
+            ['email' => 'artess2698@gmail.com'],
             [
-                'name' => 'Test User',
-                'password' => Hash::make('password'),
+                'name' => 'Mariusz',
+                'password' => Hash::make('JHDFS*(!*@#HSANkasdhau123'),
+            ]
+        );
+
+        User::query()->updateOrCreate(
+            ['email' => 'natalia98.8@wp.pl'],
+            [
+                'name' => 'Natalia',
+                'password' => Hash::make('temp'),
             ]
         );
 
