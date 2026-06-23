@@ -14,7 +14,7 @@ class RecipeController extends Controller
 {
     public function index(Request $request): View
     {
-        $tagOptions = $this->ensureDefaultTags();
+        $this->ensureDefaultTags();
         $search = trim((string) $request->query('q', ''));
         $selectedTagIds = collect($request->input('tags', []))
             ->filter(fn ($value) => is_scalar($value) && (string) $value !== '')
@@ -38,7 +38,8 @@ class RecipeController extends Controller
 
         return view('recipes.index', [
             'recipes' => $recipes,
-            'tagOptions' => $tagOptions,
+            'mealTypeTags' => $this->getMealTypeTags(),
+            'dietTypeTags' => $this->getDietTypeTags(),
             'search' => $search,
             'selectedTagIds' => $selectedTagIds,
         ]);
@@ -46,12 +47,13 @@ class RecipeController extends Controller
 
     public function create(): View
     {
-        $tagOptions = $this->ensureDefaultTags();
+        $this->ensureDefaultTags();
 
         return view('recipes.create', [
             'ingredientOptions' => Ingredient::query()->get(['id', Ingredient::NAME_COLUMN])->sortBy(Ingredient::NAME_COLUMN)->values(),
             'ingredientRows' => old('ingredients', [['ingredient_id' => '', 'ingredient_name' => '', 'custom_name' => '', 'quantity' => '']]),
-            'tagOptions' => $tagOptions,
+            'mealTypeTags' => $this->getMealTypeTags(),
+            'dietTypeTags' => $this->getDietTypeTags(),
             'selectedTagIds' => old('tags', []),
         ]);
     }
@@ -86,7 +88,7 @@ class RecipeController extends Controller
 
     public function edit(Recipe $recipe): View
     {
-        $tagOptions = $this->ensureDefaultTags();
+        $this->ensureDefaultTags();
         $recipe->load(['ingredients:id,name', 'tags:id,name']);
 
         $ingredientRows = old('ingredients');
@@ -110,7 +112,8 @@ class RecipeController extends Controller
             'recipe' => $recipe,
             'ingredientOptions' => Ingredient::query()->get(['id', Ingredient::NAME_COLUMN])->sortBy(Ingredient::NAME_COLUMN)->values(),
             'ingredientRows' => $ingredientRows,
-            'tagOptions' => $tagOptions,
+            'mealTypeTags' => $this->getMealTypeTags(),
+            'dietTypeTags' => $this->getDietTypeTags(),
             'selectedTagIds' => old('tags', $recipe->tags->pluck('id')->all()),
         ]);
     }
@@ -222,17 +225,55 @@ class RecipeController extends Controller
         $recipe->tags()->sync($tagIds->all());
     }
 
+    private function ensureDefaultTags(): void
+    {
+        // Create meal type tags
+        foreach (Tag::MEAL_TYPE_NAMES as $tagName) {
+            Tag::query()->firstOrCreate(
+                [Tag::NAME_COLUMN => $tagName],
+                [Tag::CATEGORY_COLUMN => Tag::MEAL_TYPE]
+            );
+        }
+
+        // Create diet type tags
+        foreach (Tag::DIET_TYPE_NAMES as $tagName) {
+            Tag::query()->firstOrCreate(
+                [Tag::NAME_COLUMN => $tagName],
+                [Tag::CATEGORY_COLUMN => Tag::DIET_TYPE]
+            );
+        }
+    }
+
     /**
      * @return Collection<int, Tag>
      */
-    private function ensureDefaultTags(): Collection
+    private function getMealTypeTags(): Collection
     {
-        foreach (Tag::DEFAULT_NAMES as $tagName) {
-            Tag::query()->firstOrCreate([
-                Tag::NAME_COLUMN => $tagName,
-            ]);
-        }
+        return Tag::query()
+            ->where(Tag::CATEGORY_COLUMN, Tag::MEAL_TYPE)
+            ->orderBy(Tag::NAME_COLUMN)
+            ->get(['id', Tag::NAME_COLUMN, Tag::CATEGORY_COLUMN]);
+    }
 
-        return Tag::query()->orderBy(Tag::NAME_COLUMN)->get(['id', Tag::NAME_COLUMN]);
+    /**
+     * @return Collection<int, Tag>
+     */
+    private function getDietTypeTags(): Collection
+    {
+        return Tag::query()
+            ->where(Tag::CATEGORY_COLUMN, Tag::DIET_TYPE)
+            ->orderBy(Tag::NAME_COLUMN)
+            ->get(['id', Tag::NAME_COLUMN, Tag::CATEGORY_COLUMN]);
+    }
+
+    /**
+     * @return Collection<int, Tag>
+     */
+    private function getAllTags(): Collection
+    {
+        return Tag::query()
+            ->orderBy(Tag::CATEGORY_COLUMN)
+            ->orderBy(Tag::NAME_COLUMN)
+            ->get(['id', Tag::NAME_COLUMN, Tag::CATEGORY_COLUMN]);
     }
 }

@@ -28,20 +28,39 @@
                     :placeholder="__('Wpisz nazwę przepisu')"
                 />
 
-                <div class="space-y-2">
-                    <label class="block text-sm font-medium text-zinc-800 dark:text-zinc-200">Tagi</label>
-                    <div class="flex flex-wrap gap-2">
-                        @foreach ($tagOptions as $tagOption)
-                            <label class="inline-flex items-center gap-2 rounded-full border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700">
-                                <input
-                                    type="checkbox"
-                                    name="tags[]"
-                                    value="{{ $tagOption->id }}"
-                                    @checked($selectedTagIds->contains((int) $tagOption->id))
-                                >
-                                <span>{{ $tagOption->name }}</span>
-                            </label>
-                        @endforeach
+                <div class="space-y-3">
+                    <div class="space-y-1.5">
+                        <label class="block text-sm font-medium text-zinc-800 dark:text-zinc-200">Posiłek</label>
+                        <div class="flex flex-wrap gap-2">
+                            @foreach ($mealTypeTags as $tag)
+                                <label class="inline-flex items-center gap-2 rounded-full border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700">
+                                    <input
+                                        type="checkbox"
+                                        name="tags[]"
+                                        value="{{ $tag->id }}"
+                                        @checked($selectedTagIds->contains((int) $tag->id))
+                                    >
+                                    <span>{{ $tag->name }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="block text-sm font-medium text-zinc-800 dark:text-zinc-200">Dieta</label>
+                        <div class="flex flex-wrap gap-2">
+                            @foreach ($dietTypeTags as $tag)
+                                <label class="inline-flex items-center gap-2 rounded-full border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700">
+                                    <input
+                                        type="checkbox"
+                                        name="tags[]"
+                                        value="{{ $tag->id }}"
+                                        @checked($selectedTagIds->contains((int) $tag->id))
+                                    >
+                                    <span>{{ $tag->name }}</span>
+                                </label>
+                            @endforeach
+                        </div>
                     </div>
                 </div>
 
