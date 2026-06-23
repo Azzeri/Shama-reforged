@@ -18,7 +18,7 @@ class Tag extends Model
     public const MEAL_TYPE = 'meal_type';
     public const DIET_TYPE = 'diet_type';
 
-    public const MEAL_TYPE_NAMES = ['sniadanie', 'lunch', 'obiad', 'kolacja', 'deser'];
+    public const MEAL_TYPE_NAMES = ['śniadanie', 'lunch', 'obiad', 'kolacja', 'deser'];
     public const DIET_TYPE_NAMES = [
         'wieprzowina',
         'kurczak',

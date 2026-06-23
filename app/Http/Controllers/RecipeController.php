@@ -22,16 +22,30 @@ class RecipeController extends Controller
             ->filter(fn (int $value) => $value > 0)
             ->values();
 
+        // Group selected tags by category for proper AND-between-categories, OR-within-category logic
+        $selectedTagsByCategory = $selectedTagIds->isNotEmpty()
+            ? Tag::query()
+                ->whereIn('id', $selectedTagIds->all())
+                ->get(['id', Tag::CATEGORY_COLUMN])
+                ->groupBy(Tag::CATEGORY_COLUMN)
+                ->map(fn ($tags) => $tags->pluck('id'))
+            : collect();
+
         $recipesQuery = Recipe::query()
             ->with(['ingredients:id,name', 'tags:id,name'])
             ->latest()
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(Recipe::NAME_COLUMN, 'like', '%'.$search.'%');
             })
-            ->when($selectedTagIds->isNotEmpty(), function ($query) use ($selectedTagIds) {
-                $query->whereHas('tags', function ($tagQuery) use ($selectedTagIds) {
-                    $tagQuery->whereIn('tags.id', $selectedTagIds->all());
-                });
+            ->when($selectedTagsByCategory->isNotEmpty(), function ($query) use ($selectedTagsByCategory) {
+                // For each category: recipe must have at least one tag from that category (OR within)
+                // All categories must match (AND between)
+                foreach ($selectedTagsByCategory as $categoryTagIds) {
+                    $ids = $categoryTagIds->all();
+                    $query->whereHas('tags', function ($tagQuery) use ($ids) {
+                        $tagQuery->whereIn('tags.id', $ids);
+                    });
+                }
             });
 
         $recipes = $recipesQuery->paginate(12)->withQueryString();

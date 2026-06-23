@@ -17,7 +17,7 @@ return new class extends Migration
         });
 
         // Update existing meal type tags to ensure they are marked as meal_type
-        $mealTypeTags = ['sniadanie', 'lunch', 'obiad', 'kolacja', 'deser'];
+        $mealTypeTags = ['śniadanie', 'lunch', 'obiad', 'kolacja', 'deser'];
         DB::table('tags')->whereIn('name', $mealTypeTags)->update(['category' => 'meal_type']);
 
         // Add new diet type tags
