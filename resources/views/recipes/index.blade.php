@@ -69,7 +69,11 @@
                         </div>
                     </div>
 
-                    <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{{ \Illuminate\Support\Str::limit($recipe->content, 120) }}</p>
+                    @if (filled($recipe->content))
+                        <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{{ \Illuminate\Support\Str::limit($recipe->content, 120) }}</p>
+                    @else
+                        <p class="mt-2 text-sm italic text-zinc-500 dark:text-zinc-400">Brak opisu.</p>
+                    @endif
 
                     <div class="mt-3 flex flex-wrap gap-2">
                         @forelse ($recipe->tags as $tag)
@@ -82,6 +86,19 @@
                     <div class="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
                         Składniki: {{ $recipe->ingredients->pluck('name')->join(', ') ?: '-' }}
                     </div>
+
+                    @if (filled($recipe->link))
+                        <div class="mt-3">
+                            <a
+                                href="{{ $recipe->link }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="text-sm font-medium text-amber-700 hover:underline dark:text-amber-300"
+                            >
+                                Otwórz link do przepisu
+                            </a>
+                        </div>
+                    @endif
 
                     <div class="mt-4 flex justify-end">
                         <form method="POST" action="{{ route('recipes.destroy', $recipe) }}" onsubmit="return confirm('Na pewno usunąć ten przepis?')">

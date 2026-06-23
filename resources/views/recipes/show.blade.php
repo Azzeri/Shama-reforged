@@ -46,8 +46,30 @@
             </section>
 
             <section class="space-y-3">
+                <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Link</h2>
+
+                @if (filled($recipe->link))
+                    <a
+                        href="{{ $recipe->link }}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="inline-flex text-sm font-medium text-amber-700 hover:underline dark:text-amber-300"
+                    >
+                        Otwórz źródło przepisu
+                    </a>
+                @else
+                    <p class="text-sm text-zinc-600 dark:text-zinc-400">Brak linku.</p>
+                @endif
+            </section>
+
+            <section class="space-y-3">
                 <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Opis</h2>
-                <p class="whitespace-pre-line text-zinc-800 dark:text-zinc-200">{{ $recipe->content }}</p>
+
+                @if (filled($recipe->content))
+                    <p class="whitespace-pre-line text-zinc-800 dark:text-zinc-200">{{ $recipe->content }}</p>
+                @else
+                    <p class="text-sm text-zinc-600 dark:text-zinc-400">Brak opisu.</p>
+                @endif
             </section>
         </div>
     </div>

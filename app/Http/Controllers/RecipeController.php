@@ -63,7 +63,8 @@ class RecipeController extends Controller
 
         $recipe = Recipe::query()->create([
             'name' => $validated['name'],
-            'content' => $validated['content'],
+            'content' => $validated['content'] ?? null,
+            'link' => $validated['link'] ?? null,
         ]);
 
         $this->syncIngredients($recipe, $validated['ingredients'] ?? []);
@@ -121,7 +122,8 @@ class RecipeController extends Controller
 
         $recipe->update([
             'name' => $validated['name'],
-            'content' => $validated['content'],
+            'content' => $validated['content'] ?? null,
+            'link' => $validated['link'] ?? null,
         ]);
 
         $this->syncIngredients($recipe, $validated['ingredients'] ?? []);
@@ -142,13 +144,14 @@ class RecipeController extends Controller
     }
 
     /**
-     * @return array{name: string, content: string, ingredients?: array<int, array{ingredient_id?: string, ingredient_name?: string, custom_name?: string, quantity?: string}>, tags?: array<int, int|string>}
+     * @return array{name: string, content?: string|null, link?: string|null, ingredients?: array<int, array{ingredient_id?: string, ingredient_name?: string, custom_name?: string, quantity?: string}>, tags?: array<int, int|string>}
      */
     private function validateRecipe(Request $request): array
     {
         return $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'content' => ['required', 'string'],
+            'content' => ['nullable', 'string'],
+            'link' => ['nullable', 'url:http,https', 'max:2048'],
             'tags' => ['nullable', 'array'],
             'tags.*' => ['integer', 'exists:tags,id'],
             'ingredients' => ['nullable', 'array'],

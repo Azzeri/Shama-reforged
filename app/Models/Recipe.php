@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-#[Fillable(['name', 'content'])]
+#[Fillable(['name', 'content', 'link'])]
 class Recipe extends Model
 {
     use HasFactory;

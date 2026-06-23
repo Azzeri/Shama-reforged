@@ -25,11 +25,18 @@
     required
 />
 
+<flux:input
+    name="link"
+    :label="__('Link do przepisu (opcjonalnie)')"
+    type="url"
+    :value="old('link', $recipe->link ?? '')"
+    :placeholder="__('https://example.com/przepis')"
+/>
+
 <flux:textarea
     name="content"
-    :label="__('Przygotowanie')"
+    :label="__('Przygotowanie / opis (opcjonalnie)')"
     rows="6"
-    required
 >{{ old('content', $recipe->content ?? '') }}</flux:textarea>
 
 <div class="space-y-2">
