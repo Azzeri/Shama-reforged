@@ -12,52 +12,52 @@ use Illuminate\View\View;
 
 class RecipeController extends Controller
 {
-    public function index(Request $request): View
-    {
-        $this->ensureDefaultTags();
-        $search = trim((string) $request->query('q', ''));
-        $selectedTagIds = collect($request->input('tags', []))
-            ->filter(fn ($value) => is_scalar($value) && (string) $value !== '')
-            ->map(fn ($value) => (int) $value)
-            ->filter(fn (int $value) => $value > 0)
-            ->values();
+//     public function index(Request $request): View
+//     {
+//         $this->ensureDefaultTags();
+//         $search = trim((string) $request->query('q', ''));
+//         $selectedTagIds = collect($request->input('tags', []))
+//             ->filter(fn ($value) => is_scalar($value) && (string) $value !== '')
+//             ->map(fn ($value) => (int) $value)
+//             ->filter(fn (int $value) => $value > 0)
+//             ->values();
 
-        // Group selected tags by category for proper AND-between-categories, OR-within-category logic
-        $selectedTagsByCategory = $selectedTagIds->isNotEmpty()
-            ? Tag::query()
-                ->whereIn('id', $selectedTagIds->all())
-                ->get(['id', Tag::CATEGORY_COLUMN])
-                ->groupBy(Tag::CATEGORY_COLUMN)
-                ->map(fn ($tags) => $tags->pluck('id'))
-            : collect();
+//         // Group selected tags by category for proper AND-between-categories, OR-within-category logic
+//         $selectedTagsByCategory = $selectedTagIds->isNotEmpty()
+//             ? Tag::query()
+//                 ->whereIn('id', $selectedTagIds->all())
+//                 ->get(['id', Tag::CATEGORY_COLUMN])
+//                 ->groupBy(Tag::CATEGORY_COLUMN)
+//                 ->map(fn ($tags) => $tags->pluck('id'))
+//             : collect();
 
-        $recipesQuery = Recipe::query()
-            ->with(['ingredients:id,name', 'tags:id,name'])
-            ->latest()
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(Recipe::NAME_COLUMN, 'like', '%'.$search.'%');
-            })
-            ->when($selectedTagsByCategory->isNotEmpty(), function ($query) use ($selectedTagsByCategory) {
-                // For each category: recipe must have at least one tag from that category (OR within)
-                // All categories must match (AND between)
-                foreach ($selectedTagsByCategory as $categoryTagIds) {
-                    $ids = $categoryTagIds->all();
-                    $query->whereHas('tags', function ($tagQuery) use ($ids) {
-                        $tagQuery->whereIn('tags.id', $ids);
-                    });
-                }
-            });
+//         $recipesQuery = Recipe::query()
+//             ->with(['ingredients:id,name', 'tags:id,name'])
+//             ->latest()
+//             ->when($search !== '', function ($query) use ($search) {
+//                 $query->where(Recipe::NAME_COLUMN, 'like', '%'.$search.'%');
+//             })
+//             ->when($selectedTagsByCategory->isNotEmpty(), function ($query) use ($selectedTagsByCategory) {
+//                 // For each category: recipe must have at least one tag from that category (OR within)
+//                 // All categories must match (AND between)
+//                 foreach ($selectedTagsByCategory as $categoryTagIds) {
+//                     $ids = $categoryTagIds->all();
+//                     $query->whereHas('tags', function ($tagQuery) use ($ids) {
+//                         $tagQuery->whereIn('tags.id', $ids);
+//                     });
+//                 }
+//             });
 
-        $recipes = $recipesQuery->paginate(12)->withQueryString();
+//         $recipes = $recipesQuery->paginate(12)->withQueryString();
 
-        return view('recipes.index', [
-            'recipes' => $recipes,
-            'mealTypeTags' => $this->getMealTypeTags(),
-            'dietTypeTags' => $this->getDietTypeTags(),
-            'search' => $search,
-            'selectedTagIds' => $selectedTagIds,
-        ]);
-    }
+//         return view('recipes.index', [
+//             'recipes' => $recipes,
+//             'mealTypeTags' => $this->getMealTypeTags(),
+//             'dietTypeTags' => $this->getDietTypeTags(),
+//             'search' => $search,
+//             'selectedTagIds' => $selectedTagIds,
+//         ]);
+//     }
 
     public function create(): View
     {
