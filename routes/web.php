@@ -16,7 +16,8 @@ Route::get('/', function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('/recipes', 'pages::recipe.index')->name('recipes.index');
-    Route::resource('recipes', RecipeController::class)->except(['index']);
+    Route::livewire('/recipes/{recipe}', 'pages::recipe.show')->name('recipes.show');
+    Route::resource('recipes', RecipeController::class)->except(['index', 'show']);
 
 
     Route::resource('ingredients', IngredientController::class)->except(['show']);

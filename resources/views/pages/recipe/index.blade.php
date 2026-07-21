@@ -10,7 +10,7 @@ use Livewire\WithPagination;
 use App\Models\Tag;
 use Illuminate\Support\Collection;
 
-new #[Title('Recipes')] #[Layout('layouts::app')] class extends Component {
+new #[Layout('layouts::app')] class extends Component {
     use WithPagination;
 
     #[Url]
@@ -18,6 +18,12 @@ new #[Title('Recipes')] #[Layout('layouts::app')] class extends Component {
 
     #[Url(as: 'categories')]
     public array $searchCategories = [];
+
+    public function render()
+    {
+        return $this->view()
+            ->title(__('Recipes'));
+    }
 
     public function updatedSearchName(): void
     {
@@ -62,6 +68,11 @@ new #[Title('Recipes')] #[Layout('layouts::app')] class extends Component {
         $this->searchCategories = [];
         $this->resetPage();
     }
+
+    public function goToDetails(Recipe $recipe): void
+    {
+        $this->redirectRoute('recipes.show', $recipe);
+    }
 };
 ?>
 <div>
@@ -101,9 +112,7 @@ new #[Title('Recipes')] #[Layout('layouts::app')] class extends Component {
         <div class="space-y-3">
             @forelse ($this->recipes as $recipe)
             <flux:card>
-                <a href="{{ route('recipes.show', $recipe) }}">
-                    <flux:heading size="lg">{{$recipe->name ?? 'Unknown recipe'}}</flux:heading>
-                </a>
+                <flux:heading size="lg" wire:click="goToDetails({{ $recipe->id }})">{{ $recipe->name ?? 'Unknown recipe' }}</flux:heading>
 
                 <flux:text class="mt-2 mb-4" size="sm">
                     {{__("Składniki")}}: {{ $recipe->ingredients->take(10)->pluck('name')->join(', ') ?: '-' }}
