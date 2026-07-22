@@ -72,9 +72,13 @@ new #[Layout('layouts::app')] class extends Component {
         </div>
 
         <div>
-            @foreach ($recipe->tags as $tag)
-            <flux:badge rounded color="orange">{{ $tag->name }}</flux:badge>
-            @endforeach
+            <div class="flex flex-wrap gap-1.5">
+                @foreach ($recipe->tags as $tag)
+                <flux:badge variant="subtle" size="sm">
+                    {{ $tag->name }}
+                </flux:badge>
+                @endforeach
+            </div>
         </div>
 
         <div class="space-y-2">

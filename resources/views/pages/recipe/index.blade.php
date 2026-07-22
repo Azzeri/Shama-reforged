@@ -5,7 +5,6 @@ use Livewire\Component;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\Title;
 use Livewire\WithPagination;
 use App\Models\Tag;
 use Illuminate\Support\Collection;
