@@ -15,8 +15,13 @@ Route::get('/', function () {
 })->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::livewire('/recipes', 'pages::recipe.index')->name('recipes.index');
+    Route::livewire('/recipes/create', 'pages::recipe.create')->name('recipes.create');
+    Route::livewire('/recipes/{recipe}', 'pages::recipe.show')->name('recipes.show');
+    Route::livewire('/recipes/{recipe}/edit', 'pages::recipe.edit')->name('recipes.edit');
+
+
     Route::resource('ingredients', IngredientController::class)->except(['show']);
-    Route::resource('recipes', RecipeController::class);
     Route::resource('meals', MealController::class)->except(['show', 'edit', 'update']);
     Route::get('meals/day/{date}/edit', [MealController::class, 'editDay'])->name('meals.day.edit');
     Route::put('meals/day/{date}', [MealController::class, 'updateDay'])->name('meals.day.update');
@@ -29,4 +34,4 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('shopping-list/clear-unchecked', [ShoppingListController::class, 'clearUnchecked'])->name('shopping-list.clear-unchecked');
 });
 
-require __DIR__.'/settings.php';
+require __DIR__ . '/settings.php';
