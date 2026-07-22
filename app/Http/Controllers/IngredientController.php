@@ -9,7 +9,7 @@ use Illuminate\View\View;
 
 class IngredientController extends Controller
 {
-    public function index(): View
+    public function index(): View//out I guess
     {
         $ingredients = Ingredient::query()
             ->orderBy(Ingredient::NAME_COLUMN)

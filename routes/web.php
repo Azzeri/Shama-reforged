@@ -15,7 +15,9 @@ Route::get('/', function () {
 })->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::resource('ingredients', IngredientController::class)->except(['show']);
+    Route::livewire('/ingredients', 'pages::ingredients.index')->name('ingredients.index');
+
+//    Route::resource('ingredients', IngredientController::class)->except(['show']);
     Route::resource('recipes', RecipeController::class);
     Route::resource('meals', MealController::class)->except(['show', 'edit', 'update']);
     Route::get('meals/day/{date}/edit', [MealController::class, 'editDay'])->name('meals.day.edit');
@@ -24,9 +26,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('shopping-list', [ShoppingListController::class, 'index'])->name('shopping-list.index');
     Route::post('shopping-list/items', [ShoppingListController::class, 'store'])->name('shopping-list.items.store');
-    Route::patch('shopping-list/items/{shoppingListItem}/toggle', [ShoppingListController::class, 'toggle'])->name('shopping-list.items.toggle');
+    Route::patch('shopping-list/items/{shoppingListItem}/toggle', [ShoppingListController::class, 'toggle'])->name(
+        'shopping-list.items.toggle'
+    );
     Route::post('shopping-list/generate', [ShoppingListController::class, 'generate'])->name('shopping-list.generate');
-    Route::delete('shopping-list/clear-unchecked', [ShoppingListController::class, 'clearUnchecked'])->name('shopping-list.clear-unchecked');
+    Route::delete('shopping-list/clear-unchecked', [ShoppingListController::class, 'clearUnchecked'])->name(
+        'shopping-list.clear-unchecked'
+    );
 });
 
-require __DIR__.'/settings.php';
+require __DIR__ . '/settings.php';

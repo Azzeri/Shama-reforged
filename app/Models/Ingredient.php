@@ -3,16 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-#[Fillable(['name'])]
+#[Fillable([self::NAME_COLUMN])]
 class Ingredient extends Model
 {
-    use HasFactory;
-
-    public const NAME_COLUMN = 'name';
+    public const string ID_COLUMN = 'id';
+    public const string NAME_COLUMN = 'name';
 
     public function recipes(): BelongsToMany
     {
