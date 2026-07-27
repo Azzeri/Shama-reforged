@@ -23,10 +23,9 @@ new #[Layout('layouts::app')] class extends Component {
 <div>
     <div class="space-y-5">
         <div>
-            <flux:heading size="xl">{{ __("New recipe") }}</flux:heading>
+            <h1 class="font-fraunces text-[30px] font-semibold leading-tight text-ink">{{ __('New recipe') }}</h1>
         </div>
 
         <livewire:recipe.form />
-
-
     </div>
+</div>

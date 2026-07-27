@@ -119,44 +119,53 @@ new class extends Component {
 
 <div class="space-y-5">
     <form class="space-y-5" wire:submit="save">
-        <flux:input wire:model="recipeName" label="{{ __('Recipe Name') }}" required clearable />
+        <div>
+            <x-ui.eyebrow>{{ __('Recipe Name') }}</x-ui.eyebrow>
+            <x-ui.text-input wire:model="recipeName" placeholder="{{ __('Recipe Name') }}" class="w-full" required />
+            <x-ui.field-error name="recipeName" />
+        </div>
 
-        <flux:checkbox.group wire:model="recipeTags" label="{{ __('Meal type') }}" variant="pills">
-            @foreach ($this->tagsByCategory->get(Tag::MEAL_TYPE, []) as $tag)
-            <flux:checkbox value="{{ $tag->id }}" label="{{ $tag->name }}" />
-            @endforeach
-        </flux:checkbox.group>
+        <x-recipe.tag-pill-group
+            :tags="$this->tagsByCategory->get(Tag::MEAL_TYPE, [])"
+            label="{{ __('Meal type') }}"
+            color="gold"
+            wire:model="recipeTags" />
 
-        <flux:checkbox.group wire:model="recipeTags" label="{{ __('Diet type') }}" variant="pills">
-            @foreach ($this->tagsByCategory->get(Tag::DIET_TYPE, []) as $tag)
-            <flux:checkbox value="{{ $tag->id }}" label="{{ $tag->name }}" />
-            @endforeach
-        </flux:checkbox.group>
+        <x-recipe.tag-pill-group
+            :tags="$this->tagsByCategory->get(Tag::DIET_TYPE, [])"
+            label="{{ __('Diet type') }}"
+            color="sage"
+            wire:model="recipeTags" />
 
-        <flux:field>
-            <flux:label>{{ __('Ingredients') }}</flux:label>
+        <div>
+            <x-ui.eyebrow>{{ __('Ingredients') }}</x-ui.eyebrow>
+            <p class="font-manrope text-xs text-ink/50 mb-2.5">
+                {{ __('Choose from the list of existing ingredients or add a new one on the Ingredients tab.') }}
+            </p>
 
-            <div class="space-y-3 mt-2">
+            <div class="space-y-2.5">
                 @foreach ($recipeIngredients as $index => $item)
-                <div class="flex items-start gap-2" wire:key="ingredient-row-{{ $index }}">
-                    <div class="flex-1">
-                        <flux:input
+                <div wire:key="ingredient-row-{{ $index }}">
+                    <div class="flex items-center gap-2.5">
+                        <x-ui.text-input
                             wire:model="recipeIngredients.{{ $index }}.name"
                             list="ingredients-autocomplete-list"
-                            placeholder="{{ __('Ingredient name') }}" />
-                    </div>
+                            placeholder="{{ __('Ingredient name') }}"
+                            class="flex-1" />
 
-                    <div class="w-1/3">
-                        <flux:input
+                        <x-ui.text-input
                             wire:model="recipeIngredients.{{ $index }}.quantity"
-                            placeholder="{{ __('e.g. 200g') }}" />
-                    </div>
+                            placeholder="{{ __('e.g. 200g') }}"
+                            class="w-24 shrink-0" />
 
-                    <flux:button
-                        type="button"
-                        icon="trash"
-                        variant="ghost"
-                        wire:click="removeIngredient({{ $index }})" />
+                        <button
+                            type="button"
+                            wire:click="removeIngredient({{ $index }})"
+                            class="shrink-0 text-ink/25 hover:text-terracotta-dark p-1.5">
+                            <flux:icon.trash class="size-4" />
+                        </button>
+                    </div>
+                    <x-ui.field-error name="recipeIngredients.{{ $index }}.name" />
                 </div>
                 @endforeach
 
@@ -166,21 +175,31 @@ new class extends Component {
                     @endforeach
                 </datalist>
 
-                <flux:button
+                <button
                     type="button"
-                    icon="plus"
-                    variant="subtle"
                     wire:click="addIngredient"
-                    class="w-full">
-                    {{ __('Add ingredient') }}
-                </flux:button>
+                    class="flex items-center gap-2 text-terracotta font-manrope text-[13.5px] font-bold py-1.5">
+                    + {{ __('Add ingredient') }}
+                </button>
             </div>
-        </flux:field>
+        </div>
 
-        <flux:textarea wire:model="recipeContent" rows="auto" resize="none" badge="optional" label="{{ __('Recipe Content') }}" />
+        <div>
+            <x-ui.eyebrow optional>{{ __('Recipe Content') }}</x-ui.eyebrow>
+            <x-ui.textarea wire:model="recipeContent" rows="4" placeholder="{{ __('Recipe Content') }}" />
+            <x-ui.field-error name="recipeContent" />
+        </div>
 
-        <flux:input wire:model="recipeUrl" badge="optional" label="{{ __('Recipe URL') }}" clearable />
+        <div>
+            <x-ui.eyebrow optional>{{ __('Recipe URL') }}</x-ui.eyebrow>
+            <x-ui.text-input wire:model="recipeUrl" type="url" placeholder="https://..." class="w-full" />
+            <x-ui.field-error name="recipeUrl" />
+        </div>
 
-        <flux:button type="submit" variant="primary" class="w-full">{{ __("Save") }}</flux:button>
+        <button
+            type="submit"
+            class="w-full bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-2xl py-4 font-manrope text-[15px] font-extrabold shadow-[0_10px_22px_rgba(193,68,45,0.35)]">
+            {{ __('Save') }}
+        </button>
     </form>
 </div>

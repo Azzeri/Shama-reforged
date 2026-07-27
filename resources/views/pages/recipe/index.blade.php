@@ -83,7 +83,7 @@ new #[Layout('layouts::app')] class extends Component {
 <div>
     <div class="space-y-5">
         <div>
-            <x-ui.eyebrow color="forest">{{ __('Twoja książka kucharska') }}</x-ui.eyebrow>
+            <x-ui.eyebrow color="forest">{{ __('Your cookbook') }}</x-ui.eyebrow>
             <h1 class="font-fraunces text-[30px] font-semibold leading-tight text-ink">{{ __('Recipes') }}</h1>
         </div>
 
@@ -98,11 +98,10 @@ new #[Layout('layouts::app')] class extends Component {
             <div>
                 <x-ui.eyebrow>{{ __('Search by recipe name') }}</x-ui.eyebrow>
                 <div class="relative">
-                    <input
-                        type="text"
+                    <x-ui.text-input
                         wire:model.live="searchName"
                         placeholder="{{ __('Enter recipe name') }}"
-                        class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] pr-9 font-manrope text-sm text-ink placeholder:text-ink/35 focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
+                        class="w-full pr-9" />
                     @if ($searchName)
                     <button
                         type="button"
@@ -114,33 +113,17 @@ new #[Layout('layouts::app')] class extends Component {
                 </div>
             </div>
 
-            <div>
-                <x-ui.eyebrow>{{ __('Meal type') }}</x-ui.eyebrow>
-                <div class="flex flex-wrap gap-2">
-                    @foreach ($this->tagsByCategory->get(Tag::MEAL_TYPE, []) as $tag)
-                    <label class="cursor-pointer">
-                        <input type="checkbox" wire:model.live="searchCategories" value="{{ $tag->id }}" class="peer sr-only" />
-                        <span class="inline-flex rounded-full px-3.5 py-[7px] font-manrope text-[12.5px] font-bold border-[1.5px] border-ink/25 text-ink/60 peer-checked:bg-gold peer-checked:border-gold peer-checked:text-ink transition-colors">
-                            {{ $tag->name }}
-                        </span>
-                    </label>
-                    @endforeach
-                </div>
-            </div>
+            <x-recipe.tag-pill-group
+                :tags="$this->tagsByCategory->get(Tag::MEAL_TYPE, [])"
+                label="{{ __('Meal type') }}"
+                color="gold"
+                wire:model.live="searchCategories" />
 
-            <div>
-                <x-ui.eyebrow>{{ __('Diet type') }}</x-ui.eyebrow>
-                <div class="flex flex-wrap gap-2">
-                    @foreach ($this->tagsByCategory->get(Tag::DIET_TYPE, []) as $tag)
-                    <label class="cursor-pointer">
-                        <input type="checkbox" wire:model.live="searchCategories" value="{{ $tag->id }}" class="peer sr-only" />
-                        <span class="inline-flex rounded-full px-3.5 py-[7px] font-manrope text-[12.5px] font-bold border-[1.5px] border-ink/25 text-ink/60 peer-checked:bg-sage peer-checked:border-sage peer-checked:text-white transition-colors">
-                            {{ $tag->name }}
-                        </span>
-                    </label>
-                    @endforeach
-                </div>
-            </div>
+            <x-recipe.tag-pill-group
+                :tags="$this->tagsByCategory->get(Tag::DIET_TYPE, [])"
+                label="{{ __('Diet type') }}"
+                color="sage"
+                wire:model.live="searchCategories" />
 
             @if ($this->activeFiltersCount > 0)
             <div class="flex items-center justify-between bg-sand rounded-2xl px-3.5 py-[11px]">

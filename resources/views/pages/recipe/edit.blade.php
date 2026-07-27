@@ -12,46 +12,15 @@ new #[Layout('layouts::app')] class extends Component {
         return $this->view()
             ->title(__("Editing") . ": " . $this->recipe->name);
     }
-
-    public function goBack()
-    {
-        return $this->redirectIntended(
-            default: route('recipes.index'),
-            navigate: true
-        );
-    }
 };
 ?>
 
 <div>
     <div class="space-y-5">
         <div>
-            <flux:heading size="xl">{{ $this->recipe->name }}</flux:heading>
-        </div>
-
-        <div class="flex gap-1 w-full justify-between">
-            <div class="flex gap-1">
-                <flux:button
-                    variant="primary"
-                    icon="eye"
-                    size="sm"
-                    as="a"
-                    href="{{ route('recipes.show', $this->recipe) }}"
-                    wire:navigate>
-                    {{ __('View') }}
-                </flux:button>
-            </div>
-
-            <flux:button
-                variant="ghost"
-                size="sm"
-                icon="arrow-left"
-                wire:click="goBack">
-                {{ __('Go back') }}
-            </flux:button>
+            <h1 class="font-fraunces text-[30px] font-semibold leading-tight text-ink">{{ $this->recipe->name }}</h1>
         </div>
 
         <livewire:recipe.form :recipe="$this->recipe" />
-
-
     </div>
+</div>
