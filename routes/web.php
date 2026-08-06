@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\MealController;
 use App\Http\Controllers\RecipeController;
 use App\Http\Controllers\ShoppingListController;
 use Illuminate\Support\Facades\Route;
@@ -24,12 +23,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('/ingredients/create', 'pages::ingredient.create')->name('ingredients.create');
     Route::livewire('/ingredients/{ingredient}/edit', 'pages::ingredient.edit')->name('ingredients.edit');
     Route::livewire('/meals', 'pages::meal.index')->name('meals.index');
-    Route::get('meals/create', [MealController::class, 'create'])->name('meals.create');
-    Route::post('meals', [MealController::class, 'store'])->name('meals.store');
-    Route::delete('meals/{meal}', [MealController::class, 'destroy'])->name('meals.destroy');
-    Route::get('meals/day/{date}/edit', [MealController::class, 'editDay'])->name('meals.day.edit');
-    Route::put('meals/day/{date}', [MealController::class, 'updateDay'])->name('meals.day.update');
-    Route::get('meals/day/{date}', [MealController::class, 'day'])->name('meals.day');
+    Route::livewire('/meals/day/{date}/edit', 'pages::meal.day-edit')->name('meals.day.edit');
+    Route::livewire('/meals/day/{date}', 'pages::meal.day')->name('meals.day');
 
     Route::get('shopping-list', [ShoppingListController::class, 'index'])->name('shopping-list.index');
     Route::post('shopping-list/items', [ShoppingListController::class, 'store'])->name('shopping-list.items.store');
