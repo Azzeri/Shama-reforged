@@ -23,7 +23,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('/ingredients', 'pages::ingredient.index')->name('ingredients.index');
     Route::livewire('/ingredients/create', 'pages::ingredient.create')->name('ingredients.create');
     Route::livewire('/ingredients/{ingredient}/edit', 'pages::ingredient.edit')->name('ingredients.edit');
-    Route::resource('meals', MealController::class)->except(['show', 'edit', 'update']);
+    Route::livewire('/meals', 'pages::meal.index')->name('meals.index');
+    Route::get('meals/create', [MealController::class, 'create'])->name('meals.create');
+    Route::post('meals', [MealController::class, 'store'])->name('meals.store');
+    Route::delete('meals/{meal}', [MealController::class, 'destroy'])->name('meals.destroy');
     Route::get('meals/day/{date}/edit', [MealController::class, 'editDay'])->name('meals.day.edit');
     Route::put('meals/day/{date}', [MealController::class, 'updateDay'])->name('meals.day.update');
     Route::get('meals/day/{date}', [MealController::class, 'day'])->name('meals.day');

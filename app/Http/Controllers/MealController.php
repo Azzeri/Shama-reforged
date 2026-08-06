@@ -12,39 +12,6 @@ use Illuminate\View\View;
 
 class MealController extends Controller
 {
-    public function index(Request $request): View
-    {
-        $anchorDate = $request->filled('week')
-            ? Carbon::parse($request->string('week')->toString())
-            : now();
-
-        $weekStart = $anchorDate->copy()->startOfWeek();
-        $weekEnd = $weekStart->copy()->endOfWeek();
-
-        $meals = Meal::query()
-            ->with('recipes:id,name')
-            ->whereBetween('date', [$weekStart->copy()->startOfDay(), $weekEnd->copy()->endOfDay()])
-            ->orderBy('date')
-            ->get();
-
-        $days = collect(range(0, 6))->map(function (int $offset) use ($weekStart, $meals) {
-            $day = $weekStart->copy()->addDays($offset);
-
-            return [
-                'date' => $day,
-                'meals' => $meals->filter(fn (Meal $meal) => $meal->date->isSameDay($day))->values(),
-            ];
-        });
-
-        return view('meals.index', [
-            'days' => $days,
-            'weekStart' => $weekStart,
-            'previousWeek' => $weekStart->copy()->subWeek()->toDateString(),
-            'nextWeek' => $weekStart->copy()->addWeek()->toDateString(),
-            'isCurrentWeek' => $weekStart->isSameWeek(now()),
-        ]);
-    }
-
     public function create(Request $request): View
     {
         return view('meals.create', [
