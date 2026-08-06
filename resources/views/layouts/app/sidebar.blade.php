@@ -3,29 +3,29 @@
     <head>
         @include('partials.head')
     </head>
-    <body class="min-h-screen bg-amber-50/40 dark:bg-zinc-900">
-        <flux:sidebar sticky collapsible="mobile" class="border-e border-amber-200/70 bg-gradient-to-b from-amber-50 to-orange-50 dark:border-zinc-700 dark:from-zinc-900 dark:to-zinc-800">
+    <body class="min-h-screen bg-cream dark:bg-zinc-900">
+        <flux:sidebar sticky collapsible="mobile" class="border-e border-ink/10 bg-sand dark:border-zinc-700 dark:bg-zinc-900">
             <flux:sidebar.header>
                 <x-app-logo :sidebar="true" href="{{ route('meals.index') }}" wire:navigate />
-                <flux:sidebar.collapse class="lg:hidden" />
+                <flux:sidebar.collapse class="lg:hidden text-ink/50 hover:text-ink" />
             </flux:sidebar.header>
 
             <flux:sidebar.nav>
                 <flux:sidebar.group :heading="__('Shama')" class="grid">
-                    <flux:sidebar.item icon="list-bullet" :href="route('ingredients.index')" :current="request()->routeIs('ingredients.*')" wire:navigate>
-                        {{ __('Składniki') }}
+                    <flux:sidebar.item :href="route('ingredients.index')" :current="request()->routeIs('ingredients.*')" wire:navigate class="font-manrope font-bold text-ink/70">
+                        {{ __('Ingredients') }}
                     </flux:sidebar.item>
 
-                    <flux:sidebar.item icon="book-open-text" :href="route('recipes.index')" :current="request()->routeIs('recipes.*')" wire:navigate>
-                        {{ __('Przepisy') }}
+                    <flux:sidebar.item :href="route('recipes.index')" :current="request()->routeIs('recipes.*')" wire:navigate class="font-manrope font-bold text-ink/70">
+                        {{ __('Recipes') }}
                     </flux:sidebar.item>
 
-                    <flux:sidebar.item icon="calendar-days" :href="route('meals.index')" :current="request()->routeIs('meals.*')" wire:navigate>
-                        {{ __('Plan tygodnia') }}
+                    <flux:sidebar.item :href="route('meals.index')" :current="request()->routeIs('meals.*')" wire:navigate class="font-manrope font-bold text-ink/70">
+                        {{ __('Meal plan') }}
                     </flux:sidebar.item>
 
-                    <flux:sidebar.item icon="shopping-cart" :href="route('shopping-list.index')" :current="request()->routeIs('shopping-list.*')" wire:navigate>
-                        {{ __('Koszyk zakupów') }}
+                    <flux:sidebar.item :href="route('shopping-list.index')" :current="request()->routeIs('shopping-list.*')" wire:navigate class="font-manrope font-bold text-ink/70">
+                        {{ __('Shopping list') }}
                     </flux:sidebar.item>
                 </flux:sidebar.group>
             </flux:sidebar.nav>
@@ -36,8 +36,8 @@
         </flux:sidebar>
 
         <!-- Mobile User Menu -->
-        <flux:header class="lg:hidden">
-            <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
+        <flux:header class="lg:hidden bg-cream border-ink/10">
+            <flux:sidebar.toggle class="lg:hidden text-ink/60" icon="bars-2" inset="left" />
 
             <flux:spacer />
 
@@ -45,6 +45,8 @@
                 <flux:profile
                     :initials="auth()->user()->initials()"
                     icon-trailing="chevron-down"
+                    circle
+                    avatar:class="bg-sand! text-ink! font-manrope! font-extrabold!"
                 />
 
                 <flux:menu>
@@ -54,6 +56,8 @@
                                 <flux:avatar
                                     :name="auth()->user()->name"
                                     :initials="auth()->user()->initials()"
+                                    circle
+                                    class="bg-sand! text-ink! font-manrope! font-extrabold!"
                                 />
 
                                 <div class="grid flex-1 text-start text-sm leading-tight">

@@ -31,10 +31,6 @@
     --color-amber-500: #d98113;
     --color-amber-600: #b96a10;
 
-    --color-accent: var(--color-amber-500);
-    --color-accent-content: var(--color-amber-600);
-    --color-accent-foreground: var(--color-white);
-
     --font-fraunces: 'Fraunces', ui-serif, Georgia, serif;
     --font-manrope: 'Manrope', ui-sans-serif, system-ui, sans-serif;
 
@@ -47,13 +43,17 @@
     --color-forest: #3F5941;
     --color-gold: #D9A441;
     --color-gold-dark: #9A6E1F;
+
+    --color-accent: var(--color-terracotta);
+    --color-accent-content: var(--color-terracotta-dark);
+    --color-accent-foreground: var(--color-white);
 }
 
 @layer theme {
     .dark {
-        --color-accent: var(--color-amber-300);
-        --color-accent-content: var(--color-amber-300);
-        --color-accent-foreground: var(--color-zinc-900);
+        --color-accent: var(--color-terracotta);
+        --color-accent-content: var(--color-terracotta-dark);
+        --color-accent-foreground: var(--color-white);
     }
 }
 
