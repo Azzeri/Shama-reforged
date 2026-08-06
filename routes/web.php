@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\MealController;
-use App\Http\Controllers\IngredientController;
 use App\Http\Controllers\RecipeController;
 use App\Http\Controllers\ShoppingListController;
 use Illuminate\Support\Facades\Route;
@@ -21,7 +20,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('/recipes/{recipe}/edit', 'pages::recipe.edit')->name('recipes.edit');
 
 
-    Route::resource('ingredients', IngredientController::class)->except(['show']);
+    Route::livewire('/ingredients', 'pages::ingredient.index')->name('ingredients.index');
+    Route::livewire('/ingredients/create', 'pages::ingredient.create')->name('ingredients.create');
+    Route::livewire('/ingredients/{ingredient}/edit', 'pages::ingredient.edit')->name('ingredients.edit');
     Route::resource('meals', MealController::class)->except(['show', 'edit', 'update']);
     Route::get('meals/day/{date}/edit', [MealController::class, 'editDay'])->name('meals.day.edit');
     Route::put('meals/day/{date}', [MealController::class, 'updateDay'])->name('meals.day.update');

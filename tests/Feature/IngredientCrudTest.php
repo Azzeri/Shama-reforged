@@ -2,17 +2,18 @@
 
 use App\Models\Ingredient;
 use App\Models\User;
+use Livewire\Livewire;
 
 test('authenticated user can create ingredient', function () {
     $user = User::factory()->create();
 
     $this->actingAs($user);
 
-    $response = $this->post(route('ingredients.store'), [
-        'name' => 'Papryka',
-    ]);
+    Livewire::test('pages::ingredient.create')
+        ->set('name', 'Papryka')
+        ->call('save')
+        ->assertRedirect(route('ingredients.index'));
 
-    $response->assertRedirect(route('ingredients.index'));
     expect(Ingredient::query()->where(Ingredient::NAME_COLUMN, 'Papryka')->exists())->toBeTrue();
 });
 
@@ -22,11 +23,10 @@ test('authenticated user can update ingredient', function () {
 
     $this->actingAs($user);
 
-    $response = $this->put(route('ingredients.update', $ingredient), [
-        'name' => 'Cukier trzcinowy',
-    ]);
-
-    $response->assertRedirect(route('ingredients.index'));
+    Livewire::test('pages::ingredient.edit', ['ingredient' => $ingredient])
+        ->set('name', 'Cukier trzcinowy')
+        ->call('save')
+        ->assertRedirect(route('ingredients.index'));
 
     $ingredient->refresh();
     expect($ingredient->name)->toBe('Cukier trzcinowy');
@@ -38,8 +38,9 @@ test('authenticated user can delete ingredient', function () {
 
     $this->actingAs($user);
 
-    $response = $this->delete(route('ingredients.destroy', $ingredient));
+    Livewire::test('pages::ingredient.index')
+        ->call('confirmDelete', $ingredient)
+        ->call('delete');
 
-    $response->assertRedirect(route('ingredients.index'));
     expect(Ingredient::query()->whereKey($ingredient->id)->exists())->toBeFalse();
 });
