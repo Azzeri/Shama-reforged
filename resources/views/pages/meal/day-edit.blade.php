@@ -76,6 +76,16 @@ new #[Layout('layouts::app')] class extends Component {
         $this->meals[] = $this->emptyMealRow();
     }
 
+    public function removeMeal(int $mealIndex): void
+    {
+        if (($this->meals[$mealIndex]['id'] ?? null) !== null) {
+            return;
+        }
+
+        unset($this->meals[$mealIndex]);
+        $this->meals = array_values($this->meals);
+    }
+
     public function addRecipeRow(int $mealIndex): void
     {
         $this->meals[$mealIndex]['recipeIds'][] = '';
@@ -119,6 +129,17 @@ new #[Layout('layouts::app')] class extends Component {
         <form wire:submit="save" class="space-y-4">
             @foreach ($meals as $mealIndex => $row)
             <div wire:key="meal-row-{{ $mealIndex }}" class="bg-white rounded-[18px] p-4 border border-ink/10 space-y-3">
+                @if (is_null($row['id']))
+                <div class="flex justify-end -mb-1">
+                    <button
+                        type="button"
+                        wire:click="removeMeal({{ $mealIndex }})"
+                        class="text-terracotta-dark p-1">
+                        <flux:icon.trash class="size-4" />
+                    </button>
+                </div>
+                @endif
+
                 <div>
                     <x-ui.eyebrow>{{ __('Meal type') }}</x-ui.eyebrow>
                     <select wire:model="meals.{{ $mealIndex }}.type" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
