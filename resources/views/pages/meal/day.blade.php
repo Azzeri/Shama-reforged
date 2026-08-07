@@ -112,6 +112,12 @@ new #[Layout('layouts::app')] class extends Component {
                     </div>
                 </div>
 
+                @if (filled($meal->note))
+                <div class="bg-sand rounded-xl px-3.5 py-2.5 mb-2 font-fraunces italic text-[13.5px] text-ink/70">
+                    {{ $meal->note }}
+                </div>
+                @endif
+
                 @forelse ($meal->recipes as $recipe)
                 <div wire:click.stop="goToRecipe({{ $recipe->id }})" class="border border-ink/10 rounded-xl px-3.5 py-2.5 mb-2 cursor-pointer hover:bg-sand/40 transition-colors">
                     <div class="font-manrope text-sm text-ink">
@@ -120,9 +126,11 @@ new #[Layout('layouts::app')] class extends Component {
                     <x-recipe.calorie-line :totals="$this->recipeCalorieTotals($recipe)" class="mt-0.5" />
                 </div>
                 @empty
+                @if (blank($meal->note))
                 <div class="border border-dashed border-ink/24 rounded-xl px-3.5 py-4 text-center font-manrope text-[13px] text-ink/40">
                     {{ __('No recipes') }}
                 </div>
+                @endif
                 @endforelse
 
                 <x-recipe.calorie-chips :totals="$this->mealCalorieTotals($meal)" class="mt-1" />

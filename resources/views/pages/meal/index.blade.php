@@ -258,7 +258,11 @@ new #[Layout('layouts::app')] class extends Component {
                             wire:click.stop="goToRecipe({{ $recipe->id }})"
                             class="hover:underline hover:text-terracotta-dark">{{ $recipe->name }}</span>{{ !$loop->last ? ', ' : '' }}
                         @empty
+                        @if (filled($meal->note))
+                        <span class="font-fraunces italic text-ink/60">{{ $meal->note }}</span>
+                        @else
                         {{ __('No recipes') }}
+                        @endif
                         @endforelse
                     </div>
                     <x-recipe.calorie-line :totals="$this->mealCalorieTotals($meal)" class="mt-1" />

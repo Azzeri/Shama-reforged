@@ -28,6 +28,7 @@ new #[Layout('layouts::app')] class extends Component {
                 'id' => $meal->id,
                 'type' => $meal->type,
                 'recipeIds' => $meal->recipes->pluck('id')->map(fn ($id) => (string) $id)->all() ?: [''],
+                'note' => $meal->note ?? '',
             ])
             ->values()
             ->all();
@@ -63,7 +64,7 @@ new #[Layout('layouts::app')] class extends Component {
 
     private function emptyMealRow(): array
     {
-        return ['id' => null, 'type' => '', 'recipeIds' => ['']];
+        return ['id' => null, 'type' => '', 'recipeIds' => [''], 'note' => ''];
     }
 
     public function addMeal(): void
@@ -94,11 +95,29 @@ new #[Layout('layouts::app')] class extends Component {
 
     public function save(): void
     {
+        foreach ($this->meals as $index => $row) {
+            $this->meals[$index]['recipeIds'] = array_values(array_filter(
+                $row['recipeIds'],
+                fn ($recipeId) => $recipeId !== '',
+            ));
+        }
+
         $this->validate([
             'meals.*.type' => ['required', 'string', Rule::in(Meal::TYPES)],
-            'meals.*.recipeIds' => ['required', 'array', 'min:1'],
-            'meals.*.recipeIds.*' => ['required', 'integer', 'distinct', 'exists:recipes,id'],
+            'meals.*.note' => ['nullable', 'string', 'max:255'],
+            'meals.*.recipeIds' => ['array'],
+            'meals.*.recipeIds.*' => ['integer', 'distinct', 'exists:recipes,id'],
         ]);
+
+        foreach ($this->meals as $index => $row) {
+            if (empty($row['recipeIds']) && trim($row['note']) === '') {
+                $this->addError("meals.$index.note", __('Wybierz przynajmniej jeden przepis albo dodaj notatkę.'));
+            }
+        }
+
+        if ($this->getErrorBag()->isNotEmpty()) {
+            return;
+        }
 
         $day = $this->day;
 
@@ -108,6 +127,7 @@ new #[Layout('layouts::app')] class extends Component {
                 : new Meal(['date' => $day->copy()->setTime(12, 0)]);
 
             $meal->type = $row['type'];
+            $meal->note = trim($row['note']) !== '' ? trim($row['note']) : null;
             $meal->save();
             $meal->recipes()->sync($row['recipeIds']);
         }
@@ -192,6 +212,18 @@ new #[Layout('layouts::app')] class extends Component {
                         class="flex items-center gap-2 text-terracotta font-manrope text-[13.5px] font-bold py-2">
                         + {{ __('Add recipe') }}
                     </button>
+                </div>
+
+                <div>
+                    <x-ui.eyebrow optional>{{ __('Notatka') }}</x-ui.eyebrow>
+                    <x-ui.text-input
+                        wire:model="meals.{{ $mealIndex }}.note"
+                        placeholder="{{ __('np. Jemy na mieście') }}"
+                        class="w-full" />
+                    <p class="font-manrope text-xs text-ink/50 mt-1.5">
+                        {{ __('Użyj zamiast przepisu, gdy nie planujesz nic konkretnego — nie trafi na listę zakupów.') }}
+                    </p>
+                    <x-ui.field-error name="meals.{{ $mealIndex }}.note" />
                 </div>
             </div>
             @endforeach
