@@ -8,6 +8,7 @@ use Livewire\Attributes\Validate;
 use Livewire\Attributes\Computed;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 new class extends Component {
     public ?Recipe $recipe = null;
@@ -87,7 +88,7 @@ new class extends Component {
 
         DB::transaction(function () {
             $recipe = $this->recipe ?? new Recipe();
-            $recipe->name = trim($this->recipeName);
+            $recipe->name = $this->recipeName;
             $recipe->link = trim($this->recipeUrl ?: null);
             $recipe->content = $this->recipeContent ?: null;
             $recipe->save();
@@ -96,7 +97,7 @@ new class extends Component {
 
             $ingredientsSyncData = [];
             foreach ($this->recipeIngredients as $item) {
-                $name = trim($item['name'] ?? '');
+                $name = Str::ucfirst(trim($item['name'] ?? ''));
 
                 if ($name !== '') {
                     $ingredient = Ingredient::firstOrCreate(['name' => $name]);

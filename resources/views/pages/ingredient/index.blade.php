@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Ingredient;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
@@ -42,12 +43,14 @@ new #[Layout('layouts::app')] class extends Component {
 
     public function createIngredient(): void
     {
+        $this->newIngredientName = Str::ucfirst(trim($this->newIngredientName));
+
         $this->validate([
             'newIngredientName' => ['required', 'string', 'max:255', 'unique:ingredients,name'],
         ]);
 
         Ingredient::query()->create([
-            Ingredient::NAME_COLUMN => trim($this->newIngredientName),
+            Ingredient::NAME_COLUMN => $this->newIngredientName,
         ]);
 
         $this->resetNewIngredientForm();
@@ -65,6 +68,8 @@ new #[Layout('layouts::app')] class extends Component {
 
     public function saveIngredient(): void
     {
+        $this->editIngredientName = Str::ucfirst(trim($this->editIngredientName));
+
         $this->validate([
             'editIngredientName' => [
                 'required', 'string', 'max:255',
@@ -73,7 +78,7 @@ new #[Layout('layouts::app')] class extends Component {
         ]);
 
         Ingredient::query()->whereKey($this->editingIngredientId)->update([
-            Ingredient::NAME_COLUMN => trim($this->editIngredientName),
+            Ingredient::NAME_COLUMN => $this->editIngredientName,
         ]);
 
         $this->editingIngredientId = null;
