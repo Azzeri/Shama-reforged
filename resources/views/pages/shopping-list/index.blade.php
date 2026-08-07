@@ -260,7 +260,7 @@ new #[Layout('layouts::app')] class extends Component {
         @endif
     </div>
 
-    <flux:modal name="add-item-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88vh] overflow-y-auto">
+    <flux:modal name="add-item-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
         <form wire:submit="addItem" class="space-y-5">
             <div class="flex items-start justify-between gap-2">
                 <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Add item') }}</h3>
@@ -283,7 +283,7 @@ new #[Layout('layouts::app')] class extends Component {
 
             <div>
                 <x-ui.eyebrow optional>{{ __('Day of week') }}</x-ui.eyebrow>
-                <select wire:model="newItemWeekDay" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
+                <select wire:model="newItemWeekDay" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-base sm:text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
                     <option value="">{{ __('Unassigned') }}</option>
                     @foreach (\App\Models\ShoppingListItem::WEEK_DAYS as $day)
                     <option value="{{ $day }}">{{ ShoppingListItem::dayLabel($day) }}</option>
@@ -309,7 +309,7 @@ new #[Layout('layouts::app')] class extends Component {
         </form>
     </flux:modal>
 
-    <flux:modal name="edit-item-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88vh] overflow-y-auto">
+    <flux:modal name="edit-item-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
         <form wire:submit="saveItem" class="space-y-5">
             <div class="flex items-start justify-between gap-2">
                 <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Edit item') }}</h3>
@@ -331,7 +331,7 @@ new #[Layout('layouts::app')] class extends Component {
 
             <div>
                 <x-ui.eyebrow optional>{{ __('Day of week') }}</x-ui.eyebrow>
-                <select wire:model="editItemWeekDay" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
+                <select wire:model="editItemWeekDay" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-base sm:text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
                     <option value="">{{ __('Unassigned') }}</option>
                     @foreach (\App\Models\ShoppingListItem::WEEK_DAYS as $day)
                     <option value="{{ $day }}">{{ ShoppingListItem::dayLabel($day) }}</option>
@@ -370,7 +370,7 @@ new #[Layout('layouts::app')] class extends Component {
         </form>
     </flux:modal>
 
-    <flux:modal name="clear-unchecked-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88vh] overflow-y-auto">
+    <flux:modal name="clear-unchecked-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
         <div class="space-y-6">
             <div class="flex items-start justify-between gap-2">
                 <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Clear unchecked items?') }}</h3>

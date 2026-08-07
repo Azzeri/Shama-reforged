@@ -157,7 +157,7 @@ new #[Layout('layouts::app')] class extends Component {
 
                 <div>
                     <x-ui.eyebrow>{{ __('Meal type') }}</x-ui.eyebrow>
-                    <select wire:model="meals.{{ $mealIndex }}.type" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
+                    <select wire:model="meals.{{ $mealIndex }}.type" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-base sm:text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
                         <option value="">{{ __('Select type') }}</option>
                         @foreach (\App\Models\Meal::TYPES as $type)
                         <option value="{{ $type }}">{{ Meal::typeLabel($type) }}</option>
@@ -173,7 +173,7 @@ new #[Layout('layouts::app')] class extends Component {
                         @foreach ($row['recipeIds'] as $recipeIndex => $recipeId)
                         <div wire:key="meal-{{ $mealIndex }}-recipe-{{ $recipeIndex }}" class="space-y-1.5">
                             <div class="flex items-center gap-2">
-                                <select wire:model.live="meals.{{ $mealIndex }}.recipeIds.{{ $recipeIndex }}" class="flex-1 border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
+                                <select wire:model.live="meals.{{ $mealIndex }}.recipeIds.{{ $recipeIndex }}" class="flex-1 border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-base sm:text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
                                     <option value="">{{ __('Select recipe') }}</option>
                                     @foreach ($this->recipeOptions as $recipeOption)
                                     <option value="{{ $recipeOption->id }}">{{ $recipeOption->name }}</option>
