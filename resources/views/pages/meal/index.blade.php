@@ -245,7 +245,7 @@ new #[Layout('layouts::app')] class extends Component {
         @endforeach
     </div>
 
-    <flux:modal name="generate-shopping-list-modal" class="md:w-96">
+    <flux:modal name="generate-shopping-list-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88vh] overflow-y-auto">
         <div class="space-y-5">
             <div class="flex items-start justify-between gap-2">
                 <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Generate shopping list') }}</h3>

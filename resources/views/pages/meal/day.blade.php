@@ -96,14 +96,17 @@ new #[Layout('layouts::app')] class extends Component {
         </div>
     </div>
 
-    <flux:modal name="delete-meal-modal" class="md:w-96">
+    <flux:modal name="delete-meal-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88vh] overflow-y-auto">
         <div class="space-y-6">
-            <div>
+            <div class="flex items-start justify-between gap-2">
                 <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Delete meal?') }}</h3>
-                <p class="font-manrope text-sm text-ink/60 mt-1">
-                    {{ __('This action cannot be undone.') }}
-                </p>
+                <flux:modal.close>
+                    <button type="button" class="text-ink/25 hover:text-ink/50 p-1.5 text-lg leading-none">✕</button>
+                </flux:modal.close>
             </div>
+            <p class="font-manrope text-sm text-ink/60 -mt-4">
+                {{ __('This action cannot be undone.') }}
+            </p>
 
             <div class="flex gap-2 justify-end">
                 <flux:modal.close>

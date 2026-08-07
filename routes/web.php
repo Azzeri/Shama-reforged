@@ -17,8 +17,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('/recipes/{recipe}/edit', 'pages::recipe.edit')->name('recipes.edit');
 
     Route::livewire('/ingredients', 'pages::ingredient.index')->name('ingredients.index');
-    Route::livewire('/ingredients/create', 'pages::ingredient.create')->name('ingredients.create');
-    Route::livewire('/ingredients/{ingredient}/edit', 'pages::ingredient.edit')->name('ingredients.edit');
     Route::livewire('/meals', 'pages::meal.index')->name('meals.index');
     Route::livewire('/meals/day/{date}/edit', 'pages::meal.day-edit')->name('meals.day.edit');
     Route::livewire('/meals/day/{date}', 'pages::meal.day')->name('meals.day');
