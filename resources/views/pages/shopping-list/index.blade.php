@@ -17,6 +17,7 @@ new #[Layout('layouts::app')] class extends Component {
     public ?int $editingItemId = null;
     public string $editItemName = '';
     public string $editItemQuantity = '';
+    public string $editItemWeekDay = '';
     public string $editItemNotes = '';
 
     public function render()
@@ -116,7 +117,9 @@ new #[Layout('layouts::app')] class extends Component {
         $this->editingItemId = $itemId;
         $this->editItemName = $item->name;
         $this->editItemQuantity = $item->quantity ?? '';
+        $this->editItemWeekDay = $item->week_day ?? '';
         $this->editItemNotes = $item->notes ?? '';
+        $this->resetErrorBag();
     }
 
     public function saveItem(): void
@@ -124,12 +127,14 @@ new #[Layout('layouts::app')] class extends Component {
         $this->validate([
             'editItemName' => ['required', 'string', 'max:255'],
             'editItemQuantity' => ['nullable', 'string', 'max:255'],
+            'editItemWeekDay' => ['nullable', 'string', Rule::in(ShoppingListItem::WEEK_DAYS)],
             'editItemNotes' => ['nullable', 'string', 'max:500'],
         ]);
 
         ShoppingListItem::query()->whereKey($this->editingItemId)->update([
             ShoppingListItem::NAME_COLUMN => $this->editItemName,
             ShoppingListItem::QUANTITY_COLUMN => $this->editItemQuantity ?: null,
+            ShoppingListItem::WEEK_DAY_COLUMN => $this->editItemWeekDay ?: null,
             'notes' => $this->editItemNotes ?: null,
         ]);
 
@@ -317,6 +322,16 @@ new #[Layout('layouts::app')] class extends Component {
             <div>
                 <x-ui.eyebrow optional>{{ __('Quantity') }}</x-ui.eyebrow>
                 <x-ui.text-input wire:model="editItemQuantity" class="w-full" />
+            </div>
+
+            <div>
+                <x-ui.eyebrow optional>{{ __('Day of week') }}</x-ui.eyebrow>
+                <select wire:model="editItemWeekDay" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
+                    <option value="">{{ __('Unassigned') }}</option>
+                    @foreach (\App\Models\ShoppingListItem::WEEK_DAYS as $day)
+                    <option value="{{ $day }}">{{ ShoppingListItem::dayLabel($day) }}</option>
+                    @endforeach
+                </select>
             </div>
 
             <div>
