@@ -32,6 +32,21 @@ new class extends Component {
     ])]
     public array $recipeIngredients = [];
 
+    #[Validate([
+        'recipeNutrition.me.calories' => 'nullable|numeric|min:0|max:9999',
+        'recipeNutrition.me.protein' => 'nullable|numeric|min:0|max:9999',
+        'recipeNutrition.me.fat' => 'nullable|numeric|min:0|max:9999',
+        'recipeNutrition.me.carbs' => 'nullable|numeric|min:0|max:9999',
+        'recipeNutrition.wife.calories' => 'nullable|numeric|min:0|max:9999',
+        'recipeNutrition.wife.protein' => 'nullable|numeric|min:0|max:9999',
+        'recipeNutrition.wife.fat' => 'nullable|numeric|min:0|max:9999',
+        'recipeNutrition.wife.carbs' => 'nullable|numeric|min:0|max:9999',
+    ])]
+    public array $recipeNutrition = [
+        'me' => ['calories' => '', 'protein' => '', 'fat' => '', 'carbs' => ''],
+        'wife' => ['calories' => '', 'protein' => '', 'fat' => '', 'carbs' => ''],
+    ];
+
     public function mount(?Recipe $recipe = null): void
     {
         if ($recipe && $recipe->exists) {
@@ -47,6 +62,10 @@ new class extends Component {
                     'quantity' => $ingredient->pivot?->quantity ?? '',
                 ];
             })->toArray();
+
+            foreach (Recipe::NUTRITION_PROFILES as $profile) {
+                $this->recipeNutrition[$profile] = $this->recipe->nutritionFor($profile);
+            }
         }
     }
 
@@ -91,6 +110,14 @@ new class extends Component {
             $recipe->name = $this->recipeName;
             $recipe->link = trim($this->recipeUrl ?: null);
             $recipe->content = $this->recipeContent ?: null;
+
+            foreach (Recipe::NUTRITION_PROFILES as $profile) {
+                $recipe->{"calories_{$profile}"} = $this->recipeNutrition[$profile]['calories'] ?: null;
+                $recipe->{"protein_{$profile}"} = $this->recipeNutrition[$profile]['protein'] ?: null;
+                $recipe->{"fat_{$profile}"} = $this->recipeNutrition[$profile]['fat'] ?: null;
+                $recipe->{"carbs_{$profile}"} = $this->recipeNutrition[$profile]['carbs'] ?: null;
+            }
+
             $recipe->save();
 
             $recipe->tags()->sync($this->recipeTags);
@@ -182,6 +209,66 @@ new class extends Component {
                     class="flex items-center gap-2 text-terracotta font-manrope text-[13.5px] font-bold py-1.5">
                     + {{ __('Add ingredient') }}
                 </button>
+            </div>
+        </div>
+
+        <div>
+            <x-ui.eyebrow optional>{{ __('Nutrition per serving') }}</x-ui.eyebrow>
+            <p class="font-manrope text-xs text-ink/50 mb-2.5">
+                {{ __('Optional. Enter values per single serving, separately for each of you.') }}
+            </p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                @foreach (\App\Models\Recipe::NUTRITION_PROFILES as $profile)
+                <div class="space-y-2">
+                    <span class="font-manrope text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink/50">
+                        {{ \App\Models\Recipe::nutritionProfileLabel($profile) }}
+                    </span>
+
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <div>
+                            <x-ui.text-input
+                                type="number"
+                                step="1"
+                                min="0"
+                                wire:model="recipeNutrition.{{ $profile }}.calories"
+                                placeholder="{{ __('kcal') }}"
+                                class="w-full" />
+                            <x-ui.field-error name="recipeNutrition.{{ $profile }}.calories" />
+                        </div>
+                        <div>
+                            <x-ui.text-input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                wire:model="recipeNutrition.{{ $profile }}.protein"
+                                placeholder="{{ __('protein (g)') }}"
+                                class="w-full" />
+                            <x-ui.field-error name="recipeNutrition.{{ $profile }}.protein" />
+                        </div>
+                        <div>
+                            <x-ui.text-input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                wire:model="recipeNutrition.{{ $profile }}.fat"
+                                placeholder="{{ __('fat (g)') }}"
+                                class="w-full" />
+                            <x-ui.field-error name="recipeNutrition.{{ $profile }}.fat" />
+                        </div>
+                        <div>
+                            <x-ui.text-input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                wire:model="recipeNutrition.{{ $profile }}.carbs"
+                                placeholder="{{ __('carbs (g)') }}"
+                                class="w-full" />
+                            <x-ui.field-error name="recipeNutrition.{{ $profile }}.carbs" />
+                        </div>
+                    </div>
+                </div>
+                @endforeach
             </div>
         </div>
 

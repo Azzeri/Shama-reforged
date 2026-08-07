@@ -52,7 +52,13 @@ new #[Layout('layouts::app')] class extends Component {
     #[Computed]
     public function recipeOptions(): Collection
     {
-        return Recipe::query()->orderBy('name')->get(['id', 'name']);
+        return Recipe::query()->orderBy('name')->get();
+    }
+
+    #[Computed]
+    public function recipesById(): Collection
+    {
+        return $this->recipeOptions->keyBy('id');
     }
 
     private function emptyMealRow(): array
@@ -145,20 +151,36 @@ new #[Layout('layouts::app')] class extends Component {
 
                     <div class="space-y-2.5">
                         @foreach ($row['recipeIds'] as $recipeIndex => $recipeId)
-                        <div wire:key="meal-{{ $mealIndex }}-recipe-{{ $recipeIndex }}" class="flex items-center gap-2">
-                            <select wire:model="meals.{{ $mealIndex }}.recipeIds.{{ $recipeIndex }}" class="flex-1 border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
-                                <option value="">{{ __('Select recipe') }}</option>
-                                @foreach ($this->recipeOptions as $recipeOption)
-                                <option value="{{ $recipeOption->id }}">{{ $recipeOption->name }}</option>
-                                @endforeach
-                            </select>
+                        <div wire:key="meal-{{ $mealIndex }}-recipe-{{ $recipeIndex }}" class="space-y-1.5">
+                            <div class="flex items-center gap-2">
+                                <select wire:model.live="meals.{{ $mealIndex }}.recipeIds.{{ $recipeIndex }}" class="flex-1 border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
+                                    <option value="">{{ __('Select recipe') }}</option>
+                                    @foreach ($this->recipeOptions as $recipeOption)
+                                    <option value="{{ $recipeOption->id }}">{{ $recipeOption->name }}</option>
+                                    @endforeach
+                                </select>
 
-                            <button
-                                type="button"
-                                wire:click="removeRecipeRow({{ $mealIndex }}, {{ $recipeIndex }})"
-                                class="shrink-0 w-10 h-11 flex items-center justify-center rounded-xl bg-terracotta text-white">
-                                <flux:icon.trash class="size-4" />
-                            </button>
+                                <button
+                                    type="button"
+                                    wire:click="removeRecipeRow({{ $mealIndex }}, {{ $recipeIndex }})"
+                                    class="shrink-0 w-10 h-11 flex items-center justify-center rounded-xl bg-terracotta text-white">
+                                    <flux:icon.trash class="size-4" />
+                                </button>
+                            </div>
+
+                            @if ($recipeId && $this->recipesById->has((int) $recipeId))
+                            @php $selectedRecipe = $this->recipesById[(int) $recipeId]; @endphp
+                            <a
+                                href="{{ route('recipes.show', $selectedRecipe) }}"
+                                wire:navigate
+                                class="block border border-ink/10 rounded-xl px-3.5 py-2.5 hover:bg-sand/40 transition-colors">
+                                <div class="flex items-center justify-between gap-2 mb-1.5">
+                                    <span class="font-manrope text-sm font-bold text-ink">{{ $selectedRecipe->name }}</span>
+                                    <flux:icon.chevron-right class="size-3.5 text-ink/30 shrink-0" />
+                                </div>
+                                <x-recipe.nutrition :recipe="$selectedRecipe" compact />
+                            </a>
+                            @endif
                         </div>
                         <x-ui.field-error name="meals.{{ $mealIndex }}.recipeIds.{{ $recipeIndex }}" />
                         @endforeach

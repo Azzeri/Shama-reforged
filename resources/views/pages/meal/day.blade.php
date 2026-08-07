@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Meal;
+use App\Models\Recipe;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -29,10 +30,39 @@ new #[Layout('layouts::app')] class extends Component {
     public function meals(): Collection
     {
         return Meal::query()
-            ->with('recipes:id,name')
+            ->with('recipes')
             ->whereDate(Meal::DATE_COLUMN, $this->day->toDateString())
             ->orderBy(Meal::DATE_COLUMN)
             ->get();
+    }
+
+    #[Computed]
+    public function dayCalorieTotals(): array
+    {
+        return Recipe::calorieTotals($this->meals->flatMap->recipes);
+    }
+
+    public function mealCalorieTotals(Meal $meal): array
+    {
+        return Recipe::calorieTotals($meal->recipes);
+    }
+
+    public function recipeCalorieTotals(Recipe $recipe): array
+    {
+        return collect(Recipe::NUTRITION_PROFILES)
+            ->mapWithKeys(fn (string $profile) => [$profile => $recipe->caloriesFor($profile)])
+            ->filter(fn (?int $kcal) => filled($kcal))
+            ->all();
+    }
+
+    public function goToRecipe(Recipe $recipe): void
+    {
+        $this->redirectRoute('recipes.show', $recipe);
+    }
+
+    public function goToEditDay(): void
+    {
+        $this->redirectRoute('meals.day.edit', $this->date);
     }
 
     public function confirmDelete(int $mealId): void
@@ -44,7 +74,7 @@ new #[Layout('layouts::app')] class extends Component {
     {
         Meal::query()->whereKey($this->mealToDelete)->delete();
         $this->mealToDelete = null;
-        unset($this->meals);
+        unset($this->meals, $this->dayCalorieTotals);
     }
 };
 ?>
@@ -63,30 +93,39 @@ new #[Layout('layouts::app')] class extends Component {
             </a>
         </div>
 
+        <x-recipe.calorie-chips :totals="$this->dayCalorieTotals" suffix="razem" />
+
         <div class="space-y-3">
             @forelse ($this->meals as $meal)
-            <div wire:key="meal-{{ $meal->id }}" class="bg-white rounded-[18px] p-4 border border-ink/10">
+            <div wire:key="meal-{{ $meal->id }}" wire:click="goToEditDay" class="bg-white rounded-[18px] p-4 border border-ink/10 cursor-pointer">
                 <div class="flex items-center justify-between mb-2.5">
                     <span class="font-manrope text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink/50">
                         {{ Meal::typeLabel($meal->type) }}
                     </span>
 
-                    <flux:modal.trigger name="delete-meal-modal">
-                        <button type="button" wire:click="confirmDelete({{ $meal->id }})" class="text-terracotta-dark p-1">
-                            <flux:icon.trash class="size-4" />
-                        </button>
-                    </flux:modal.trigger>
+                    <div @click.stop>
+                        <flux:modal.trigger name="delete-meal-modal">
+                            <button type="button" wire:click="confirmDelete({{ $meal->id }})" class="text-terracotta-dark p-1">
+                                <flux:icon.trash class="size-4" />
+                            </button>
+                        </flux:modal.trigger>
+                    </div>
                 </div>
 
                 @forelse ($meal->recipes as $recipe)
-                <div class="border border-ink/10 rounded-xl px-3.5 py-2.5 mb-2 last:mb-0 font-manrope text-sm text-ink">
-                    {{ $recipe->name }}
+                <div wire:click.stop="goToRecipe({{ $recipe->id }})" class="border border-ink/10 rounded-xl px-3.5 py-2.5 mb-2 cursor-pointer hover:bg-sand/40 transition-colors">
+                    <div class="font-manrope text-sm text-ink">
+                        {{ $recipe->name }}
+                    </div>
+                    <x-recipe.calorie-line :totals="$this->recipeCalorieTotals($recipe)" class="mt-0.5" />
                 </div>
                 @empty
                 <div class="border border-dashed border-ink/24 rounded-xl px-3.5 py-4 text-center font-manrope text-[13px] text-ink/40">
                     {{ __('No recipes') }}
                 </div>
                 @endforelse
+
+                <x-recipe.calorie-chips :totals="$this->mealCalorieTotals($meal)" class="mt-1" />
             </div>
             @empty
             <div class="border border-dashed border-ink/24 rounded-[18px] px-4 py-8 text-center font-manrope text-sm text-ink/40">
