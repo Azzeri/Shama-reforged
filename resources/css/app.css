@@ -23,24 +23,29 @@
     --color-zinc-900: #171717;
     --color-zinc-950: #0a0a0a;
 
-    --color-amber-50: #fff9ed;
-    --color-amber-100: #fef0ce;
-    --color-amber-200: #fbd78e;
-    --color-amber-300: #f6ba4b;
-    --color-amber-400: #ea9b1f;
-    --color-amber-500: #d98113;
-    --color-amber-600: #b96a10;
+    --font-fraunces: 'Fraunces', ui-serif, Georgia, serif;
+    --font-manrope: 'Manrope', ui-sans-serif, system-ui, sans-serif;
 
-    --color-accent: var(--color-amber-500);
-    --color-accent-content: var(--color-amber-600);
+    --color-cream: #FBF7F0;
+    --color-sand: #F2E9DA;
+    --color-ink: #2B2118;
+    --color-terracotta: #C1442D;
+    --color-terracotta-dark: #9C3623;
+    --color-sage: #5C7A5E;
+    --color-forest: #3F5941;
+    --color-gold: #D9A441;
+    --color-gold-dark: #9A6E1F;
+
+    --color-accent: var(--color-terracotta);
+    --color-accent-content: var(--color-terracotta-dark);
     --color-accent-foreground: var(--color-white);
 }
 
 @layer theme {
     .dark {
-        --color-accent: var(--color-amber-300);
-        --color-accent-content: var(--color-amber-300);
-        --color-accent-foreground: var(--color-zinc-900);
+        --color-accent: var(--color-terracotta);
+        --color-accent-content: var(--color-terracotta-dark);
+        --color-accent-foreground: var(--color-white);
     }
 }
 

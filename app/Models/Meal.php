@@ -18,12 +18,16 @@ class Meal extends Model
 
     public const TYPES = ['breakfast', 'lunch', 'dinner', 'dessert'];
 
-    public const TYPE_LABELS = [
-        'breakfast' => 'Śniadanie',
-        'lunch' => 'Obiad',
-        'dinner' => 'Kolacja',
-        'dessert' => 'Deser',
-    ];
+    public static function typeLabel(string $type): string
+    {
+        return match ($type) {
+            'breakfast' => __('Breakfast'),
+            'lunch' => __('Lunch'),
+            'dinner' => __('Dinner'),
+            'dessert' => __('Dessert'),
+            default => ucfirst($type),
+        };
+    }
 
     protected function casts(): array
     {

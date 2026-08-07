@@ -18,16 +18,6 @@ class Tag extends Model
     public const MEAL_TYPE = 'meal_type';
     public const DIET_TYPE = 'diet_type';
 
-    public const MEAL_TYPE_NAMES = ['śniadanie', 'lunch', 'obiad', 'kolacja', 'deser'];
-    public const DIET_TYPE_NAMES = [
-        'wieprzowina',
-        'kurczak',
-        'wołowina',
-        'wege',
-        'ryba',
-        'owoce morza',
-    ];
-
     public function recipes(): BelongsToMany
     {
         return $this->belongsToMany(Recipe::class, 'recipe_tag_assignments')

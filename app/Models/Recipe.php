@@ -3,9 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Str;
 
 #[Fillable(['name', 'content', 'link'])]
 class Recipe extends Model
@@ -13,6 +15,13 @@ class Recipe extends Model
     use HasFactory;
 
     public const NAME_COLUMN = 'name';
+
+    protected function name(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value) => Str::ucfirst(trim($value)),
+        );
+    }
 
     public function ingredients(): BelongsToMany
     {

@@ -13,14 +13,6 @@ new #[Layout('layouts::app')] class extends Component {
             ->title($this->recipe->name);
     }
 
-    public function goBack()
-    {
-        return $this->redirectIntended(
-            default: route('recipes.index'),
-            navigate: true
-        );
-    }
-
     public function delete(): void
     {
         $this->recipe->delete();
@@ -33,94 +25,97 @@ new #[Layout('layouts::app')] class extends Component {
 <div>
     <div class="space-y-5">
         <div>
-            <flux:heading size="xl">{{ $this->recipe->name }}</flux:heading>
+            <h1 class="font-fraunces text-[30px] font-semibold leading-tight text-ink mb-0.5">{{ $this->recipe->name }}</h1>
 
             @if (filled($recipe->link))
-            <flux:link as="a" href="{{ $recipe->link }}" target="_blank">{{ __('Open recipe source') }} →</flux:link>
+            <a
+                href="{{ $recipe->link }}"
+                target="_blank"
+                class="inline-flex items-center gap-1 font-manrope text-[13px] font-bold text-forest hover:text-ink">
+                {{ __('Open recipe source') }} →
+            </a>
             @endif
         </div>
 
-        <div class="flex gap-1 w-full justify-between">
-            <div class="flex gap-1">
-                <flux:button
-                    variant="primary"
-                    icon="pencil-square"
-                    size="sm"
-                    as="a"
-                    href="{{ route('recipes.edit', $this->recipe) }}"
-                    wire:navigate>
-                    {{ __('Edit') }}
-                </flux:button>
+        <div class="flex items-center gap-2.5">
+            <a
+                href="{{ route('recipes.edit', $this->recipe) }}"
+                wire:navigate
+                class="flex-1 inline-flex items-center justify-center gap-1.5 bg-ink text-cream rounded-2xl py-[11px] font-manrope text-[13.5px] font-extrabold">
+                <flux:icon.pencil-square class="size-4" />
+                {{ __('Edit') }}
+            </a>
 
-                <flux:modal.trigger name="delete-recipe-modal">
-                    <flux:button
-                        variant="danger"
-                        size="sm"
-                        icon="trash">
-                        {{ __('Delete') }}
-                    </flux:button>
-                </flux:modal.trigger>
-            </div>
+            <flux:modal.trigger name="delete-recipe-modal">
+                <button
+                    type="button"
+                    class="inline-flex items-center gap-1.5 border-[1.5px] border-terracotta text-terracotta-dark rounded-2xl px-4 py-[11px] font-manrope text-[13.5px] font-extrabold">
+                    <flux:icon.trash class="size-4" />
+                    {{ __('Delete') }}
+                </button>
+            </flux:modal.trigger>
+        </div>
 
-            <flux:button
-                variant="ghost"
-                size="sm"
-                icon="arrow-left"
-                wire:click="goBack">
-                {{ __('Go back') }}
-            </flux:button>
+        <div class="flex flex-wrap gap-2">
+            @foreach ($recipe->tags as $tag)
+            <x-recipe.tag-badge :tag="$tag" />
+            @endforeach
         </div>
 
         <div>
-            <div class="flex flex-wrap gap-1.5">
-                @foreach ($recipe->tags as $tag)
-                <flux:badge variant="subtle" size="sm">
-                    {{ $tag->name }}
-                </flux:badge>
-                @endforeach
-            </div>
-        </div>
+            <x-ui.eyebrow>{{ __('Ingredients') }}</x-ui.eyebrow>
 
-        <div class="space-y-2">
-            <ul class="divide-y divide-zinc-200 dark:divide-zinc-700/50">
-                @foreach ($recipe->ingredients as $ingredient)
-                <li class="flex items-center justify-between py-2.5 text-sm">
-                    <span class="font-medium text-zinc-800 dark:text-zinc-200">
+            <div>
+                @foreach ($recipe->ingredients as $index => $ingredient)
+                <div @class(['flex items-baseline py-[11px]', 'border-t border-dashed border-ink/25' => $index > 0])>
+                    <span class="font-manrope text-[14.5px] font-semibold text-ink whitespace-nowrap">
                         {{ $ingredient->name }}
                     </span>
 
+                    <span class="flex-1 border-b-2 border-dotted border-ink/25 mx-2 -translate-y-1"></span>
+
                     @if ($ingredient->pivot?->quantity)
-                    <flux:badge size="sm" variant="subtle">
+                    <span class="font-manrope text-[13px] font-extrabold text-terracotta-dark bg-sand px-2.5 py-1 rounded-full whitespace-nowrap">
                         {{ $ingredient->pivot->quantity }}
-                    </flux:badge>
+                    </span>
                     @endif
-                </li>
+                </div>
                 @endforeach
-            </ul>
+            </div>
         </div>
 
-        <flux:separator />
-
-        <flux:text size="lg">{{ $this->recipe->content }}</flux:text>
+        @if (filled($this->recipe->content))
+        <div class="font-fraunces italic text-[15px] leading-relaxed text-ink/60 mt-2 pt-4 border-t border-ink/25">
+            "{{ $this->recipe->content }}"
+        </div>
+        @endif
     </div>
 
-    <flux:modal name="delete-recipe-modal" class="md:w-96">
+    <flux:modal name="delete-recipe-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88vh] overflow-y-auto">
         <div class="space-y-6">
-            <div>
-                <flux:heading size="lg">{{ __('Delete recipe?') }}</flux:heading>
-                <flux:subheading class="mt-1">
-                    {{ __('Are you sure you want to delete this recipe? This action cannot be undone.') }}
-                </flux:subheading>
+            <div class="flex items-start justify-between gap-2">
+                <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Delete recipe?') }}</h3>
+                <flux:modal.close>
+                    <button type="button" class="text-ink/25 hover:text-ink/50 p-1.5 text-lg leading-none">✕</button>
+                </flux:modal.close>
             </div>
+            <p class="font-manrope text-sm text-ink/60 -mt-4">
+                {{ __('Are you sure you want to delete this recipe? This action cannot be undone.') }}
+            </p>
 
             <div class="flex gap-2 justify-end">
                 <flux:modal.close>
-                    <flux:button variant="ghost">{{ __('Cancel') }}</flux:button>
+                    <button type="button" class="font-manrope text-sm font-extrabold text-ink/60 hover:text-ink px-4 py-2.5">
+                        {{ __('Cancel') }}
+                    </button>
                 </flux:modal.close>
 
-                <flux:button variant="danger" wire:click="delete">
+                <button
+                    type="button"
+                    wire:click="delete"
+                    class="bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-2xl px-5 py-2.5 font-manrope text-sm font-extrabold">
                     {{ __('Delete recipe') }}
-                </flux:button>
+                </button>
             </div>
         </div>
     </flux:modal>

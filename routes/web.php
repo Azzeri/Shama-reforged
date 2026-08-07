@@ -1,9 +1,5 @@
 <?php
 
-use App\Http\Controllers\MealController;
-use App\Http\Controllers\IngredientController;
-use App\Http\Controllers\RecipeController;
-use App\Http\Controllers\ShoppingListController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -20,18 +16,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('/recipes/{recipe}', 'pages::recipe.show')->name('recipes.show');
     Route::livewire('/recipes/{recipe}/edit', 'pages::recipe.edit')->name('recipes.edit');
 
+    Route::livewire('/ingredients', 'pages::ingredient.index')->name('ingredients.index');
+    Route::livewire('/meals', 'pages::meal.index')->name('meals.index');
+    Route::livewire('/meals/day/{date}/edit', 'pages::meal.day-edit')->name('meals.day.edit');
+    Route::livewire('/meals/day/{date}', 'pages::meal.day')->name('meals.day');
 
-    Route::resource('ingredients', IngredientController::class)->except(['show']);
-    Route::resource('meals', MealController::class)->except(['show', 'edit', 'update']);
-    Route::get('meals/day/{date}/edit', [MealController::class, 'editDay'])->name('meals.day.edit');
-    Route::put('meals/day/{date}', [MealController::class, 'updateDay'])->name('meals.day.update');
-    Route::get('meals/day/{date}', [MealController::class, 'day'])->name('meals.day');
-
-    Route::get('shopping-list', [ShoppingListController::class, 'index'])->name('shopping-list.index');
-    Route::post('shopping-list/items', [ShoppingListController::class, 'store'])->name('shopping-list.items.store');
-    Route::patch('shopping-list/items/{shoppingListItem}/toggle', [ShoppingListController::class, 'toggle'])->name('shopping-list.items.toggle');
-    Route::post('shopping-list/generate', [ShoppingListController::class, 'generate'])->name('shopping-list.generate');
-    Route::delete('shopping-list/clear-unchecked', [ShoppingListController::class, 'clearUnchecked'])->name('shopping-list.clear-unchecked');
+    Route::livewire('/shopping-list', 'pages::shopping-list.index')->name('shopping-list.index');
 });
 
 require __DIR__ . '/settings.php';

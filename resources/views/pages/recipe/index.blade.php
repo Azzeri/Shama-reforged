@@ -52,6 +52,12 @@ new #[Layout('layouts::app')] class extends Component {
     }
 
     #[Computed]
+    public function activeFiltersCount(): int
+    {
+        return count($this->searchCategories) + ($this->searchName !== '' ? 1 : 0);
+    }
+
+    #[Computed]
     public function tagsByCategory(): Collection
     {
         return Tag::query()
@@ -76,59 +82,71 @@ new #[Layout('layouts::app')] class extends Component {
 ?>
 <div>
     <div class="space-y-5">
-        <flux:heading size="xl">{{ __('Recipes') }}</flux:heading>
-        <flux:button
-            variant="primary"
-            as="a"
+        <div>
+            <x-ui.eyebrow color="forest">{{ __('Your cookbook') }}</x-ui.eyebrow>
+            <h1 class="font-fraunces text-[30px] font-semibold leading-tight text-ink">{{ __('Recipes') }}</h1>
+        </div>
+
+        <a
             href="{{ route('recipes.create') }}"
             wire:navigate
-            class="w-full">
-            {{ __('New recipe') }}
-        </flux:button>
+            class="block w-full text-center bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-2xl py-[15px] font-manrope text-[14.5px] font-extrabold shadow-[0_10px_22px_rgba(193,68,45,0.3)]">
+            + {{ __('New recipe') }}
+        </a>
+
         <form class="space-y-5">
-            <flux:field>
-                <flux:label>{{__("Search by recipe name")}}</flux:label>
-                <flux:input placeholder="{{__('Enter recipe name')}}" clearable wire:model.live="searchName" />
-            </flux:field>
-
-            <flux:checkbox.group wire:model.live="searchCategories" label="{{ __('Meal type') }}" variant="pills">
-                @foreach ($this->tagsByCategory->get(Tag::MEAL_TYPE, []) as $tag)
-                <flux:checkbox value="{{ $tag->id }}" label="{{ $tag->name }}" />
-                @endforeach
-            </flux:checkbox.group>
-
-            <flux:checkbox.group wire:model.live="searchCategories" label="{{ __('Diet type') }}" variant="pills">
-                @foreach ($this->tagsByCategory->get(Tag::DIET_TYPE, []) as $tag)
-                <flux:checkbox value="{{ $tag->id }}" label="{{ $tag->name }}" />
-                @endforeach
-            </flux:checkbox.group>
-
-            <div class="flex justify-end w-full">
-                <flux:button icon="funnel" wire:click="clearFilters">{{ __('Clear') }}</flux:button>
+            <div>
+                <x-ui.eyebrow>{{ __('Search by recipe name') }}</x-ui.eyebrow>
+                <div class="relative">
+                    <x-ui.text-input
+                        wire:model.live="searchName"
+                        placeholder="{{ __('Enter recipe name') }}"
+                        class="w-full pr-9" />
+                    @if ($searchName)
+                    <button
+                        type="button"
+                        wire:click="$set('searchName', '')"
+                        class="absolute right-3 top-1/2 -translate-y-1/2 text-ink/30 hover:text-ink/60">
+                        <flux:icon.x-mark class="size-4" />
+                    </button>
+                    @endif
+                </div>
             </div>
+
+            <x-recipe.tag-pill-group
+                :tags="$this->tagsByCategory->get(Tag::MEAL_TYPE, [])"
+                label="{{ __('Meal type') }}"
+                color="gold"
+                wire:model.live="searchCategories" />
+
+            <x-recipe.tag-pill-group
+                :tags="$this->tagsByCategory->get(Tag::DIET_TYPE, [])"
+                label="{{ __('Diet type') }}"
+                color="sage"
+                wire:model.live="searchCategories" />
+
+            @if ($this->activeFiltersCount > 0)
+            <div class="flex items-center justify-between bg-sand rounded-2xl px-3.5 py-[11px]">
+                <span class="font-manrope text-[12.5px] font-bold text-ink/60">
+                    {{ __(':count active filters', ['count' => $this->activeFiltersCount]) }}
+                </span>
+                <button type="button" wire:click="clearFilters" class="font-manrope text-[12.5px] font-extrabold text-terracotta-dark">
+                    {{ __('Clear') }}
+                </button>
+            </div>
+            @endif
         </form>
 
         <div class="space-y-3">
             @forelse ($this->recipes as $recipe)
-            <flux:card>
-                <flux:heading size="lg" wire:click="goToDetails({{ $recipe->id }})">{{ $recipe->name ?? 'Unknown recipe' }}</flux:heading>
-
-                <flux:text class="mt-2 mb-4" size="sm">
-                    {{__("Składniki")}}: {{ $recipe->ingredients->take(10)->pluck('name')->join(', ') ?: '-' }}
-                </flux:text>
-                <div class="mt-2">
-                    @foreach ($recipe->tags as $tag)
-                    <flux:badge rounded size="sm" color="orange">{{$tag->name}}</flux:badge>
-                    @endforeach
-                </div>
-            </flux:card>
+            <x-recipe.card :recipe="$recipe" :dot="['terracotta', 'gold', 'sage'][$loop->index % 3]" />
             @empty
-            <flux:callout icon="face-frown">
-                <flux:callout.heading>{{__('No recipes for the given filters')}}</flux:callout.heading>
-            </flux:callout>
+            <div class="border border-dashed border-ink/25 rounded-2xl px-4 py-8 text-center font-manrope text-sm text-ink/50">
+                {{ __('No recipes for the given filters') }}
+            </div>
             @endforelse
 
-            <flux:pagination :paginator="$this->recipes" />
+            <flux:pagination :paginator="$this->recipes" class="mt-2" />
         </div>
     </div>
 </div>

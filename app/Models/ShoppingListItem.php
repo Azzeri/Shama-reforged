@@ -14,15 +14,19 @@ class ShoppingListItem extends Model
 
     public const WEEK_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
-    public const WEEK_DAY_LABELS = [
-        'monday' => 'Poniedziałek',
-        'tuesday' => 'Wtorek',
-        'wednesday' => 'Środa',
-        'thursday' => 'Czwartek',
-        'friday' => 'Piątek',
-        'saturday' => 'Sobota',
-        'sunday' => 'Niedziela',
-    ];
+    public static function dayLabel(string $day): string
+    {
+        return match ($day) {
+            'monday' => __('Monday'),
+            'tuesday' => __('Tuesday'),
+            'wednesday' => __('Wednesday'),
+            'thursday' => __('Thursday'),
+            'friday' => __('Friday'),
+            'saturday' => __('Saturday'),
+            'sunday' => __('Sunday'),
+            default => ucfirst($day),
+        };
+    }
 
     public const NAME_COLUMN = 'name';
 

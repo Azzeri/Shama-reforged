@@ -1,5 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" {{ $attributes }}>
-    <path d="M12.4 2.5C9.2 4.1 7.8 7 8.1 9.7C8.4 12.1 10.1 13.8 12.2 14.4C14.9 15.1 16.6 13.6 17.6 12.2C18.4 11.1 18.9 9.5 18.5 7.7" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M6.1 14.2C6.8 18.2 9.6 21 12.9 21C16.8 21 19.8 17.5 19.8 13.1C19.8 12.2 19.7 11.5 19.5 10.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M5 8.2C5.8 7.6 6.7 7.4 7.7 7.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" {{ $attributes }}>
+    <ellipse cx="22" cy="30" rx="13" ry="14" fill="#F5C9A0"/>
+    <ellipse cx="78" cy="30" rx="13" ry="14" fill="#F5C9A0"/>
+    <ellipse cx="22" cy="32" rx="6.5" ry="7.5" fill="#E8988A"/>
+    <ellipse cx="78" cy="32" rx="6.5" ry="7.5" fill="#E8988A"/>
+    <ellipse cx="50" cy="54" rx="40" ry="36" fill="#FBEADA"/>
+    <path d="M28 46 Q34 40 40 46" stroke="#2B2118" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <path d="M60 46 Q66 40 72 46" stroke="#2B2118" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <ellipse cx="27" cy="56" rx="6" ry="4" fill="#F2A6A6" opacity="0.7"/>
+    <ellipse cx="73" cy="56" rx="6" ry="4" fill="#F2A6A6" opacity="0.7"/>
+    <ellipse cx="50" cy="66" rx="19" ry="13" fill="#E8988A"/>
+    <ellipse cx="43" cy="66" rx="3.5" ry="4.5" fill="#2B2118"/>
+    <ellipse cx="57" cy="66" rx="3.5" ry="4.5" fill="#2B2118"/>
 </svg>

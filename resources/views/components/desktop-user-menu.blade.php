@@ -3,6 +3,8 @@
         :name="auth()->user()->name"
         :initials="auth()->user()->initials()"
         icon:trailing="chevrons-up-down"
+        circle
+        avatar:class="bg-white! text-ink! font-manrope! font-extrabold!"
         data-test="sidebar-menu-button"
     />
 
@@ -11,10 +13,12 @@
             <flux:avatar
                 :name="auth()->user()->name"
                 :initials="auth()->user()->initials()"
+                circle
+                class="bg-sand! text-ink! font-manrope! font-extrabold!"
             />
             <div class="grid flex-1 text-start text-sm leading-tight">
-                <flux:heading class="truncate">{{ auth()->user()->name }}</flux:heading>
-                <flux:text class="truncate">{{ auth()->user()->email }}</flux:text>
+                <flux:heading class="truncate font-manrope">{{ auth()->user()->name }}</flux:heading>
+                <flux:text class="truncate font-manrope">{{ auth()->user()->email }}</flux:text>
             </div>
         </div>
         <flux:menu.separator />
