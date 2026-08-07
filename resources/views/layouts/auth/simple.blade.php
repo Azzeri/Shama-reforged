@@ -7,8 +7,8 @@
         <div class="flex min-h-svh flex-col items-center justify-center gap-5 p-6 md:p-10">
             <div class="flex w-full max-w-sm flex-col gap-5">
                 <a href="{{ route('home') }}" class="flex flex-col items-center gap-2 font-medium" wire:navigate>
-                    <span class="flex aspect-square size-11 items-center justify-center rounded-[11px] bg-terracotta text-white shadow-sm font-manrope font-extrabold text-lg">
-                        S
+                    <span class="flex aspect-square size-11 items-center justify-center rounded-[13px] bg-terracotta shadow-sm overflow-hidden">
+                        <x-app-logo-icon class="size-8" />
                     </span>
                     <span class="font-fraunces text-lg font-semibold text-ink">{{ config('app.name', 'Shama') }}</span>
                 </a>
