@@ -55,17 +55,6 @@ new #[Layout('layouts::app')] class extends Component {
         return Recipe::query()->orderBy('name')->get(['id', 'name']);
     }
 
-    public function mealTypeLabel(string $type): string
-    {
-        return match ($type) {
-            'breakfast' => __('Breakfast'),
-            'lunch' => __('Lunch'),
-            'dinner' => __('Dinner'),
-            'dessert' => __('Dessert'),
-            default => ucfirst($type),
-        };
-    }
-
     private function emptyMealRow(): array
     {
         return ['id' => null, 'type' => '', 'recipeIds' => ['']];
@@ -145,7 +134,7 @@ new #[Layout('layouts::app')] class extends Component {
                     <select wire:model="meals.{{ $mealIndex }}.type" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
                         <option value="">{{ __('Select type') }}</option>
                         @foreach (\App\Models\Meal::TYPES as $type)
-                        <option value="{{ $type }}">{{ $this->mealTypeLabel($type) }}</option>
+                        <option value="{{ $type }}">{{ Meal::typeLabel($type) }}</option>
                         @endforeach
                     </select>
                     <x-ui.field-error name="meals.{{ $mealIndex }}.type" />

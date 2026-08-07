@@ -35,17 +35,6 @@ new #[Layout('layouts::app')] class extends Component {
             ->get();
     }
 
-    public function mealTypeLabel(string $type): string
-    {
-        return match ($type) {
-            'breakfast' => __('Breakfast'),
-            'lunch' => __('Lunch'),
-            'dinner' => __('Dinner'),
-            'dessert' => __('Dessert'),
-            default => ucfirst($type),
-        };
-    }
-
     public function confirmDelete(int $mealId): void
     {
         $this->mealToDelete = $mealId;
@@ -79,7 +68,7 @@ new #[Layout('layouts::app')] class extends Component {
             <div wire:key="meal-{{ $meal->id }}" class="bg-white rounded-[18px] p-4 border border-ink/10">
                 <div class="flex items-center justify-between mb-2.5">
                     <span class="font-manrope text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink/50">
-                        {{ $this->mealTypeLabel($meal->type) }}
+                        {{ Meal::typeLabel($meal->type) }}
                     </span>
 
                     <flux:modal.trigger name="delete-meal-modal">

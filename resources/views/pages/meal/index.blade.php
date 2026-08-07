@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Meal;
+use App\Models\ShoppingList;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -14,6 +15,8 @@ new #[Layout('layouts::app')] class extends Component {
     public ?string $week = null;
 
     public bool $showPastDays = false;
+
+    public array $selectedDaysForShoppingList = [];
 
     public function render()
     {
@@ -69,17 +72,6 @@ new #[Layout('layouts::app')] class extends Component {
         return $this->days;
     }
 
-    public function mealTypeLabel(string $type): string
-    {
-        return match ($type) {
-            'breakfast' => __('Breakfast'),
-            'lunch' => __('Lunch'),
-            'dinner' => __('Dinner'),
-            'dessert' => __('Dessert'),
-            default => ucfirst($type),
-        };
-    }
-
     public function goToToday(): void
     {
         $this->week = now()->toDateString();
@@ -100,6 +92,69 @@ new #[Layout('layouts::app')] class extends Component {
     public function togglePastDays(): void
     {
         $this->showPastDays = ! $this->showPastDays;
+    }
+
+    public function generateShoppingListFromSelectedDays(): void
+    {
+        $this->generateShoppingListItems($this->selectedDaysForShoppingList);
+    }
+
+    public function generateShoppingListFromFullWeek(): void
+    {
+        $dates = collect(range(0, 6))
+            ->map(fn (int $offset) => $this->weekStart->copy()->addDays($offset)->toDateString())
+            ->all();
+
+        $this->generateShoppingListItems($dates);
+    }
+
+    private function generateShoppingListItems(array $dateStrings): void
+    {
+        $weekStart = $this->weekStart;
+
+        $dates = collect($dateStrings)
+            ->map(fn (string $date) => Carbon::parse($date)->startOfDay())
+            ->filter(fn (CarbonInterface $date) => $date->betweenIncluded($weekStart, $weekStart->copy()->endOfWeek()))
+            ->values();
+
+        if ($dates->isEmpty()) {
+            return;
+        }
+
+        $meals = Meal::query()
+            ->with(['recipes' => fn ($query) => $query->with('ingredients:id,name')])
+            ->where(function ($query) use ($dates) {
+                foreach ($dates as $date) {
+                    $query->orWhereDate(Meal::DATE_COLUMN, $date->toDateString());
+                }
+            })
+            ->get();
+
+        $shoppingList = ShoppingList::query()->firstOrCreate(['id' => 1], ['name' => 'Main shopping list']);
+
+        foreach ($meals as $meal) {
+            foreach ($meal->recipes as $recipe) {
+                foreach ($recipe->ingredients as $ingredient) {
+                    $quantity = trim((string) ($ingredient->pivot?->quantity ?? ''));
+
+                    if ($quantity === '') {
+                        continue;
+                    }
+
+                    $shoppingList->items()->create([
+                        'name' => $ingredient->name,
+                        'quantity' => $quantity,
+                        'is_checked' => false,
+                        'week_day' => strtolower($meal->date->englishDayOfWeek),
+                        'recipe_id' => $recipe->id,
+                        'meal_id' => $meal->id,
+                    ]);
+                }
+            }
+        }
+
+        $this->selectedDaysForShoppingList = [];
+        $this->redirectRoute('shopping-list.index', navigate: true);
     }
 };
 ?>
@@ -175,7 +230,7 @@ new #[Layout('layouts::app')] class extends Component {
                 @forelse ($dayData['meals'] as $meal)
                 <div wire:key="meal-{{ $meal->id }}" class="border border-ink/10 rounded-xl px-3 py-2.5 mb-2">
                     <div class="font-manrope text-xs font-bold uppercase tracking-[0.05em] text-ink/50 mb-0.5">
-                        {{ $this->mealTypeLabel($meal->type) }}
+                        {{ Meal::typeLabel($meal->type) }}
                     </div>
                     <div class="font-manrope text-sm text-ink">
                         {{ $meal->recipes->pluck('name')->join(', ') ?: __('No recipes') }}
@@ -201,35 +256,25 @@ new #[Layout('layouts::app')] class extends Component {
 
             <p class="font-manrope text-[13px] text-ink/60">{{ __('Select the days to collect ingredients from assigned recipes.') }}</p>
 
-            <form method="POST" action="{{ route('shopping-list.generate') }}" class="space-y-4">
-                @csrf
-                <input type="hidden" name="week_start" value="{{ $this->weekStart->toDateString() }}">
-                <input type="hidden" name="mode" value="selected-days">
-
+            <div class="space-y-4">
                 <div class="space-y-2">
                     @foreach ($this->days as $dayData)
                     <label wire:key="generate-day-{{ $dayData['date']->toDateString() }}" class="flex items-center gap-2.5 border-[1.5px] border-ink/15 rounded-xl px-3.5 py-2.5 cursor-pointer">
-                        <input type="checkbox" name="days[]" value="{{ $dayData['date']->toDateString() }}" class="peer sr-only">
+                        <input type="checkbox" wire:model="selectedDaysForShoppingList" value="{{ $dayData['date']->toDateString() }}" class="peer sr-only">
                         <span class="flex items-center justify-center size-5 rounded-[6px] border-2 border-ink/15 text-transparent peer-checked:bg-sage peer-checked:border-sage peer-checked:text-white text-xs font-bold shrink-0 transition-colors">✓</span>
                         <span class="font-manrope text-sm font-semibold text-ink">{{ $dayData['date']->copy()->locale('en')->isoFormat('dddd D.MM') }}</span>
                     </label>
                     @endforeach
                 </div>
 
-                <button type="submit" class="w-full bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-[14px] py-3.5 font-manrope text-sm font-extrabold">
+                <button type="button" wire:click="generateShoppingListFromSelectedDays" class="w-full bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-[14px] py-3.5 font-manrope text-sm font-extrabold">
                     + {{ __('Add from selected days') }}
                 </button>
-            </form>
+            </div>
 
-            <form method="POST" action="{{ route('shopping-list.generate') }}">
-                @csrf
-                <input type="hidden" name="week_start" value="{{ $this->weekStart->toDateString() }}">
-                <input type="hidden" name="mode" value="full-week">
-
-                <button type="submit" class="w-full bg-transparent border-[1.5px] border-ink/20 text-ink rounded-[14px] py-3.5 font-manrope text-sm font-extrabold">
-                    📅 {{ __('Add from the whole week') }}
-                </button>
-            </form>
+            <button type="button" wire:click="generateShoppingListFromFullWeek" class="w-full bg-transparent border-[1.5px] border-ink/20 text-ink rounded-[14px] py-3.5 font-manrope text-sm font-extrabold">
+                📅 {{ __('Add from the whole week') }}
+            </button>
         </div>
     </flux:modal>
 </div>
