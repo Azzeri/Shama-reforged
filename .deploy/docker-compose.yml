@@ -10,28 +10,38 @@ services:
     environment:
       - TMPDIR=/var/www/storage/app/tmp
       - TEMP=/var/www/storage/app/tmp
+      - TZ=Europe/Warsaw
     volumes:
       - ../:/var/www
     build:
       context: ../
       dockerfile_inline: |
         FROM php:8.5-fpm
-        RUN apt-get update && apt-get install -y libpng-dev libjpeg-dev libfreetype6-dev zip git unzip \
+        RUN apt-get update && apt-get install -y libpng-dev libjpeg-dev libfreetype6-dev zip git unzip tzdata \
+            && ln -snf /usr/share/zoneinfo/Europe/Warsaw /etc/localtime && echo "Europe/Warsaw" > /etc/timezone \
             && docker-php-ext-configure gd --with-freetype --with-jpeg \
             && docker-php-ext-install pdo_mysql gd
+        RUN echo "date.timezone=Europe/Warsaw" > /usr/local/etc/php/conf.d/timezone.ini
         COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
   # Kontener Nginx
   web:
-    image: nginx:alpine
     container_name: laravel-web
     restart: unless-stopped
     ports:
       - "80:80"
     env_file:
       - ../.env
+    environment:
+      - TZ=Europe/Warsaw
     volumes:
       - ../:/var/www
       - ./nginx/laravel.conf:/etc/nginx/conf.d/default.conf
+    build:
+      context: ../
+      dockerfile_inline: |
+        FROM nginx:alpine
+        RUN apk add --no-cache tzdata \
+            && ln -snf /usr/share/zoneinfo/Europe/Warsaw /etc/localtime && echo "Europe/Warsaw" > /etc/timezone
     depends_on:
       - app
 
@@ -42,6 +52,8 @@ services:
     restart: unless-stopped
     env_file:
       - ../.env
+    environment:
+      - TZ=Europe/Warsaw
     ports:
       - "3306:3306"
     volumes:
