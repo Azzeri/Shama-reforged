@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-#[Fillable(['type', 'date'])]
+#[Fillable(['type', 'date', 'note'])]
 class Meal extends Model
 {
     use HasFactory;
@@ -15,6 +15,8 @@ class Meal extends Model
     public const TYPE_COLUMN = 'type';
 
     public const DATE_COLUMN = 'date';
+
+    public const NOTE_COLUMN = 'note';
 
     public const TYPES = ['breakfast', 'lunch', 'dinner', 'dessert'];
 

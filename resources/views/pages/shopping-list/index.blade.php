@@ -89,7 +89,7 @@ new #[Layout('layouts::app')] class extends Component {
         $weekEnd = now()->endOfWeek();
 
         return collect(ShoppingListItem::WEEK_DAYS)
-            ->map(function (string $day) use ($checked, $weekStart, $weekEnd) {
+            ->map(function (string $day, int $index) use ($checked, $weekStart, $weekEnd) {
                 $items = $this->items
                     ->where(ShoppingListItem::IS_CHECKED_COLUMN, $checked)
                     ->where(ShoppingListItem::WEEK_DAY_COLUMN, $day)
@@ -98,7 +98,12 @@ new #[Layout('layouts::app')] class extends Component {
                     ))
                     ->values();
 
-                return ['day' => $day, 'label' => ShoppingListItem::dayLabel($day), 'items' => $items];
+                return [
+                    'day' => $day,
+                    'label' => ShoppingListItem::dayLabel($day),
+                    'date' => $weekStart->copy()->addDays($index)->format('d.m'),
+                    'items' => $items,
+                ];
             })
             ->filter(fn (array $group) => $group['items']->isNotEmpty())
             ->values();
@@ -215,7 +220,7 @@ new #[Layout('layouts::app')] class extends Component {
 
         @foreach ($this->activeByDay as $group)
         <div wire:key="active-day-{{ $group['day'] }}">
-            <div class="uppercase text-[12px] font-extrabold tracking-[0.08em] text-ink/55 mb-2.5 font-manrope">{{ $group['label'] }}</div>
+            <div class="uppercase text-[12px] font-extrabold tracking-[0.08em] text-ink/55 mb-2.5 font-manrope">{{ $group['label'] }} · {{ $group['date'] }}</div>
             <div class="grid grid-cols-3 gap-2.5">
                 @foreach ($group['items'] as $item)
                 <x-shopping-list.item-tile :item="$item" wire:key="item-{{ $item->id }}" />
@@ -231,7 +236,7 @@ new #[Layout('layouts::app')] class extends Component {
             <div class="space-y-3.5">
                 @foreach ($this->boughtByDay as $group)
                 <div wire:key="bought-day-{{ $group['day'] }}">
-                    <div class="text-[12.5px] font-bold text-ink/50 font-manrope mb-2">{{ $group['label'] }}</div>
+                    <div class="text-[12.5px] font-bold text-ink/50 font-manrope mb-2">{{ $group['label'] }} · {{ $group['date'] }}</div>
                     <div class="grid grid-cols-3 gap-2.5">
                         @foreach ($group['items'] as $item)
                         <x-shopping-list.item-tile :item="$item" bought wire:key="item-{{ $item->id }}" />
@@ -255,7 +260,7 @@ new #[Layout('layouts::app')] class extends Component {
         @endif
     </div>
 
-    <flux:modal name="add-item-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88vh] overflow-y-auto">
+    <flux:modal name="add-item-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
         <form wire:submit="addItem" class="space-y-5">
             <div class="flex items-start justify-between gap-2">
                 <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Add item') }}</h3>
@@ -278,7 +283,7 @@ new #[Layout('layouts::app')] class extends Component {
 
             <div>
                 <x-ui.eyebrow optional>{{ __('Day of week') }}</x-ui.eyebrow>
-                <select wire:model="newItemWeekDay" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
+                <select wire:model="newItemWeekDay" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-base sm:text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
                     <option value="">{{ __('Unassigned') }}</option>
                     @foreach (\App\Models\ShoppingListItem::WEEK_DAYS as $day)
                     <option value="{{ $day }}">{{ ShoppingListItem::dayLabel($day) }}</option>
@@ -304,7 +309,7 @@ new #[Layout('layouts::app')] class extends Component {
         </form>
     </flux:modal>
 
-    <flux:modal name="edit-item-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88vh] overflow-y-auto">
+    <flux:modal name="edit-item-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
         <form wire:submit="saveItem" class="space-y-5">
             <div class="flex items-start justify-between gap-2">
                 <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Edit item') }}</h3>
@@ -326,7 +331,7 @@ new #[Layout('layouts::app')] class extends Component {
 
             <div>
                 <x-ui.eyebrow optional>{{ __('Day of week') }}</x-ui.eyebrow>
-                <select wire:model="editItemWeekDay" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
+                <select wire:model="editItemWeekDay" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-base sm:text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
                     <option value="">{{ __('Unassigned') }}</option>
                     @foreach (\App\Models\ShoppingListItem::WEEK_DAYS as $day)
                     <option value="{{ $day }}">{{ ShoppingListItem::dayLabel($day) }}</option>
@@ -365,7 +370,7 @@ new #[Layout('layouts::app')] class extends Component {
         </form>
     </flux:modal>
 
-    <flux:modal name="clear-unchecked-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88vh] overflow-y-auto">
+    <flux:modal name="clear-unchecked-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
         <div class="space-y-6">
             <div class="flex items-start justify-between gap-2">
                 <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Clear unchecked items?') }}</h3>

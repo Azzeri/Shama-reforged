@@ -153,7 +153,7 @@ new #[Layout('layouts::app')] class extends Component {
         </div>
     </div>
 
-    <flux:modal name="add-ingredient-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88vh] overflow-y-auto">
+    <flux:modal name="add-ingredient-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
         <form wire:submit="createIngredient" class="space-y-5">
             <div class="flex items-start justify-between gap-2">
                 <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('New ingredient') }}</h3>
@@ -181,7 +181,7 @@ new #[Layout('layouts::app')] class extends Component {
         </form>
     </flux:modal>
 
-    <flux:modal name="edit-ingredient-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88vh] overflow-y-auto">
+    <flux:modal name="edit-ingredient-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
         <form wire:submit="saveIngredient" class="space-y-5">
             <div class="flex items-start justify-between gap-2">
                 <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Edit ingredient') }}</h3>
@@ -209,7 +209,7 @@ new #[Layout('layouts::app')] class extends Component {
         </form>
     </flux:modal>
 
-    <flux:modal name="delete-ingredient-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88vh] overflow-y-auto">
+    <flux:modal name="delete-ingredient-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
         <div class="space-y-6">
             <div class="flex items-start justify-between gap-2">
                 <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Delete ingredient?') }}</h3>

@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Meal;
+use App\Models\Recipe;
 use App\Models\ShoppingList;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
@@ -45,7 +46,7 @@ new #[Layout('layouts::app')] class extends Component {
         $weekEnd = $weekStart->copy()->endOfWeek();
 
         $meals = Meal::query()
-            ->with('recipes:id,name')
+            ->with('recipes:id,name,calories_me,calories_wife')
             ->whereBetween(Meal::DATE_COLUMN, [$weekStart->copy()->startOfDay(), $weekEnd->copy()->endOfDay()])
             ->orderBy(Meal::DATE_COLUMN)
             ->get();
@@ -70,6 +71,26 @@ new #[Layout('layouts::app')] class extends Component {
         }
 
         return $this->days;
+    }
+
+    public function goToDay(string $date): void
+    {
+        $this->redirectRoute('meals.day', $date);
+    }
+
+    public function goToRecipe(Recipe $recipe): void
+    {
+        $this->redirectRoute('recipes.show', $recipe);
+    }
+
+    public function mealCalorieTotals(Meal $meal): array
+    {
+        return Recipe::calorieTotals($meal->recipes);
+    }
+
+    public function dayCalorieTotals(Collection $meals): array
+    {
+        return Recipe::calorieTotals($meals->flatMap->recipes);
     }
 
     public function goToToday(): void
@@ -207,11 +228,10 @@ new #[Layout('layouts::app')] class extends Component {
         </div>
 
         @foreach ($this->visibleDays as $dayData)
-            <a
+            <div
                 wire:key="day-{{ $dayData['date']->toDateString() }}"
-                href="{{ route('meals.day', $dayData['date']->toDateString()) }}"
-                wire:navigate
-                class="block bg-white rounded-[18px] p-4 shadow-[0_1px_2px_rgba(43,33,24,0.06),0_10px_24px_rgba(43,33,24,0.07)]">
+                wire:click="goToDay('{{ $dayData['date']->toDateString() }}')"
+                class="block bg-white rounded-[18px] p-4 shadow-[0_1px_2px_rgba(43,33,24,0.06),0_10px_24px_rgba(43,33,24,0.07)] cursor-pointer">
                 <div class="flex justify-between items-start mb-2.5">
                     <div>
                         <div class="font-manrope text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink/50">
@@ -233,19 +253,32 @@ new #[Layout('layouts::app')] class extends Component {
                         {{ Meal::typeLabel($meal->type) }}
                     </div>
                     <div class="font-manrope text-sm text-ink">
-                        {{ $meal->recipes->pluck('name')->join(', ') ?: __('No recipes') }}
+                        @forelse ($meal->recipes as $recipe)
+                        <span
+                            wire:click.stop="goToRecipe({{ $recipe->id }})"
+                            class="hover:underline hover:text-terracotta-dark">{{ $recipe->name }}</span>{{ !$loop->last ? ', ' : '' }}
+                        @empty
+                        @if (filled($meal->note))
+                        <span class="font-fraunces italic text-ink/60">{{ $meal->note }}</span>
+                        @else
+                        {{ __('No recipes') }}
+                        @endif
+                        @endforelse
                     </div>
+                    <x-recipe.calorie-line :totals="$this->mealCalorieTotals($meal)" class="mt-1" />
                 </div>
                 @empty
                 <div class="border border-dashed border-ink/24 rounded-xl py-6 text-center font-manrope text-[13px] text-ink/40">
                     {{ __('No meals') }}
                 </div>
                 @endforelse
-            </a>
+
+                <x-recipe.calorie-chips :totals="$this->dayCalorieTotals($dayData['meals'])" suffix="razem" class="mt-1" />
+            </div>
         @endforeach
     </div>
 
-    <flux:modal name="generate-shopping-list-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88vh] overflow-y-auto">
+    <flux:modal name="generate-shopping-list-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
         <div class="space-y-5">
             <div class="flex items-start justify-between gap-2">
                 <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Generate shopping list') }}</h3>

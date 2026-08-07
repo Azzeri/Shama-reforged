@@ -32,7 +32,7 @@ new #[Layout('layouts::app')] class extends Component {
                 href="{{ $recipe->link }}"
                 target="_blank"
                 class="inline-flex items-center gap-1 font-manrope text-[13px] font-bold text-forest hover:text-ink">
-                {{ __('Open recipe source') }} →
+                {{ __('Otwórz źródło przepisu') }} →
             </a>
             @endif
         </div>
@@ -43,7 +43,7 @@ new #[Layout('layouts::app')] class extends Component {
                 wire:navigate
                 class="flex-1 inline-flex items-center justify-center gap-1.5 bg-ink text-cream rounded-2xl py-[11px] font-manrope text-[13.5px] font-extrabold">
                 <flux:icon.pencil-square class="size-4" />
-                {{ __('Edit') }}
+                {{ __('Edytuj') }}
             </a>
 
             <flux:modal.trigger name="delete-recipe-modal">
@@ -51,7 +51,7 @@ new #[Layout('layouts::app')] class extends Component {
                     type="button"
                     class="inline-flex items-center gap-1.5 border-[1.5px] border-terracotta text-terracotta-dark rounded-2xl px-4 py-[11px] font-manrope text-[13.5px] font-extrabold">
                     <flux:icon.trash class="size-4" />
-                    {{ __('Delete') }}
+                    {{ __('Usuń') }}
                 </button>
             </flux:modal.trigger>
         </div>
@@ -62,8 +62,15 @@ new #[Layout('layouts::app')] class extends Component {
             @endforeach
         </div>
 
+        @if ($recipe->hasAnyNutrition())
         <div>
-            <x-ui.eyebrow>{{ __('Ingredients') }}</x-ui.eyebrow>
+            <x-ui.eyebrow>{{ __('Wartości odżywcze na porcję') }}</x-ui.eyebrow>
+            <x-recipe.nutrition :recipe="$recipe" />
+        </div>
+        @endif
+
+        <div>
+            <x-ui.eyebrow>{{ __('Składniki') }}</x-ui.eyebrow>
 
             <div>
                 @foreach ($recipe->ingredients as $index => $ingredient)
@@ -91,22 +98,22 @@ new #[Layout('layouts::app')] class extends Component {
         @endif
     </div>
 
-    <flux:modal name="delete-recipe-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88vh] overflow-y-auto">
+    <flux:modal name="delete-recipe-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
         <div class="space-y-6">
             <div class="flex items-start justify-between gap-2">
-                <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Delete recipe?') }}</h3>
+                <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Usunąć przepis?') }}</h3>
                 <flux:modal.close>
                     <button type="button" class="text-ink/25 hover:text-ink/50 p-1.5 text-lg leading-none">✕</button>
                 </flux:modal.close>
             </div>
             <p class="font-manrope text-sm text-ink/60 -mt-4">
-                {{ __('Are you sure you want to delete this recipe? This action cannot be undone.') }}
+                {{ __('Tej operacji nie można cofnąć.') }}
             </p>
 
             <div class="flex gap-2 justify-end">
                 <flux:modal.close>
                     <button type="button" class="font-manrope text-sm font-extrabold text-ink/60 hover:text-ink px-4 py-2.5">
-                        {{ __('Cancel') }}
+                        {{ __('Anuluj') }}
                     </button>
                 </flux:modal.close>
 
@@ -114,7 +121,7 @@ new #[Layout('layouts::app')] class extends Component {
                     type="button"
                     wire:click="delete"
                     class="bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-2xl px-5 py-2.5 font-manrope text-sm font-extrabold">
-                    {{ __('Delete recipe') }}
+                    {{ __('Usuń przepis') }}
                 </button>
             </div>
         </div>
