@@ -16,7 +16,3 @@
 @fonts
 
 @vite(['resources/css/app.css', 'resources/js/app.js'])
-<script>
-    document.documentElement.classList.remove('dark');
-    window.localStorage.removeItem('flux.appearance');
-</script>
