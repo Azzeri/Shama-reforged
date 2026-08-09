@@ -317,13 +317,25 @@ new #[Layout('layouts::app')] class extends Component {
                     @endforeach
                 </div>
 
-                <button type="button" wire:click="generateShoppingListFromSelectedDays" class="w-full bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-[14px] py-3.5 font-manrope text-sm font-extrabold">
-                    + {{ __('Add from selected days') }}
+                <button
+                    type="button"
+                    wire:click="generateShoppingListFromSelectedDays"
+                    wire:target="generateShoppingListFromSelectedDays"
+                    wire:loading.attr="disabled"
+                    class="w-full flex items-center justify-center gap-2 bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-[14px] py-3.5 font-manrope text-sm font-extrabold disabled:opacity-60">
+                    <flux:icon.loading wire:loading wire:target="generateShoppingListFromSelectedDays" variant="mini" />
+                    <span wire:loading.remove wire:target="generateShoppingListFromSelectedDays">+ {{ __('Add from selected days') }}</span>
                 </button>
             </div>
 
-            <button type="button" wire:click="generateShoppingListFromFullWeek" class="w-full bg-transparent border-[1.5px] border-ink/20 text-ink rounded-[14px] py-3.5 font-manrope text-sm font-extrabold">
-                📅 {{ __('Add from the whole week') }}
+            <button
+                type="button"
+                wire:click="generateShoppingListFromFullWeek"
+                wire:target="generateShoppingListFromFullWeek"
+                wire:loading.attr="disabled"
+                class="w-full flex items-center justify-center gap-2 bg-transparent border-[1.5px] border-ink/20 text-ink rounded-[14px] py-3.5 font-manrope text-sm font-extrabold disabled:opacity-60">
+                <flux:icon.loading wire:loading wire:target="generateShoppingListFromFullWeek" variant="mini" />
+                <span wire:loading.remove wire:target="generateShoppingListFromFullWeek">📅 {{ __('Add from the whole week') }}</span>
             </button>
         </div>
     </flux:modal>

@@ -47,6 +47,55 @@ class DietPlanSeeder extends Seeder
         'Półbagietka', 'Proteinowy ser żółty Go Active',
     ];
 
+    /**
+     * Grocery-aisle category per ingredient, used to seed Ingredient::category.
+     * Anything not listed here falls back to "uncategorized" — see categoryFor().
+     */
+    private const CATEGORY_INGREDIENTS = [
+        Ingredient::CATEGORY_DAIRY => [
+            'Burrata', 'Jajko kurze całe', 'Jogurt grecki', 'Jogurt naturalny 2%',
+            'Jogurt naturalny gęsty', 'Jogurt skyr', 'Kluski leniwe Proste Historie',
+            'Masło extra', 'Mleko 1,5%', 'Proteinowy ser żółty Go Active', 'Ser gouda',
+            'Ser twarogowy półtłusty', 'Ser typu Feta', 'Serek wiejski naturalny',
+            'Serek śmietankowy', 'Zsiadłe mleko', 'Śmietana 12%', 'Śmietanka 12%',
+        ],
+        Ingredient::CATEGORY_BREAD => [
+            'Bajgiel z sezamem', 'Bułka grahamka', 'Chleb żytni razowy', 'Pita',
+            'Półbagietka', 'Schiacciata', 'Tortilla pełnoziarnista',
+        ],
+        Ingredient::CATEGORY_MEAT_FISH => [
+            'Boczek parzony', 'Chorizo', 'Łosoś wędzony na zimno', 'Łosoś świeży (bez skóry)',
+            'Mięso z piersi indyka', 'Mięso z piersi kurczaka', 'Prosciutto Cotto',
+            'Schab wieprzowy', 'Szynka z kurczaka',
+        ],
+        Ingredient::CATEGORY_PRODUCE => [
+            'Arbuz', 'Awokado', 'Banan', 'Biała rzodkiew', 'Borówki amerykańskie',
+            'Brzoskwinia', 'Bób świeży', 'Cebula', 'Cebula czerwona', 'Cebula dymka',
+            'Cukinia', 'Cytryna', 'Czosnek świeży', 'Groszek cukrowy', 'Jagody świeże lub mrożone',
+            'Kalarepa', 'Kapusta biała młoda', 'Kiełki rzodkiewki', 'Koper posiekany',
+            'Maliny świeże lub mrożone', 'Marchew', 'Mięta', 'Miks sałat', 'Natka pietruszki posiekana',
+            'Ogórek świeży', 'Pomidor', 'Pomidorki koktajlowe', 'Por', 'Roszponka', 'Rukola',
+            'Seler naciowy', 'Skórka z cytryny', 'Sok z cytryny', 'Sok z limonki',
+            'Szczypiorek siekany', 'Szpinak', 'Truskawki, świeże lub mrożone', 'Ziemniaki',
+        ],
+        Ingredient::CATEGORY_FROZEN => [
+            'Big milk', 'Lody waniliowe',
+        ],
+        Ingredient::CATEGORY_PANTRY => [
+            'Bazylia suszona', 'Bulion warzywny', 'Bułka tarta', 'Chrzan (tarty)', 'Cukier',
+            'Czekolada gorzka 70%', 'Drożdże świeże', 'Dżem z czarnych porzeczek', 'Erytrol',
+            'Hummus', 'Kakao gorzkie', 'Kasza gryczana niepalona (biała)', 'Kasza jęczmienna pęczak',
+            'Krem crispy hazelnut Nutlove', 'Ksylitol', 'Kumin', 'Majeranek', 'Majonez',
+            'Majonez light', 'Makaron pełnoziarnisty', 'Masło orzechowe', 'Mieszanka orzechów',
+            'Miód', 'Mąka kokosowa', 'Mąka pszenna typ 500', 'Nasiona chia', 'Ocet jabłkowy',
+            'Odżywka białkowa', 'Olej rzepakowy', 'Oliwa z oliwek', 'Oliwki zielone',
+            'Oregano suszone', 'Orzechy włoskie', 'Pieprz czarny', 'Pomidory suszone w oleju (odsączone)',
+            'Pomidory z puszki', 'Puder z erytrolu', 'Płatki owsiane górskie', 'Ryż basmati',
+            'Soda oczyszczona', 'Sos sojowy', 'Sos sriracha', 'Syrop klonowy', 'Sól',
+            'Tymianek suszony', 'Wanilia ekstrakt', 'Wiórki kokosowe', 'Woda', 'Zioła prowansalskie',
+        ],
+    ];
+
     public function run(): void
     {
         $tags = collect(self::MEAL_SLOTS)->mapWithKeys(fn (string $type) => [
@@ -94,7 +143,7 @@ class DietPlanSeeder extends Seeder
         foreach ($definition['ingredients'] as $name => $amounts) {
             $ingredient = Ingredient::query()->firstOrCreate(
                 ['name' => $name],
-                ['purchase_timing' => $this->purchaseTimingFor($name)]
+                ['purchase_timing' => $this->purchaseTimingFor($name), 'category' => $this->categoryFor($name)]
             );
 
             $recipe->ingredients()->attach($ingredient->id, [
@@ -112,6 +161,17 @@ class DietPlanSeeder extends Seeder
         return in_array($name, self::FRESH_INGREDIENTS, true)
             ? Ingredient::PURCHASE_TIMING_FRESH
             : Ingredient::PURCHASE_TIMING_ADVANCE;
+    }
+
+    private function categoryFor(string $name): string
+    {
+        foreach (self::CATEGORY_INGREDIENTS as $category => $names) {
+            if (in_array($name, $names, true)) {
+                return $category;
+            }
+        }
+
+        return Ingredient::CATEGORY_UNCATEGORIZED;
     }
 
     private function days(): array

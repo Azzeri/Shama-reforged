@@ -38,18 +38,9 @@ new #[Layout('layouts::app')] class extends Component {
     public function items(): Collection
     {
         return $this->shoppingList->items()
-            ->with(['recipe:id,name', 'ingredient:id,purchase_timing'])
+            ->with(['recipe:id,name', 'ingredient:id,purchase_timing,category'])
             ->orderByDesc('created_at')
             ->get();
-    }
-
-    #[Computed]
-    public function unassignedActiveItems(): Collection
-    {
-        return $this->items
-            ->where(ShoppingListItem::IS_CHECKED_COLUMN, false)
-            ->whereNull(ShoppingListItem::WEEK_DAY_COLUMN)
-            ->values();
     }
 
     #[Computed]
@@ -57,10 +48,11 @@ new #[Layout('layouts::app')] class extends Component {
     {
         $items = $this->items
             ->where(ShoppingListItem::IS_CHECKED_COLUMN, false)
-            ->filter(fn (ShoppingListItem $item) => $item->ingredient?->purchase_timing === Ingredient::PURCHASE_TIMING_ADVANCE)
+            ->filter(fn (ShoppingListItem $item) => $item->ingredient?->purchase_timing === Ingredient::PURCHASE_TIMING_ADVANCE
+                || $item->week_day === null)
             ->values();
 
-        return $this->groupAndSum($items);
+        return $this->groupByCategory($this->groupAndSum($items));
     }
 
     /**
@@ -92,6 +84,28 @@ new #[Layout('layouts::app')] class extends Component {
                     'displayQuantity' => $displayQuantity,
                 ];
             })
+            ->values();
+    }
+
+    /**
+     * Splits already-merged item groups into aisle sections (dairy, bread,
+     * ...) in Ingredient::CATEGORIES order, so the day's list reads like a
+     * shopping trip instead of a random pile. Sections with nothing in them
+     * are dropped rather than shown empty.
+     */
+    private function groupByCategory(Collection $itemGroups): Collection
+    {
+        $byCategory = $itemGroups->groupBy(
+            fn (array $group) => $group['item']->ingredient?->category ?? Ingredient::CATEGORY_UNCATEGORIZED
+        );
+
+        return collect(Ingredient::CATEGORIES)
+            ->map(fn (string $category) => [
+                'category' => $category,
+                'label' => Ingredient::categoryLabel($category),
+                'items' => $byCategory->get($category, collect()),
+            ])
+            ->filter(fn (array $section) => $section['items']->isNotEmpty())
             ->values();
     }
 
@@ -143,11 +157,14 @@ new #[Layout('layouts::app')] class extends Component {
                     ))
                     ->values();
 
+                $itemGroups = $this->groupAndSum($items);
+
                 return [
                     'day' => $day,
                     'label' => ShoppingListItem::dayLabel($day),
                     'date' => $weekStart->copy()->addDays($index)->format('d.m'),
-                    'items' => $this->groupAndSum($items),
+                    'items' => $itemGroups,
+                    'categories' => $this->groupByCategory($itemGroups),
                 ];
             })
             ->filter(fn (array $group) => $group['items']->isNotEmpty())
@@ -266,41 +283,46 @@ new #[Layout('layouts::app')] class extends Component {
         @if ($this->advanceItems->isNotEmpty())
         <div>
             <div class="uppercase text-[12px] font-extrabold tracking-[0.08em] text-ink/55 mb-2.5 font-manrope">{{ __('Can buy anytime this week') }}</div>
-            <div class="grid grid-cols-3 gap-2.5">
-                @foreach ($this->advanceItems as $group)
-                <x-shopping-list.item-tile
-                    :item="$group['item']"
-                    :ids="$group['ids']"
-                    :display-quantity="$group['displayQuantity']"
-                    wire:key="item-advance-{{ $group['ids'][0] }}" />
+            <div class="space-y-3">
+                @foreach ($this->advanceItems as $categoryGroup)
+                <div wire:key="advance-cat-{{ $categoryGroup['category'] }}">
+                    @if ($this->advanceItems->count() > 1)
+                    <div class="font-manrope text-[11px] font-bold text-ink/40 mb-1.5">{{ $categoryGroup['label'] }}</div>
+                    @endif
+                    <div class="grid grid-cols-3 gap-2.5">
+                        @foreach ($categoryGroup['items'] as $itemGroup)
+                        <x-shopping-list.item-tile
+                            :item="$itemGroup['item']"
+                            :ids="$itemGroup['ids']"
+                            :display-quantity="$itemGroup['displayQuantity']"
+                            wire:key="item-advance-{{ $itemGroup['ids'][0] }}" />
+                        @endforeach
+                    </div>
+                </div>
                 @endforeach
             </div>
         </div>
         @endif
 
-        <div>
-            <div class="uppercase text-[12px] font-extrabold tracking-[0.08em] text-ink/55 mb-2.5 font-manrope">{{ __('No day assigned') }}</div>
-            <div class="grid grid-cols-3 gap-2.5">
-                @forelse ($this->unassignedActiveItems as $item)
-                <x-shopping-list.item-tile :item="$item" wire:key="item-{{ $item->id }}" />
-                @empty
-                <div class="col-span-3 border border-dashed border-ink/24 rounded-2xl px-4 py-4 text-center font-manrope text-[13px] text-ink/40">
-                    {{ __('No items') }}
-                </div>
-                @endforelse
-            </div>
-        </div>
-
         @foreach ($this->activeByDay as $group)
         <div wire:key="active-day-{{ $group['day'] }}">
             <div class="uppercase text-[12px] font-extrabold tracking-[0.08em] text-ink/55 mb-2.5 font-manrope">{{ $group['label'] }} · {{ $group['date'] }}</div>
-            <div class="grid grid-cols-3 gap-2.5">
-                @foreach ($group['items'] as $itemGroup)
-                <x-shopping-list.item-tile
-                    :item="$itemGroup['item']"
-                    :ids="$itemGroup['ids']"
-                    :display-quantity="$itemGroup['displayQuantity']"
-                    wire:key="item-{{ $itemGroup['ids'][0] }}" />
+            <div class="space-y-3">
+                @foreach ($group['categories'] as $categoryGroup)
+                <div wire:key="active-day-{{ $group['day'] }}-cat-{{ $categoryGroup['category'] }}">
+                    @if ($group['categories']->count() > 1)
+                    <div class="font-manrope text-[11px] font-bold text-ink/40 mb-1.5">{{ $categoryGroup['label'] }}</div>
+                    @endif
+                    <div class="grid grid-cols-3 gap-2.5">
+                        @foreach ($categoryGroup['items'] as $itemGroup)
+                        <x-shopping-list.item-tile
+                            :item="$itemGroup['item']"
+                            :ids="$itemGroup['ids']"
+                            :display-quantity="$itemGroup['displayQuantity']"
+                            wire:key="item-{{ $itemGroup['ids'][0] }}" />
+                        @endforeach
+                    </div>
+                </div>
                 @endforeach
             </div>
         </div>
@@ -314,14 +336,23 @@ new #[Layout('layouts::app')] class extends Component {
                 @foreach ($this->boughtByDay as $group)
                 <div wire:key="bought-day-{{ $group['day'] }}">
                     <div class="text-[12.5px] font-bold text-ink/50 font-manrope mb-2">{{ $group['label'] }} · {{ $group['date'] }}</div>
-                    <div class="grid grid-cols-3 gap-2.5">
-                        @foreach ($group['items'] as $itemGroup)
-                        <x-shopping-list.item-tile
-                            :item="$itemGroup['item']"
-                            :ids="$itemGroup['ids']"
-                            :display-quantity="$itemGroup['displayQuantity']"
-                            bought
-                            wire:key="item-{{ $itemGroup['ids'][0] }}" />
+                    <div class="space-y-2.5">
+                        @foreach ($group['categories'] as $categoryGroup)
+                        <div wire:key="bought-day-{{ $group['day'] }}-cat-{{ $categoryGroup['category'] }}">
+                            @if ($group['categories']->count() > 1)
+                            <div class="font-manrope text-[10.5px] font-bold text-ink/35 mb-1">{{ $categoryGroup['label'] }}</div>
+                            @endif
+                            <div class="grid grid-cols-3 gap-2.5">
+                                @foreach ($categoryGroup['items'] as $itemGroup)
+                                <x-shopping-list.item-tile
+                                    :item="$itemGroup['item']"
+                                    :ids="$itemGroup['ids']"
+                                    :display-quantity="$itemGroup['displayQuantity']"
+                                    bought
+                                    wire:key="item-{{ $itemGroup['ids'][0] }}" />
+                                @endforeach
+                            </div>
+                        </div>
                         @endforeach
                     </div>
                 </div>

@@ -139,10 +139,11 @@ test('the "can buy anytime" section merges the same ingredient and unit across d
     $this->actingAs($user);
 
     $advanceItems = Livewire::test('pages::shopping-list.index')->instance()->advanceItems;
+    $group = $advanceItems->first()['items']->first();
 
     expect($advanceItems)->toHaveCount(1)
-        ->and($advanceItems->first()['displayQuantity'])->toBe('500 g')
-        ->and($advanceItems->first()['ids'])->toHaveCount(2);
+        ->and($group['displayQuantity'])->toBe('500 g')
+        ->and($group['ids'])->toHaveCount(2);
 });
 
 test('an advance ingredient still appears merged inside its own day section too', function () {
@@ -157,11 +158,12 @@ test('an advance ingredient still appears merged inside its own day section too'
     $component = Livewire::test('pages::shopping-list.index');
     $monday = $component->instance()->activeByDay->firstWhere('day', 'monday');
     $advanceItems = $component->instance()->advanceItems;
+    $advanceGroup = $advanceItems->first()['items']->first();
 
     expect($monday['items'])->toHaveCount(1)
         ->and($monday['items']->first()['displayQuantity'])->toBe('500 g')
         ->and($advanceItems)->toHaveCount(1)
-        ->and($advanceItems->first()['displayQuantity'])->toBe('500 g');
+        ->and($advanceGroup['displayQuantity'])->toBe('500 g');
 });
 
 test('checked items are excluded from the merged group, even sharing an ingredient and unit with active ones', function () {
@@ -177,4 +179,164 @@ test('checked items are excluded from the merged group, even sharing an ingredie
 
     expect($monday['items'])->toHaveCount(1)
         ->and($monday['items']->first()['displayQuantity'])->toBe('10 g');
+});
+
+// ---------------------------------------------------------------------
+// Grouping by ingredient category within a day
+// ---------------------------------------------------------------------
+
+test('a day with ingredients from several categories splits into one section per category', function () {
+    $user = User::factory()->create();
+    $milk = Ingredient::query()->create(['name' => 'Mleko', 'category' => Ingredient::CATEGORY_DAIRY]);
+    $bread = Ingredient::query()->create(['name' => 'Chleb', 'category' => Ingredient::CATEGORY_BREAD]);
+
+    shoppingListItem(['name' => 'Mleko', 'ingredient_id' => $milk->id, 'amount' => 1, 'unit' => 'l', 'week_day' => 'monday']);
+    shoppingListItem(['name' => 'Chleb', 'ingredient_id' => $bread->id, 'amount' => 1, 'unit' => 'pcs', 'week_day' => 'monday']);
+
+    $this->actingAs($user);
+
+    $monday = Livewire::test('pages::shopping-list.index')->instance()->activeByDay->firstWhere('day', 'monday');
+
+    expect($monday['categories'])->toHaveCount(2)
+        ->and($monday['categories']->pluck('category')->all())->toBe([Ingredient::CATEGORY_DAIRY, Ingredient::CATEGORY_BREAD]);
+});
+
+test('category sections follow the canonical Ingredient::CATEGORIES order, not insertion order', function () {
+    $user = User::factory()->create();
+    $bread = Ingredient::query()->create(['name' => 'Chleb', 'category' => Ingredient::CATEGORY_BREAD]);
+    $milk = Ingredient::query()->create(['name' => 'Mleko', 'category' => Ingredient::CATEGORY_DAIRY]);
+    $veg = Ingredient::query()->create(['name' => 'Marchew', 'category' => Ingredient::CATEGORY_PRODUCE]);
+
+    // Created in bread, dairy, produce order — canonical order is dairy, bread, produce.
+    shoppingListItem(['name' => 'Chleb', 'ingredient_id' => $bread->id, 'amount' => 1, 'unit' => 'pcs', 'week_day' => 'monday']);
+    shoppingListItem(['name' => 'Mleko', 'ingredient_id' => $milk->id, 'amount' => 1, 'unit' => 'l', 'week_day' => 'monday']);
+    shoppingListItem(['name' => 'Marchew', 'ingredient_id' => $veg->id, 'amount' => 300, 'unit' => 'g', 'week_day' => 'monday']);
+
+    $this->actingAs($user);
+
+    $monday = Livewire::test('pages::shopping-list.index')->instance()->activeByDay->firstWhere('day', 'monday');
+
+    expect($monday['categories']->pluck('category')->all())
+        ->toBe([Ingredient::CATEGORY_DAIRY, Ingredient::CATEGORY_BREAD, Ingredient::CATEGORY_PRODUCE]);
+});
+
+test('items with no linked ingredient fall into the uncategorized section', function () {
+    $user = User::factory()->create();
+
+    shoppingListItem(['name' => 'Coś ręcznie dodanego', 'ingredient_id' => null, 'quantity' => '1 szt', 'week_day' => 'monday']);
+
+    $this->actingAs($user);
+
+    $monday = Livewire::test('pages::shopping-list.index')->instance()->activeByDay->firstWhere('day', 'monday');
+
+    expect($monday['categories'])->toHaveCount(1)
+        ->and($monday['categories']->first()['category'])->toBe(Ingredient::CATEGORY_UNCATEGORIZED);
+});
+
+test('an empty category section is dropped rather than shown with no items', function () {
+    $user = User::factory()->create();
+    $milk = Ingredient::query()->create(['name' => 'Mleko', 'category' => Ingredient::CATEGORY_DAIRY]);
+
+    shoppingListItem(['name' => 'Mleko', 'ingredient_id' => $milk->id, 'amount' => 1, 'unit' => 'l', 'week_day' => 'monday']);
+
+    $this->actingAs($user);
+
+    $monday = Livewire::test('pages::shopping-list.index')->instance()->activeByDay->firstWhere('day', 'monday');
+
+    expect($monday['categories'])->toHaveCount(1);
+    expect($monday['categories']->pluck('category')->all())->not->toContain(Ingredient::CATEGORY_BREAD);
+});
+
+test('merging by ingredient and unit still happens within each category', function () {
+    $user = User::factory()->create();
+    $salt = Ingredient::query()->create(['name' => 'Sól', 'category' => Ingredient::CATEGORY_PANTRY]);
+
+    shoppingListItem(['name' => 'Sól', 'ingredient_id' => $salt->id, 'amount' => 1, 'unit' => 'g', 'week_day' => 'monday']);
+    shoppingListItem(['name' => 'Sól', 'ingredient_id' => $salt->id, 'amount' => 0.5, 'unit' => 'g', 'week_day' => 'monday']);
+
+    $this->actingAs($user);
+
+    $monday = Livewire::test('pages::shopping-list.index')->instance()->activeByDay->firstWhere('day', 'monday');
+    $pantry = $monday['categories']->firstWhere('category', Ingredient::CATEGORY_PANTRY);
+
+    expect($pantry['items'])->toHaveCount(1)
+        ->and($pantry['items']->first()['displayQuantity'])->toBe('1.5 g');
+});
+
+test('the bought section also splits into category subsections', function () {
+    $user = User::factory()->create();
+    $milk = Ingredient::query()->create(['name' => 'Mleko', 'category' => Ingredient::CATEGORY_DAIRY]);
+    $bread = Ingredient::query()->create(['name' => 'Chleb', 'category' => Ingredient::CATEGORY_BREAD]);
+
+    shoppingListItem(['name' => 'Mleko', 'ingredient_id' => $milk->id, 'amount' => 1, 'unit' => 'l', 'week_day' => 'monday', 'is_checked' => true]);
+    shoppingListItem(['name' => 'Chleb', 'ingredient_id' => $bread->id, 'amount' => 1, 'unit' => 'pcs', 'week_day' => 'monday', 'is_checked' => true]);
+
+    $this->actingAs($user);
+
+    $monday = Livewire::test('pages::shopping-list.index')->instance()->boughtByDay->firstWhere('day', 'monday');
+
+    expect($monday['categories'])->toHaveCount(2)
+        ->and($monday['categories']->pluck('category')->all())->toBe([Ingredient::CATEGORY_DAIRY, Ingredient::CATEGORY_BREAD]);
+});
+
+test('the "can buy anytime" section also splits into category subsections', function () {
+    $user = User::factory()->create();
+    $milk = Ingredient::query()->create([
+        'name' => 'Mleko UHT', 'purchase_timing' => Ingredient::PURCHASE_TIMING_ADVANCE, 'category' => Ingredient::CATEGORY_DAIRY,
+    ]);
+    $flour = Ingredient::query()->create([
+        'name' => 'Mąka', 'purchase_timing' => Ingredient::PURCHASE_TIMING_ADVANCE, 'category' => Ingredient::CATEGORY_PANTRY,
+    ]);
+
+    shoppingListItem(['name' => 'Mleko UHT', 'ingredient_id' => $milk->id, 'amount' => 1, 'unit' => 'l', 'week_day' => 'monday']);
+    shoppingListItem(['name' => 'Mąka', 'ingredient_id' => $flour->id, 'amount' => 500, 'unit' => 'g', 'week_day' => 'tuesday']);
+
+    $this->actingAs($user);
+
+    $advanceItems = Livewire::test('pages::shopping-list.index')->instance()->advanceItems;
+
+    expect($advanceItems)->toHaveCount(2)
+        ->and($advanceItems->pluck('category')->all())->toBe([Ingredient::CATEGORY_DAIRY, Ingredient::CATEGORY_PANTRY]);
+});
+
+// ---------------------------------------------------------------------
+// Items with no week day land in "Can buy anytime this week"
+// ---------------------------------------------------------------------
+
+test('an item with no week day assigned appears in the can buy anytime section', function () {
+    $user = User::factory()->create();
+
+    shoppingListItem(['name' => 'Ręcznik papierowy', 'ingredient_id' => null, 'quantity' => '1 szt', 'week_day' => null]);
+
+    $this->actingAs($user);
+
+    $advanceItems = Livewire::test('pages::shopping-list.index')->instance()->advanceItems;
+    $names = $advanceItems->flatMap(fn (array $section) => $section['items'])->map(fn (array $group) => $group['item']->name);
+
+    expect($names)->toContain('Ręcznik papierowy');
+});
+
+test('a no-day item does not appear in any day-specific section', function () {
+    $user = User::factory()->create();
+
+    shoppingListItem(['name' => 'Ręcznik papierowy', 'ingredient_id' => null, 'quantity' => '1 szt', 'week_day' => null]);
+
+    $this->actingAs($user);
+
+    $activeByDay = Livewire::test('pages::shopping-list.index')->instance()->activeByDay;
+
+    expect($activeByDay)->toBeEmpty();
+});
+
+test('the shopping list page no longer shows a separate "no day assigned" section', function () {
+    $user = User::factory()->create();
+
+    shoppingListItem(['name' => 'Ręcznik papierowy', 'ingredient_id' => null, 'quantity' => '1 szt', 'week_day' => null]);
+
+    $this->actingAs($user);
+
+    Livewire::test('pages::shopping-list.index')
+        ->assertDontSee('No day assigned')
+        ->assertSee('Ręcznik papierowy')
+        ->assertSee('Can buy anytime this week');
 });

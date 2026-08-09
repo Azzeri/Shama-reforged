@@ -17,11 +17,15 @@ new #[Layout('layouts::app')] class extends Component {
 
     public string $newIngredientPurchaseTiming = Ingredient::PURCHASE_TIMING_FRESH;
 
+    public string $newIngredientCategory = Ingredient::CATEGORY_UNCATEGORIZED;
+
     public ?int $editingIngredientId = null;
 
     public string $editIngredientName = '';
 
     public string $editIngredientPurchaseTiming = Ingredient::PURCHASE_TIMING_FRESH;
+
+    public string $editIngredientCategory = Ingredient::CATEGORY_UNCATEGORIZED;
 
     public function render()
     {
@@ -44,6 +48,7 @@ new #[Layout('layouts::app')] class extends Component {
     {
         $this->newIngredientName = '';
         $this->newIngredientPurchaseTiming = Ingredient::PURCHASE_TIMING_FRESH;
+        $this->newIngredientCategory = Ingredient::CATEGORY_UNCATEGORIZED;
         $this->resetErrorBag();
     }
 
@@ -54,11 +59,13 @@ new #[Layout('layouts::app')] class extends Component {
         $this->validate([
             'newIngredientName' => ['required', 'string', 'max:255', 'unique:ingredients,name'],
             'newIngredientPurchaseTiming' => ['required', Rule::in(Ingredient::PURCHASE_TIMINGS)],
+            'newIngredientCategory' => ['required', Rule::in(Ingredient::CATEGORIES)],
         ]);
 
         Ingredient::query()->create([
             Ingredient::NAME_COLUMN => $this->newIngredientName,
             Ingredient::PURCHASE_TIMING_COLUMN => $this->newIngredientPurchaseTiming,
+            Ingredient::CATEGORY_COLUMN => $this->newIngredientCategory,
         ]);
 
         $this->resetNewIngredientForm();
@@ -74,6 +81,7 @@ new #[Layout('layouts::app')] class extends Component {
         $this->editingIngredientId = $ingredientId;
         $this->editIngredientName = $ingredient->name;
         $this->editIngredientPurchaseTiming = $ingredient->purchase_timing;
+        $this->editIngredientCategory = $ingredient->category;
         $this->resetErrorBag();
     }
 
@@ -87,11 +95,13 @@ new #[Layout('layouts::app')] class extends Component {
                 Rule::unique('ingredients', 'name')->ignore($this->editingIngredientId),
             ],
             'editIngredientPurchaseTiming' => ['required', Rule::in(Ingredient::PURCHASE_TIMINGS)],
+            'editIngredientCategory' => ['required', Rule::in(Ingredient::CATEGORIES)],
         ]);
 
         Ingredient::query()->whereKey($this->editingIngredientId)->update([
             Ingredient::NAME_COLUMN => $this->editIngredientName,
             Ingredient::PURCHASE_TIMING_COLUMN => $this->editIngredientPurchaseTiming,
+            Ingredient::CATEGORY_COLUMN => $this->editIngredientCategory,
         ]);
 
         $this->editingIngredientId = null;
@@ -142,9 +152,14 @@ new #[Layout('layouts::app')] class extends Component {
             <div wire:key="ingredient-{{ $ingredient->id }}" class="flex items-center justify-between px-4 py-3.5 bg-white {{ !$loop->last ? 'border-b border-ink/10' : '' }}">
                 <div>
                     <span class="font-manrope text-[14.5px] font-semibold text-ink">{{ $ingredient->name }}</span>
-                    @if ($ingredient->purchase_timing === \App\Models\Ingredient::PURCHASE_TIMING_ADVANCE)
-                    <div class="font-manrope text-[11px] font-semibold text-ink/40">{{ Ingredient::purchaseTimingLabel($ingredient->purchase_timing) }}</div>
-                    @endif
+                    <div class="flex flex-wrap items-center gap-x-2">
+                        @if ($ingredient->purchase_timing === \App\Models\Ingredient::PURCHASE_TIMING_ADVANCE)
+                        <span class="font-manrope text-[11px] font-semibold text-ink/40">{{ Ingredient::purchaseTimingLabel($ingredient->purchase_timing) }}</span>
+                        @endif
+                        @if ($ingredient->category !== \App\Models\Ingredient::CATEGORY_UNCATEGORIZED)
+                        <span class="font-manrope text-[11px] font-semibold text-ink/40">{{ Ingredient::categoryLabel($ingredient->category) }}</span>
+                        @endif
+                    </div>
                 </div>
 
                 <div class="flex gap-2">
@@ -203,6 +218,16 @@ new #[Layout('layouts::app')] class extends Component {
                 <x-ui.field-error name="newIngredientPurchaseTiming" />
             </div>
 
+            <div>
+                <x-ui.eyebrow>{{ __('Category') }}</x-ui.eyebrow>
+                <select wire:model="newIngredientCategory" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-base sm:text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
+                    @foreach (\App\Models\Ingredient::CATEGORIES as $category)
+                    <option value="{{ $category }}">{{ \App\Models\Ingredient::categoryLabel($category) }}</option>
+                    @endforeach
+                </select>
+                <x-ui.field-error name="newIngredientCategory" />
+            </div>
+
             <div class="flex items-center justify-end gap-3">
                 <flux:modal.close>
                     <button type="button" wire:click="resetNewIngredientForm" class="font-manrope text-sm font-extrabold text-forest px-4 py-3">
@@ -242,6 +267,16 @@ new #[Layout('layouts::app')] class extends Component {
                     @endforeach
                 </div>
                 <x-ui.field-error name="editIngredientPurchaseTiming" />
+            </div>
+
+            <div>
+                <x-ui.eyebrow>{{ __('Category') }}</x-ui.eyebrow>
+                <select wire:model="editIngredientCategory" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-base sm:text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
+                    @foreach (\App\Models\Ingredient::CATEGORIES as $category)
+                    <option value="{{ $category }}">{{ \App\Models\Ingredient::categoryLabel($category) }}</option>
+                    @endforeach
+                </select>
+                <x-ui.field-error name="editIngredientCategory" />
             </div>
 
             <div class="flex items-center justify-end gap-3">
