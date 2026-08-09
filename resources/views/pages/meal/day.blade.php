@@ -81,6 +81,8 @@ new #[Layout('layouts::app')] class extends Component {
 
 <div>
     <div class="space-y-5">
+        <x-ui.back-button href="{{ route('meals.index') }}" />
+
         <div class="flex items-center justify-between gap-3">
             <h1 class="font-fraunces text-2xl font-semibold text-ink">{{ $this->day->locale('en')->isoFormat('dddd, D MMMM') }}</h1>
 

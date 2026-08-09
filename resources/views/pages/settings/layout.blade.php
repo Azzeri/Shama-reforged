@@ -4,6 +4,17 @@
             <flux:navlist.item :href="route('profile.edit')" wire:navigate>{{ __('Profile') }}</flux:navlist.item>
             <flux:navlist.item :href="route('security.edit')">{{ __('Security') }}</flux:navlist.item>
         </flux:navlist>
+
+        <form method="POST" action="{{ route('logout') }}" class="mt-4">
+            @csrf
+            <button
+                type="submit"
+                data-test="logout-button"
+                class="inline-flex items-center gap-1.5 font-manrope text-sm font-extrabold text-terracotta-dark">
+                <flux:icon.arrow-right-start-on-rectangle class="size-4" />
+                {{ __('Wyloguj') }}
+            </button>
+        </form>
     </div>
 
     <flux:separator class="md:hidden" />

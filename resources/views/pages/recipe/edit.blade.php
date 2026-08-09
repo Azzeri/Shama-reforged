@@ -17,6 +17,8 @@ new #[Layout('layouts::app')] class extends Component {
 
 <div>
     <div class="space-y-5">
+        <x-ui.back-button href="{{ route('recipes.show', $this->recipe) }}" />
+
         <div>
             <h1 class="font-fraunces text-[30px] font-semibold leading-tight text-ink">{{ $this->recipe->name }}</h1>
         </div>

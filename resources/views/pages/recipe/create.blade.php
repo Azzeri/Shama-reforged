@@ -9,19 +9,13 @@ new #[Layout('layouts::app')] class extends Component {
         return $this->view()
             ->title(__("New recipe"));
     }
-
-    public function goBack()
-    {
-        return $this->redirectIntended(
-            default: route('recipes.index'),
-            navigate: true
-        );
-    }
 };
 ?>
 
 <div>
     <div class="space-y-5">
+        <x-ui.back-button href="{{ route('recipes.index') }}" />
+
         <div>
             <h1 class="font-fraunces text-[30px] font-semibold leading-tight text-ink">{{ __('New recipe') }}</h1>
         </div>

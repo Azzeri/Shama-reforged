@@ -139,6 +139,8 @@ new #[Layout('layouts::app')] class extends Component {
 
 <div>
     <div class="space-y-5">
+        <x-ui.back-button href="{{ route('meals.day', $date) }}" />
+
         <h1 class="font-fraunces text-2xl font-semibold text-ink">{{ __('Edit day') }}: {{ $this->day->locale('en')->isoFormat('dddd, D MMMM') }}</h1>
 
         <form wire:submit="save" class="space-y-4">
