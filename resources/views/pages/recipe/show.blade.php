@@ -3,15 +3,30 @@
 use App\Models\Recipe;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Computed;
 use Flux\Flux;
 
 new #[Layout('layouts::app')] class extends Component {
     public Recipe $recipe;
 
+    public bool $showBackButton = true;
+
     public function render()
     {
         return $this->view()
             ->title($this->recipe->name);
+    }
+
+    #[Computed]
+    public function backUrl(): string
+    {
+        $back = request()->query('back');
+
+        if (is_string($back) && str_starts_with($back, '/') && ! str_starts_with($back, '//')) {
+            return $back;
+        }
+
+        return route('recipes.index');
     }
 
     public function delete(): void
@@ -27,7 +42,9 @@ new #[Layout('layouts::app')] class extends Component {
 
 <div>
     <div class="space-y-5">
-        <x-ui.back-button href="{{ route('recipes.index') }}" />
+        @if ($showBackButton)
+        <x-ui.back-button href="{{ $this->backUrl }}" />
+        @endif
 
         <div>
             <h1 class="font-fraunces text-[30px] font-semibold leading-tight text-ink mb-0.5">{{ $this->recipe->name }}</h1>

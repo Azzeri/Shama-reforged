@@ -78,6 +78,32 @@ class Recipe extends Model
     }
 
     /**
+     * Recipe show URL carrying a "back" param pointing to wherever the user
+     * is currently looking at. On a normal page render the current request
+     * IS that page, but content rendered/re-rendered during a Livewire AJAX
+     * call (an action method, or markup that only appears after one, like a
+     * modal) sees Livewire's update endpoint as the request instead — there
+     * the actual page is the Referer.
+     */
+    public function showUrlWithBack(): string
+    {
+        if (\Livewire\Livewire::isLivewireRequest()) {
+            $referer = request()->headers->get('referer');
+            $back = null;
+
+            if ($referer) {
+                $path = parse_url($referer, PHP_URL_PATH) ?: '/';
+                $query = parse_url($referer, PHP_URL_QUERY);
+                $back = $query ? "{$path}?{$query}" : $path;
+            }
+        } else {
+            $back = request()->getRequestUri();
+        }
+
+        return route('recipes.show', $this) . ($back ? '?back=' . urlencode($back) : '');
+    }
+
+    /**
      * @param  \Illuminate\Support\Collection<int, self>  $recipes
      * @return array<string, int> profile => total calories, only profiles with a positive total
      */

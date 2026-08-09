@@ -81,7 +81,7 @@ new #[Layout('layouts::app')] class extends Component {
 
     public function goToRecipe(Recipe $recipe): void
     {
-        $this->redirectRoute('recipes.show', $recipe);
+        $this->redirect($recipe->showUrlWithBack());
     }
 
     public function mealCalorieTotals(Meal $meal): array

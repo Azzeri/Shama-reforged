@@ -355,7 +355,7 @@ new #[Layout('layouts::app')] class extends Component {
             <div>
                 <x-ui.eyebrow>{{ __('Needed for recipes') }}</x-ui.eyebrow>
                 <a
-                    href="{{ route('recipes.show', $this->editingItem->recipe) }}"
+                    href="{{ $this->editingItem->recipe->showUrlWithBack() }}"
                     wire:navigate
                     class="flex items-center justify-between gap-2 bg-sand rounded-xl px-3.5 py-[11px] font-manrope text-[13.5px] font-bold text-ink">
                     <span>📖 {{ $this->editingItem->recipe->name }}</span>
