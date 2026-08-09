@@ -7,6 +7,7 @@ use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
+use Flux\Flux;
 
 new #[Layout('layouts::app')] class extends Component {
     public string $newItemName = '';
@@ -146,6 +147,8 @@ new #[Layout('layouts::app')] class extends Component {
         $this->editingItemId = null;
         unset($this->items);
         $this->dispatch('modal-close', name: 'edit-item-modal');
+
+        Flux::toast(variant: 'success', text: __('Item updated.'));
     }
 
     public function resetNewItemForm(): void
@@ -177,12 +180,16 @@ new #[Layout('layouts::app')] class extends Component {
         $this->resetNewItemForm();
         unset($this->items);
         $this->dispatch('modal-close', name: 'add-item-modal');
+
+        Flux::toast(variant: 'success', text: __('Item added.'));
     }
 
     public function clearUnchecked(): void
     {
         $this->shoppingList->items()->where(ShoppingListItem::IS_CHECKED_COLUMN, false)->delete();
         unset($this->items);
+
+        Flux::toast(variant: 'success', text: __('Unchecked items cleared.'));
     }
 };
 ?>

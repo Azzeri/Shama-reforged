@@ -9,6 +9,7 @@ use Livewire\Attributes\Computed;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Flux\Flux;
 
 new class extends Component {
     public ?Recipe $recipe = null;
@@ -105,6 +106,8 @@ new class extends Component {
     {
         $this->validate();
 
+        $isNewRecipe = $this->recipe === null;
+
         DB::transaction(function () {
             $recipe = $this->recipe ?? new Recipe();
             $recipe->name = $this->recipeName;
@@ -139,6 +142,8 @@ new class extends Component {
 
             $this->recipe = $recipe;
         });
+
+        Flux::toast(variant: 'success', text: $isNewRecipe ? __('Recipe added.') : __('Recipe updated.'));
 
         return $this->redirect(route('recipes.show', $this->recipe), navigate: true);
     }

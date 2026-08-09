@@ -8,6 +8,7 @@ use Illuminate\Support\Collection;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
+use Flux\Flux;
 
 new #[Layout('layouts::app')] class extends Component {
     public string $date;
@@ -75,6 +76,8 @@ new #[Layout('layouts::app')] class extends Component {
         Meal::query()->whereKey($this->mealToDelete)->delete();
         $this->mealToDelete = null;
         unset($this->meals, $this->dayCalorieTotals);
+
+        Flux::toast(variant: 'success', text: __('Meal deleted.'));
     }
 };
 ?>

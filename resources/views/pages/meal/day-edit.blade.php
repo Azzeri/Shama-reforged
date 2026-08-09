@@ -9,6 +9,7 @@ use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
+use Flux\Flux;
 
 new #[Layout('layouts::app')] class extends Component {
     public string $date;
@@ -131,6 +132,8 @@ new #[Layout('layouts::app')] class extends Component {
             $meal->save();
             $meal->recipes()->sync($row['recipeIds']);
         }
+
+        Flux::toast(variant: 'success', text: __('Day saved.'));
 
         $this->redirectRoute('meals.day', $day->toDateString(), navigate: true);
     }

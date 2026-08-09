@@ -3,6 +3,7 @@
 use App\Models\Recipe;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
+use Flux\Flux;
 
 new #[Layout('layouts::app')] class extends Component {
     public Recipe $recipe;
@@ -16,6 +17,8 @@ new #[Layout('layouts::app')] class extends Component {
     public function delete(): void
     {
         $this->recipe->delete();
+
+        Flux::toast(variant: 'success', text: __('Recipe deleted.'));
 
         $this->redirectRoute('recipes.index', navigate: true);
     }

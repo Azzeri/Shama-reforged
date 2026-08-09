@@ -10,6 +10,7 @@ use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
+use Flux\Flux;
 
 new #[Layout('layouts::app')] class extends Component {
     #[Url(as: 'week')]
@@ -153,6 +154,8 @@ new #[Layout('layouts::app')] class extends Component {
 
         $shoppingList = ShoppingList::query()->firstOrCreate(['id' => 1], ['name' => 'Main shopping list']);
 
+        $addedCount = 0;
+
         foreach ($meals as $meal) {
             foreach ($meal->recipes as $recipe) {
                 foreach ($recipe->ingredients as $ingredient) {
@@ -170,11 +173,21 @@ new #[Layout('layouts::app')] class extends Component {
                         'recipe_id' => $recipe->id,
                         'meal_id' => $meal->id,
                     ]);
+
+                    $addedCount++;
                 }
             }
         }
 
         $this->selectedDaysForShoppingList = [];
+
+        Flux::toast(
+            variant: 'success',
+            text: $addedCount > 0
+                ? __(':count items added to shopping list.', ['count' => $addedCount])
+                : __('No new items to add.'),
+        );
+
         $this->redirectRoute('shopping-list.index', navigate: true);
     }
 };

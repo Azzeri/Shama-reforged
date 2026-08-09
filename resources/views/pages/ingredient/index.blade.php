@@ -6,6 +6,7 @@ use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
+use Flux\Flux;
 
 new #[Layout('layouts::app')] class extends Component {
     public ?Ingredient $ingredientToDelete = null;
@@ -56,6 +57,8 @@ new #[Layout('layouts::app')] class extends Component {
         $this->resetNewIngredientForm();
         unset($this->ingredients);
         $this->dispatch('modal-close', name: 'add-ingredient-modal');
+
+        Flux::toast(variant: 'success', text: __('Ingredient added.'));
     }
 
     public function editIngredient(int $ingredientId): void
@@ -84,6 +87,8 @@ new #[Layout('layouts::app')] class extends Component {
         $this->editingIngredientId = null;
         unset($this->ingredients);
         $this->dispatch('modal-close', name: 'edit-ingredient-modal');
+
+        Flux::toast(variant: 'success', text: __('Ingredient updated.'));
     }
 
     public function confirmDelete(Ingredient $ingredient): void
@@ -96,6 +101,8 @@ new #[Layout('layouts::app')] class extends Component {
         $this->ingredientToDelete?->delete();
         $this->ingredientToDelete = null;
         unset($this->ingredients);
+
+        Flux::toast(variant: 'success', text: __('Ingredient deleted.'));
     }
 };
 ?>
