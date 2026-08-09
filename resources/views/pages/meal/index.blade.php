@@ -172,6 +172,7 @@ new #[Layout('layouts::app')] class extends Component {
                         'week_day' => strtolower($meal->date->englishDayOfWeek),
                         'recipe_id' => $recipe->id,
                         'meal_id' => $meal->id,
+                        'ingredient_id' => $ingredient->id,
                     ]);
 
                     $addedCount++;

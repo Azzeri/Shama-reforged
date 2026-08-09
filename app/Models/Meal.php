@@ -18,7 +18,7 @@ class Meal extends Model
 
     public const NOTE_COLUMN = 'note';
 
-    public const TYPES = ['breakfast', 'lunch', 'dinner', 'dessert'];
+    public const TYPES = ['breakfast', 'lunch', 'dinner', 'dessert', 'supper'];
 
     public static function typeLabel(string $type): string
     {
@@ -27,6 +27,7 @@ class Meal extends Model
             'lunch' => __('Lunch'),
             'dinner' => __('Dinner'),
             'dessert' => __('Dessert'),
+            'supper' => __('Supper'),
             default => ucfirst($type),
         };
     }

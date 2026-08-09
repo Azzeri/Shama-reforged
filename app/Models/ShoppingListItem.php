@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['name', 'quantity', 'is_checked', 'notes', 'week_day', 'shopping_list_id', 'recipe_id', 'meal_id'])]
+#[Fillable(['name', 'quantity', 'is_checked', 'notes', 'week_day', 'shopping_list_id', 'recipe_id', 'meal_id', 'ingredient_id'])]
 class ShoppingListItem extends Model
 {
     use HasFactory;
@@ -56,5 +56,10 @@ class ShoppingListItem extends Model
     public function meal(): BelongsTo
     {
         return $this->belongsTo(Meal::class);
+    }
+
+    public function ingredient(): BelongsTo
+    {
+        return $this->belongsTo(Ingredient::class);
     }
 }

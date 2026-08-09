@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Ingredient;
 use App\Models\ShoppingList;
 use App\Models\ShoppingListItem;
 use Illuminate\Support\Collection;
@@ -37,7 +38,7 @@ new #[Layout('layouts::app')] class extends Component {
     public function items(): Collection
     {
         return $this->shoppingList->items()
-            ->with('recipe:id,name')
+            ->with(['recipe:id,name', 'ingredient:id,purchase_timing'])
             ->orderByDesc('created_at')
             ->get();
     }
@@ -48,6 +49,15 @@ new #[Layout('layouts::app')] class extends Component {
         return $this->items
             ->where(ShoppingListItem::IS_CHECKED_COLUMN, false)
             ->whereNull(ShoppingListItem::WEEK_DAY_COLUMN)
+            ->values();
+    }
+
+    #[Computed]
+    public function advanceItems(): Collection
+    {
+        return $this->items
+            ->where(ShoppingListItem::IS_CHECKED_COLUMN, false)
+            ->filter(fn (ShoppingListItem $item) => $item->ingredient?->purchase_timing === Ingredient::PURCHASE_TIMING_ADVANCE)
             ->values();
     }
 
@@ -211,6 +221,17 @@ new #[Layout('layouts::app')] class extends Component {
                 </button>
             </flux:modal.trigger>
         </div>
+
+        @if ($this->advanceItems->isNotEmpty())
+        <div>
+            <div class="uppercase text-[12px] font-extrabold tracking-[0.08em] text-ink/55 mb-2.5 font-manrope">{{ __('Can buy anytime this week') }}</div>
+            <div class="grid grid-cols-3 gap-2.5">
+                @foreach ($this->advanceItems as $item)
+                <x-shopping-list.item-tile :item="$item" wire:key="item-advance-{{ $item->id }}" />
+                @endforeach
+            </div>
+        </div>
+        @endif
 
         <div>
             <div class="uppercase text-[12px] font-extrabold tracking-[0.08em] text-ink/55 mb-2.5 font-manrope">{{ __('No day assigned') }}</div>
