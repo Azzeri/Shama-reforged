@@ -55,9 +55,31 @@ new #[Layout('layouts::app')] class extends Component {
     #[Computed]
     public function advanceItems(): Collection
     {
-        return $this->items
+        $items = $this->items
             ->where(ShoppingListItem::IS_CHECKED_COLUMN, false)
             ->filter(fn (ShoppingListItem $item) => $item->ingredient?->purchase_timing === Ingredient::PURCHASE_TIMING_ADVANCE)
+            ->values();
+
+        return $items
+            ->groupBy(fn (ShoppingListItem $item) => $item->ingredient_id && $item->unit
+                ? "{$item->ingredient_id}:{$item->unit}"
+                : "solo:{$item->id}")
+            ->map(function (Collection $group) {
+                $first = $group->first();
+
+                if ($group->count() > 1) {
+                    $sum = rtrim(rtrim(number_format($group->sum('amount'), 2, '.', ''), '0'), '.');
+                    $displayQuantity = "{$sum} {$first->unit}";
+                } else {
+                    $displayQuantity = $first->displayQuantity();
+                }
+
+                return [
+                    'item' => $first,
+                    'ids' => $group->pluck('id')->all(),
+                    'displayQuantity' => $displayQuantity,
+                ];
+            })
             ->values();
     }
 
@@ -120,10 +142,17 @@ new #[Layout('layouts::app')] class extends Component {
             ->values();
     }
 
-    public function toggle(int $itemId): void
+    public function toggle(int|array $itemIds): void
     {
-        $item = ShoppingListItem::query()->findOrFail($itemId);
-        $item->update([ShoppingListItem::IS_CHECKED_COLUMN => ! $item->is_checked]);
+        $ids = is_array($itemIds) ? $itemIds : [$itemIds];
+
+        $items = ShoppingListItem::query()->whereIn('id', $ids)->get();
+        $allChecked = $items->every(fn (ShoppingListItem $item) => $item->is_checked);
+
+        ShoppingListItem::query()->whereIn('id', $ids)->update([
+            ShoppingListItem::IS_CHECKED_COLUMN => ! $allChecked,
+        ]);
+
         unset($this->items);
     }
 
@@ -226,8 +255,12 @@ new #[Layout('layouts::app')] class extends Component {
         <div>
             <div class="uppercase text-[12px] font-extrabold tracking-[0.08em] text-ink/55 mb-2.5 font-manrope">{{ __('Can buy anytime this week') }}</div>
             <div class="grid grid-cols-3 gap-2.5">
-                @foreach ($this->advanceItems as $item)
-                <x-shopping-list.item-tile :item="$item" wire:key="item-advance-{{ $item->id }}" />
+                @foreach ($this->advanceItems as $group)
+                <x-shopping-list.item-tile
+                    :item="$group['item']"
+                    :ids="$group['ids']"
+                    :display-quantity="$group['displayQuantity']"
+                    wire:key="item-advance-{{ $group['ids'][0] }}" />
                 @endforeach
             </div>
         </div>

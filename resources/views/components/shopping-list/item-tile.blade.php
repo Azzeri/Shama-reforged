@@ -1,4 +1,10 @@
-@props(['item', 'bought' => false])
+@props(['item', 'bought' => false, 'ids' => null, 'displayQuantity' => null])
+
+@php
+    $ids = $ids ?? [$item->id];
+    $isMerged = count($ids) > 1;
+    $quantityText = $displayQuantity ?? $item->displayQuantity();
+@endphp
 
 <div
     x-data="{
@@ -6,12 +12,14 @@
         longPressed: false,
         startPress() {
             this.longPressed = false;
+            @if (! $isMerged)
             this.pressTimer = setTimeout(() => {
                 this.longPressed = true;
                 $wire.editItem({{ $item->id }}).then(() => {
                     $dispatch('modal-show', { name: 'edit-item-modal' });
                 });
             }, 500);
+            @endif
         },
         endPress() {
             clearTimeout(this.pressTimer);
@@ -21,7 +29,7 @@
                 this.longPressed = false;
                 return;
             }
-            $wire.toggle({{ $item->id }});
+            $wire.toggle({{ Illuminate\Support\Js::from($ids) }});
         },
     }"
     @mousedown="startPress"
@@ -36,9 +44,9 @@
         {{ $item->name }}
     </div>
     <div class="font-manrope text-[10.5px] font-semibold leading-tight truncate {{ $bought ? 'text-ink/40 line-through' : 'text-ink/50' }}">
-        {{ $item->quantity ?: "\u{00A0}" }}
+        {{ $quantityText ?: "\u{00A0}" }}
     </div>
     <div class="font-manrope text-[10px] leading-tight truncate {{ $bought ? 'text-ink/35 line-through' : 'text-ink/45' }}">
-        {{ $item->notes ?: "\u{00A0}" }}
+        {{ $isMerged ? "\u{00A0}" : ($item->notes ?: "\u{00A0}") }}
     </div>
 </div>

@@ -103,9 +103,9 @@ new #[Layout('layouts::app')] class extends Component {
 
                     <span class="flex-1 border-b-2 border-dotted border-ink/25 mx-2 -translate-y-1"></span>
 
-                    @if ($ingredient->pivot?->quantity)
+                    @if ($ingredient->pivot?->displayQuantity())
                     <span class="font-manrope text-[13px] font-extrabold text-terracotta-dark bg-sand px-2.5 py-1 rounded-full whitespace-nowrap">
-                        {{ $ingredient->pivot->quantity }}
+                        {{ $ingredient->pivot->displayQuantity() }}
                     </span>
                     @endif
                 </div>

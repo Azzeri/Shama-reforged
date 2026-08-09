@@ -9,6 +9,7 @@ use Livewire\Attributes\Computed;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use App\Models\RecipeIngredientAssignment;
 use Flux\Flux;
 
 new class extends Component {
@@ -29,7 +30,8 @@ new class extends Component {
     #[Validate([
         'recipeIngredients' => 'nullable|array',
         'recipeIngredients.*.name' => 'required|string|max:255',
-        'recipeIngredients.*.quantity' => 'nullable|string|max:255',
+        'recipeIngredients.*.amount' => 'nullable|numeric|min:0|max:999999.99',
+        'recipeIngredients.*.unit' => 'nullable|string|max:20',
     ])]
     public array $recipeIngredients = [];
 
@@ -60,7 +62,8 @@ new class extends Component {
             $this->recipeIngredients = $this->recipe->ingredients->map(function ($ingredient) {
                 return [
                     'name' => $ingredient->name,
-                    'quantity' => $ingredient->pivot?->quantity ?? '',
+                    'amount' => $ingredient->pivot?->amount ?? '',
+                    'unit' => $ingredient->pivot?->unit ?? 'g',
                 ];
             })->toArray();
 
@@ -92,7 +95,8 @@ new class extends Component {
     {
         $this->recipeIngredients[] = [
             'name' => '',
-            'quantity' => '',
+            'amount' => '',
+            'unit' => 'g',
         ];
     }
 
@@ -132,8 +136,12 @@ new class extends Component {
                 if ($name !== '') {
                     $ingredient = Ingredient::firstOrCreate(['name' => $name]);
 
+                    $hasAmountAndUnit = ($item['amount'] ?? '') !== ''
+                        && in_array($item['unit'] ?? '', RecipeIngredientAssignment::UNITS, true);
+
                     $ingredientsSyncData[$ingredient->id] = [
-                        'quantity' => $item['quantity'] ?: null,
+                        'amount' => $hasAmountAndUnit ? $item['amount'] : null,
+                        'unit' => $hasAmountAndUnit ? $item['unit'] : null,
                     ];
                 }
             }
@@ -174,22 +182,47 @@ new class extends Component {
             <x-ui.eyebrow>{{ __('Ingredients') }}</x-ui.eyebrow>
             <p class="font-manrope text-xs text-ink/50 mb-2.5">
                 {{ __('Choose from the list of existing ingredients or add a new one on the Ingredients tab.') }}
+                {{ __('Amount and unit are optional and used to total the shopping list.') }}
             </p>
 
             <div class="space-y-2.5">
                 @foreach ($recipeIngredients as $index => $item)
-                <div wire:key="ingredient-row-{{ $index }}">
+                <div
+                    wire:key="ingredient-row-{{ $index }}"
+                    x-data="{ open: true }"
+                    class="bg-white border border-ink/5 rounded-2xl px-4 py-3.5 shadow-[0_1px_2px_rgba(43,33,24,0.06),0_4px_10px_rgba(43,33,24,0.05)]">
                     <div class="flex items-center gap-2.5">
-                        <x-ui.text-input
+                        <input
+                            type="text"
                             wire:model="recipeIngredients.{{ $index }}.name"
                             list="ingredients-autocomplete-list"
                             placeholder="{{ __('Ingredient name') }}"
-                            class="flex-1" />
+                            class="flex-1 min-w-0 bg-transparent font-fraunces text-[15px] font-semibold text-ink placeholder:font-manrope placeholder:text-sm placeholder:font-normal placeholder:text-ink/30 focus:outline-none" />
 
-                        <x-ui.text-input
-                            wire:model="recipeIngredients.{{ $index }}.quantity"
-                            placeholder="{{ __('e.g. 200g') }}"
-                            class="w-24 shrink-0" />
+                        <button type="button" @click="open = !open" class="shrink-0 text-ink/35 p-1">
+                            <flux:icon.chevron-down class="size-4 transition-transform" x-bind:class="{ 'rotate-180': open }" />
+                        </button>
+                    </div>
+                    <x-ui.field-error name="recipeIngredients.{{ $index }}.name" />
+
+                    <div x-show="open" x-collapse class="flex items-center gap-2.5 mt-3">
+                        <input
+                            type="number"
+                            step="any"
+                            min="0"
+                            wire:model="recipeIngredients.{{ $index }}.amount"
+                            placeholder="0"
+                            class="w-20 shrink-0 bg-sand/60 rounded-xl px-3 py-2.5 font-manrope text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
+
+                        <select
+                            wire:model="recipeIngredients.{{ $index }}.unit"
+                            class="shrink-0 bg-sand/60 rounded-xl px-3 py-2.5 font-manrope text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
+                            @foreach (RecipeIngredientAssignment::UNITS as $unit)
+                            <option value="{{ $unit }}">{{ $unit }}</option>
+                            @endforeach
+                        </select>
+
+                        <div class="flex-1"></div>
 
                         <button
                             type="button"
@@ -198,7 +231,7 @@ new class extends Component {
                             <flux:icon.trash class="size-4" />
                         </button>
                     </div>
-                    <x-ui.field-error name="recipeIngredients.{{ $index }}.name" />
+                    <x-ui.field-error name="recipeIngredients.{{ $index }}.amount" />
                 </div>
                 @endforeach
 

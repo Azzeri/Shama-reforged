@@ -160,14 +160,17 @@ new #[Layout('layouts::app')] class extends Component {
             foreach ($meal->recipes as $recipe) {
                 foreach ($recipe->ingredients as $ingredient) {
                     $quantity = trim((string) ($ingredient->pivot?->quantity ?? ''));
+                    $amount = $ingredient->pivot?->amount;
 
-                    if ($quantity === '') {
+                    if ($quantity === '' && $amount === null) {
                         continue;
                     }
 
                     $shoppingList->items()->create([
                         'name' => $ingredient->name,
-                        'quantity' => $quantity,
+                        'quantity' => $quantity !== '' ? $quantity : null,
+                        'amount' => $amount,
+                        'unit' => $ingredient->pivot?->unit,
                         'is_checked' => false,
                         'week_day' => strtolower($meal->date->englishDayOfWeek),
                         'recipe_id' => $recipe->id,
