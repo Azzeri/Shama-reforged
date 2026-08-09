@@ -4,6 +4,7 @@ use Livewire\Component;
 use App\Models\Recipe;
 use App\Models\Tag;
 use App\Models\Ingredient;
+use App\Models\Meal;
 use Livewire\Attributes\Validate;
 use Livewire\Attributes\Computed;
 use Illuminate\Support\Collection;
@@ -78,11 +79,20 @@ new class extends Component {
     #[Computed]
     public function tagsByCategory(): Collection
     {
-        return Tag::query()
+        $grouped = Tag::query()
             ->whereIn(Tag::CATEGORY_COLUMN, [Tag::MEAL_TYPE, Tag::DIET_TYPE])
             ->orderBy(Tag::NAME_COLUMN)
             ->get(['id', Tag::NAME_COLUMN, Tag::CATEGORY_COLUMN])
             ->groupBy(Tag::CATEGORY_COLUMN);
+
+        if ($grouped->has(Tag::MEAL_TYPE)) {
+            $order = array_flip(Meal::orderedTypeLabels());
+            $grouped[Tag::MEAL_TYPE] = $grouped[Tag::MEAL_TYPE]
+                ->sortBy(fn (Tag $tag) => $order[$tag->name] ?? PHP_INT_MAX)
+                ->values();
+        }
+
+        return $grouped;
     }
 
     #[Computed]

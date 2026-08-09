@@ -18,7 +18,7 @@ class Meal extends Model
 
     public const NOTE_COLUMN = 'note';
 
-    public const TYPES = ['breakfast', 'lunch', 'dinner', 'dessert', 'supper'];
+    public const TYPES = ['breakfast', 'lunch', 'dinner', 'supper', 'dessert'];
 
     public static function typeLabel(string $type): string
     {
@@ -30,6 +30,16 @@ class Meal extends Model
             'supper' => __('Supper'),
             default => ucfirst($type),
         };
+    }
+
+    /**
+     * Type labels in the canonical meal-of-the-day order (matches TYPES).
+     * Used to sort anything keyed by label instead of by type — e.g. the
+     * "meal type" tag pills, whose names are free text set by the user.
+     */
+    public static function orderedTypeLabels(): array
+    {
+        return array_map(fn (string $type) => self::typeLabel($type), self::TYPES);
     }
 
     protected function casts(): array

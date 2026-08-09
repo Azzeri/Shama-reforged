@@ -7,6 +7,7 @@ use Livewire\Attributes\Url;
 use Livewire\Attributes\Layout;
 use Livewire\WithPagination;
 use App\Models\Tag;
+use App\Models\Meal;
 use Illuminate\Support\Collection;
 
 new #[Layout('layouts::app')] class extends Component {
@@ -60,11 +61,20 @@ new #[Layout('layouts::app')] class extends Component {
     #[Computed]
     public function tagsByCategory(): Collection
     {
-        return Tag::query()
+        $grouped = Tag::query()
             ->whereIn(Tag::CATEGORY_COLUMN, [Tag::MEAL_TYPE, Tag::DIET_TYPE])
             ->orderBy(Tag::NAME_COLUMN)
             ->get(['id', Tag::NAME_COLUMN, Tag::CATEGORY_COLUMN])
             ->groupBy(Tag::CATEGORY_COLUMN);
+
+        if ($grouped->has(Tag::MEAL_TYPE)) {
+            $order = array_flip(Meal::orderedTypeLabels());
+            $grouped[Tag::MEAL_TYPE] = $grouped[Tag::MEAL_TYPE]
+                ->sortBy(fn (Tag $tag) => $order[$tag->name] ?? PHP_INT_MAX)
+                ->values();
+        }
+
+        return $grouped;
     }
 
     public function clearFilters(): void

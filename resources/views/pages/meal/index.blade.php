@@ -59,7 +59,10 @@ new #[Layout('layouts::app')] class extends Component {
                 'date' => $date,
                 'isToday' => $date->isToday(),
                 'isPast' => $date->copy()->startOfDay()->lt(now()->startOfDay()),
-                'meals' => $meals->filter(fn (Meal $meal) => $meal->date->isSameDay($date))->values(),
+                'meals' => $meals
+                    ->filter(fn (Meal $meal) => $meal->date->isSameDay($date))
+                    ->sortBy(fn (Meal $meal) => array_search($meal->type, Meal::TYPES, true))
+                    ->values(),
             ];
         });
     }

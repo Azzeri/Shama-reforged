@@ -33,8 +33,9 @@ new #[Layout('layouts::app')] class extends Component {
         return Meal::query()
             ->with('recipes')
             ->whereDate(Meal::DATE_COLUMN, $this->day->toDateString())
-            ->orderBy(Meal::DATE_COLUMN)
-            ->get();
+            ->get()
+            ->sortBy(fn (Meal $meal) => array_search($meal->type, Meal::TYPES, true))
+            ->values();
     }
 
     #[Computed]
