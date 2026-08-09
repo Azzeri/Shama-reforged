@@ -160,7 +160,7 @@ new #[Layout('layouts::app')] class extends Component {
             foreach ($meal->recipes as $recipe) {
                 foreach ($recipe->ingredients as $ingredient) {
                     $quantity = trim((string) ($ingredient->pivot?->quantity ?? ''));
-                    $amount = $ingredient->pivot?->amount;
+                    $amount = $ingredient->pivot?->totalAmount();
 
                     if ($quantity === '' && $amount === null) {
                         continue;

@@ -119,7 +119,7 @@ class Recipe extends Model
     {
         return $this->belongsToMany(Ingredient::class, 'recipe_ingredient_assignments')
             ->using(RecipeIngredientAssignment::class)
-            ->withPivot('quantity', 'amount', 'unit')
+            ->withPivot('quantity', 'amount_me', 'amount_wife', 'unit')
             ->withTimestamps();
     }
 

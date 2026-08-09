@@ -8,7 +8,7 @@ class RecipeIngredientAssignment extends Pivot
 {
     protected $table = 'recipe_ingredient_assignments';
 
-    protected $fillable = ['recipe_id', 'ingredient_id', 'quantity', 'amount', 'unit'];
+    protected $fillable = ['recipe_id', 'ingredient_id', 'quantity', 'amount_me', 'amount_wife', 'unit'];
 
     /**
      * Units a shopping list total can be summed in. A plain list (not a DB
@@ -23,22 +23,38 @@ class RecipeIngredientAssignment extends Pivot
     protected function casts(): array
     {
         return [
-            'amount' => 'float',
+            'amount_me' => 'float',
+            'amount_wife' => 'float',
         ];
     }
 
-    public function displayQuantity(): ?string
+    public function displayQuantityFor(string $profile): ?string
     {
-        if ($this->quantity) {
-            return $this->quantity;
+        $amount = $this->{"amount_{$profile}"};
+
+        if ($amount !== null && $this->unit) {
+            return $this->formatAmount($amount) . " {$this->unit}";
         }
 
-        if ($this->amount !== null && $this->unit) {
-            $amount = rtrim(rtrim(number_format($this->amount, 2, '.', ''), '0'), '.');
+        return $this->quantity ?: null;
+    }
 
-            return "{$amount} {$this->unit}";
+    /**
+     * Combined amount needed to cover both people's portions — what the
+     * shopping list actually needs to buy. Null when neither profile has an
+     * amount recorded (falls back to the free-text quantity upstream).
+     */
+    public function totalAmount(): ?float
+    {
+        if ($this->amount_me === null && $this->amount_wife === null) {
+            return null;
         }
 
-        return null;
+        return ($this->amount_me ?? 0) + ($this->amount_wife ?? 0);
+    }
+
+    private function formatAmount(float $amount): string
+    {
+        return rtrim(rtrim(number_format($amount, 2, '.', ''), '0'), '.');
     }
 }

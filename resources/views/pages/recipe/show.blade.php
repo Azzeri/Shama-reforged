@@ -96,6 +96,7 @@ new #[Layout('layouts::app')] class extends Component {
 
             <div>
                 @foreach ($recipe->ingredients as $index => $ingredient)
+                @php $pivot = $ingredient->pivot; @endphp
                 <div @class(['flex items-baseline py-[11px]', 'border-t border-dashed border-ink/25' => $index > 0])>
                     <span class="font-manrope text-[14.5px] font-semibold text-ink whitespace-nowrap">
                         {{ $ingredient->name }}
@@ -103,9 +104,22 @@ new #[Layout('layouts::app')] class extends Component {
 
                     <span class="flex-1 border-b-2 border-dotted border-ink/25 mx-2 -translate-y-1"></span>
 
-                    @if ($ingredient->pivot?->displayQuantity())
+                    @if ($pivot && ($pivot->amount_me !== null || $pivot->amount_wife !== null))
+                    <div class="flex flex-col items-end gap-1">
+                        @if ($pivot->amount_me !== null)
+                        <span class="font-manrope text-[11px] font-extrabold text-terracotta-dark bg-sand px-2.5 py-1 rounded-full whitespace-nowrap">
+                            {{ \App\Models\Recipe::nutritionProfileLabel('me') }}: {{ $pivot->displayQuantityFor('me') }}
+                        </span>
+                        @endif
+                        @if ($pivot->amount_wife !== null)
+                        <span class="font-manrope text-[11px] font-extrabold text-terracotta-dark bg-sand px-2.5 py-1 rounded-full whitespace-nowrap">
+                            {{ \App\Models\Recipe::nutritionProfileLabel('wife') }}: {{ $pivot->displayQuantityFor('wife') }}
+                        </span>
+                        @endif
+                    </div>
+                    @elseif ($pivot?->quantity)
                     <span class="font-manrope text-[13px] font-extrabold text-terracotta-dark bg-sand px-2.5 py-1 rounded-full whitespace-nowrap">
-                        {{ $ingredient->pivot->displayQuantity() }}
+                        {{ $pivot->quantity }}
                     </span>
                     @endif
                 </div>

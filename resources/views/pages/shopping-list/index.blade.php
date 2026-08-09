@@ -60,6 +60,18 @@ new #[Layout('layouts::app')] class extends Component {
             ->filter(fn (ShoppingListItem $item) => $item->ingredient?->purchase_timing === Ingredient::PURCHASE_TIMING_ADVANCE)
             ->values();
 
+        return $this->groupAndSum($items);
+    }
+
+    /**
+     * Merges rows for the same ingredient + unit (e.g. several recipes on
+     * the same day each needing salt in grams) into a single tile with a
+     * summed amount. Rows without a matching ingredient/unit pair (manual
+     * items, free-text quantities) stay as their own singleton group so
+     * nothing gets merged on a guess.
+     */
+    private function groupAndSum(Collection $items): Collection
+    {
         return $items
             ->groupBy(fn (ShoppingListItem $item) => $item->ingredient_id && $item->unit
                 ? "{$item->ingredient_id}:{$item->unit}"
@@ -135,7 +147,7 @@ new #[Layout('layouts::app')] class extends Component {
                     'day' => $day,
                     'label' => ShoppingListItem::dayLabel($day),
                     'date' => $weekStart->copy()->addDays($index)->format('d.m'),
-                    'items' => $items,
+                    'items' => $this->groupAndSum($items),
                 ];
             })
             ->filter(fn (array $group) => $group['items']->isNotEmpty())
@@ -283,8 +295,12 @@ new #[Layout('layouts::app')] class extends Component {
         <div wire:key="active-day-{{ $group['day'] }}">
             <div class="uppercase text-[12px] font-extrabold tracking-[0.08em] text-ink/55 mb-2.5 font-manrope">{{ $group['label'] }} · {{ $group['date'] }}</div>
             <div class="grid grid-cols-3 gap-2.5">
-                @foreach ($group['items'] as $item)
-                <x-shopping-list.item-tile :item="$item" wire:key="item-{{ $item->id }}" />
+                @foreach ($group['items'] as $itemGroup)
+                <x-shopping-list.item-tile
+                    :item="$itemGroup['item']"
+                    :ids="$itemGroup['ids']"
+                    :display-quantity="$itemGroup['displayQuantity']"
+                    wire:key="item-{{ $itemGroup['ids'][0] }}" />
                 @endforeach
             </div>
         </div>
@@ -299,8 +315,13 @@ new #[Layout('layouts::app')] class extends Component {
                 <div wire:key="bought-day-{{ $group['day'] }}">
                     <div class="text-[12.5px] font-bold text-ink/50 font-manrope mb-2">{{ $group['label'] }} · {{ $group['date'] }}</div>
                     <div class="grid grid-cols-3 gap-2.5">
-                        @foreach ($group['items'] as $item)
-                        <x-shopping-list.item-tile :item="$item" bought wire:key="item-{{ $item->id }}" />
+                        @foreach ($group['items'] as $itemGroup)
+                        <x-shopping-list.item-tile
+                            :item="$itemGroup['item']"
+                            :ids="$itemGroup['ids']"
+                            :display-quantity="$itemGroup['displayQuantity']"
+                            bought
+                            wire:key="item-{{ $itemGroup['ids'][0] }}" />
                         @endforeach
                     </div>
                 </div>

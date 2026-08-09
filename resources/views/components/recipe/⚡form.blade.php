@@ -30,7 +30,8 @@ new class extends Component {
     #[Validate([
         'recipeIngredients' => 'nullable|array',
         'recipeIngredients.*.name' => 'required|string|max:255',
-        'recipeIngredients.*.amount' => 'nullable|numeric|min:0|max:999999.99',
+        'recipeIngredients.*.amount_me' => 'nullable|numeric|min:0|max:999999.99',
+        'recipeIngredients.*.amount_wife' => 'nullable|numeric|min:0|max:999999.99',
         'recipeIngredients.*.unit' => 'nullable|string|max:20',
     ])]
     public array $recipeIngredients = [];
@@ -62,7 +63,8 @@ new class extends Component {
             $this->recipeIngredients = $this->recipe->ingredients->map(function ($ingredient) {
                 return [
                     'name' => $ingredient->name,
-                    'amount' => $ingredient->pivot?->amount ?? '',
+                    'amount_me' => $ingredient->pivot?->amount_me ?? '',
+                    'amount_wife' => $ingredient->pivot?->amount_wife ?? '',
                     'unit' => $ingredient->pivot?->unit ?? 'g',
                 ];
             })->toArray();
@@ -95,7 +97,8 @@ new class extends Component {
     {
         $this->recipeIngredients[] = [
             'name' => '',
-            'amount' => '',
+            'amount_me' => '',
+            'amount_wife' => '',
             'unit' => 'g',
         ];
     }
@@ -136,12 +139,13 @@ new class extends Component {
                 if ($name !== '') {
                     $ingredient = Ingredient::firstOrCreate(['name' => $name]);
 
-                    $hasAmountAndUnit = ($item['amount'] ?? '') !== ''
-                        && in_array($item['unit'] ?? '', RecipeIngredientAssignment::UNITS, true);
+                    $hasValidUnit = in_array($item['unit'] ?? '', RecipeIngredientAssignment::UNITS, true);
+                    $hasAnyAmount = ($item['amount_me'] ?? '') !== '' || ($item['amount_wife'] ?? '') !== '';
 
                     $ingredientsSyncData[$ingredient->id] = [
-                        'amount' => $hasAmountAndUnit ? $item['amount'] : null,
-                        'unit' => $hasAmountAndUnit ? $item['unit'] : null,
+                        'amount_me' => $hasValidUnit && ($item['amount_me'] ?? '') !== '' ? $item['amount_me'] : null,
+                        'amount_wife' => $hasValidUnit && ($item['amount_wife'] ?? '') !== '' ? $item['amount_wife'] : null,
+                        'unit' => $hasValidUnit && $hasAnyAmount ? $item['unit'] : null,
                     ];
                 }
             }
@@ -205,14 +209,32 @@ new class extends Component {
                     </div>
                     <x-ui.field-error name="recipeIngredients.{{ $index }}.name" />
 
-                    <div x-show="open" x-collapse class="flex items-center gap-2.5 mt-3">
-                        <input
-                            type="number"
-                            step="any"
-                            min="0"
-                            wire:model="recipeIngredients.{{ $index }}.amount"
-                            placeholder="0"
-                            class="w-20 shrink-0 bg-sand/60 rounded-xl px-3 py-2.5 font-manrope text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
+                    <div x-show="open" x-collapse class="flex items-end gap-2.5 mt-3">
+                        <div class="w-20 shrink-0">
+                            <span class="block font-manrope text-[10px] font-bold uppercase tracking-wide text-ink/40 mb-1 truncate">
+                                {{ \App\Models\Recipe::nutritionProfileLabel('me') }}
+                            </span>
+                            <input
+                                type="number"
+                                step="any"
+                                min="0"
+                                wire:model="recipeIngredients.{{ $index }}.amount_me"
+                                placeholder="0"
+                                class="w-full bg-sand/60 rounded-xl px-3 py-2.5 font-manrope text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
+                        </div>
+
+                        <div class="w-20 shrink-0">
+                            <span class="block font-manrope text-[10px] font-bold uppercase tracking-wide text-ink/40 mb-1 truncate">
+                                {{ \App\Models\Recipe::nutritionProfileLabel('wife') }}
+                            </span>
+                            <input
+                                type="number"
+                                step="any"
+                                min="0"
+                                wire:model="recipeIngredients.{{ $index }}.amount_wife"
+                                placeholder="0"
+                                class="w-full bg-sand/60 rounded-xl px-3 py-2.5 font-manrope text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
+                        </div>
 
                         <select
                             wire:model="recipeIngredients.{{ $index }}.unit"
@@ -231,7 +253,8 @@ new class extends Component {
                             <flux:icon.trash class="size-4" />
                         </button>
                     </div>
-                    <x-ui.field-error name="recipeIngredients.{{ $index }}.amount" />
+                    <x-ui.field-error name="recipeIngredients.{{ $index }}.amount_me" />
+                    <x-ui.field-error name="recipeIngredients.{{ $index }}.amount_wife" />
                 </div>
                 @endforeach
 
