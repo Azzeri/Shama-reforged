@@ -15,9 +15,13 @@ new #[Layout('layouts::app')] class extends Component {
 
     public string $newIngredientName = '';
 
+    public string $newIngredientPurchaseTiming = Ingredient::PURCHASE_TIMING_FRESH;
+
     public ?int $editingIngredientId = null;
 
     public string $editIngredientName = '';
+
+    public string $editIngredientPurchaseTiming = Ingredient::PURCHASE_TIMING_FRESH;
 
     public function render()
     {
@@ -39,6 +43,7 @@ new #[Layout('layouts::app')] class extends Component {
     public function resetNewIngredientForm(): void
     {
         $this->newIngredientName = '';
+        $this->newIngredientPurchaseTiming = Ingredient::PURCHASE_TIMING_FRESH;
         $this->resetErrorBag();
     }
 
@@ -48,10 +53,12 @@ new #[Layout('layouts::app')] class extends Component {
 
         $this->validate([
             'newIngredientName' => ['required', 'string', 'max:255', 'unique:ingredients,name'],
+            'newIngredientPurchaseTiming' => ['required', Rule::in(Ingredient::PURCHASE_TIMINGS)],
         ]);
 
         Ingredient::query()->create([
             Ingredient::NAME_COLUMN => $this->newIngredientName,
+            Ingredient::PURCHASE_TIMING_COLUMN => $this->newIngredientPurchaseTiming,
         ]);
 
         $this->resetNewIngredientForm();
@@ -66,6 +73,7 @@ new #[Layout('layouts::app')] class extends Component {
         $ingredient = Ingredient::query()->findOrFail($ingredientId);
         $this->editingIngredientId = $ingredientId;
         $this->editIngredientName = $ingredient->name;
+        $this->editIngredientPurchaseTiming = $ingredient->purchase_timing;
         $this->resetErrorBag();
     }
 
@@ -78,10 +86,12 @@ new #[Layout('layouts::app')] class extends Component {
                 'required', 'string', 'max:255',
                 Rule::unique('ingredients', 'name')->ignore($this->editingIngredientId),
             ],
+            'editIngredientPurchaseTiming' => ['required', Rule::in(Ingredient::PURCHASE_TIMINGS)],
         ]);
 
         Ingredient::query()->whereKey($this->editingIngredientId)->update([
             Ingredient::NAME_COLUMN => $this->editIngredientName,
+            Ingredient::PURCHASE_TIMING_COLUMN => $this->editIngredientPurchaseTiming,
         ]);
 
         $this->editingIngredientId = null;
@@ -130,7 +140,12 @@ new #[Layout('layouts::app')] class extends Component {
         <div class="rounded-2xl border border-ink/10 overflow-hidden">
             @forelse ($this->ingredients as $ingredient)
             <div wire:key="ingredient-{{ $ingredient->id }}" class="flex items-center justify-between px-4 py-3.5 bg-white {{ !$loop->last ? 'border-b border-ink/10' : '' }}">
-                <span class="font-manrope text-[14.5px] font-semibold text-ink">{{ $ingredient->name }}</span>
+                <div>
+                    <span class="font-manrope text-[14.5px] font-semibold text-ink">{{ $ingredient->name }}</span>
+                    @if ($ingredient->purchase_timing === \App\Models\Ingredient::PURCHASE_TIMING_ADVANCE)
+                    <div class="font-manrope text-[11px] font-semibold text-ink/40">{{ Ingredient::purchaseTimingLabel($ingredient->purchase_timing) }}</div>
+                    @endif
+                </div>
 
                 <div class="flex gap-2">
                     <flux:modal.trigger name="edit-ingredient-modal">
@@ -175,6 +190,19 @@ new #[Layout('layouts::app')] class extends Component {
                 <x-ui.field-error name="newIngredientName" />
             </div>
 
+            <div>
+                <x-ui.eyebrow>{{ __('Purchase timing') }}</x-ui.eyebrow>
+                <div class="flex flex-col gap-2">
+                    @foreach (\App\Models\Ingredient::PURCHASE_TIMINGS as $timing)
+                    <label class="flex items-center gap-2.5 border-[1.5px] rounded-xl px-3.5 py-2.5 cursor-pointer {{ $newIngredientPurchaseTiming === $timing ? 'border-terracotta bg-sand' : 'border-ink/15' }}">
+                        <input type="radio" wire:model.live="newIngredientPurchaseTiming" value="{{ $timing }}" class="accent-terracotta" />
+                        <span class="font-manrope text-sm font-semibold text-ink">{{ \App\Models\Ingredient::purchaseTimingLabel($timing) }}</span>
+                    </label>
+                    @endforeach
+                </div>
+                <x-ui.field-error name="newIngredientPurchaseTiming" />
+            </div>
+
             <div class="flex items-center justify-end gap-3">
                 <flux:modal.close>
                     <button type="button" wire:click="resetNewIngredientForm" class="font-manrope text-sm font-extrabold text-forest px-4 py-3">
@@ -201,6 +229,19 @@ new #[Layout('layouts::app')] class extends Component {
                 <x-ui.eyebrow>{{ __('Ingredient name') }}</x-ui.eyebrow>
                 <x-ui.text-input wire:model="editIngredientName" placeholder="{{ __('e.g. Basmati rice') }}" class="w-full" required autofocus />
                 <x-ui.field-error name="editIngredientName" />
+            </div>
+
+            <div>
+                <x-ui.eyebrow>{{ __('Purchase timing') }}</x-ui.eyebrow>
+                <div class="flex flex-col gap-2">
+                    @foreach (\App\Models\Ingredient::PURCHASE_TIMINGS as $timing)
+                    <label class="flex items-center gap-2.5 border-[1.5px] rounded-xl px-3.5 py-2.5 cursor-pointer {{ $editIngredientPurchaseTiming === $timing ? 'border-terracotta bg-sand' : 'border-ink/15' }}">
+                        <input type="radio" wire:model.live="editIngredientPurchaseTiming" value="{{ $timing }}" class="accent-terracotta" />
+                        <span class="font-manrope text-sm font-semibold text-ink">{{ \App\Models\Ingredient::purchaseTimingLabel($timing) }}</span>
+                    </label>
+                    @endforeach
+                </div>
+                <x-ui.field-error name="editIngredientPurchaseTiming" />
             </div>
 
             <div class="flex items-center justify-end gap-3">
