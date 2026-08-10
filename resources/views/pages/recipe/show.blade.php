@@ -84,15 +84,77 @@ new #[Layout('layouts::app')] class extends Component {
             @endforeach
         </div>
 
-        @if ($recipe->hasAnyNutrition())
-        <div>
-            <x-ui.eyebrow>{{ __('Wartości odżywcze na porcję') }}</x-ui.eyebrow>
-            <x-recipe.nutrition :recipe="$recipe" />
-        </div>
-        @endif
+        @php
+            $hasMeAmounts = $recipe->ingredients->contains(fn ($i) => $i->pivot->amount_me !== null);
+            $hasWifeAmounts = $recipe->ingredients->contains(fn ($i) => $i->pivot->amount_wife !== null);
+        @endphp
 
-        <div>
-            <x-ui.eyebrow>{{ __('Składniki') }}</x-ui.eyebrow>
+        <div
+            x-data="{
+                portionsMe: 1,
+                portionsWife: 1,
+                formatAmount(value) {
+                    return parseFloat(value.toFixed(2)).toString();
+                },
+            }">
+            <div class="flex items-center justify-between mb-2.5">
+                <x-ui.eyebrow>{{ __('Składniki') }}</x-ui.eyebrow>
+                @if ($hasMeAmounts || $hasWifeAmounts)
+                <span class="font-manrope text-[11px] font-semibold text-ink/40">{{ __('ilości na porcje') }}</span>
+                @endif
+            </div>
+
+            @if ($hasMeAmounts || $hasWifeAmounts)
+            <div class="bg-white border border-ink/10 rounded-2xl mb-3.5 overflow-hidden">
+                @if ($hasMeAmounts)
+                <div class="flex items-center justify-between px-4 py-3">
+                    <div class="flex items-center gap-2.5">
+                        <span class="flex items-center justify-center size-8 rounded-full bg-terracotta/15 text-terracotta-dark font-manrope text-sm font-extrabold shrink-0">
+                            {{ mb_substr(\App\Models\Recipe::nutritionProfileLabel('me'), 0, 1) }}
+                        </span>
+                        <span class="font-manrope text-[14.5px] font-semibold text-ink">{{ \App\Models\Recipe::nutritionProfileLabel('me') }}</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button
+                            type="button"
+                            @click="portionsMe = Math.max(1, portionsMe - 1)"
+                            class="flex items-center justify-center size-7 rounded-full bg-sand text-ink font-manrope font-bold leading-none">−</button>
+                        <span class="font-manrope text-[15px] font-extrabold text-ink w-4 text-center" x-text="portionsMe">1</span>
+                        <button
+                            type="button"
+                            @click="portionsMe = portionsMe + 1"
+                            class="flex items-center justify-center size-7 rounded-full bg-sand text-ink font-manrope font-bold leading-none">+</button>
+                    </div>
+                </div>
+                @endif
+
+                @if ($hasMeAmounts && $hasWifeAmounts)
+                <div class="border-t border-dashed border-ink/15"></div>
+                @endif
+
+                @if ($hasWifeAmounts)
+                <div class="flex items-center justify-between px-4 py-3">
+                    <div class="flex items-center gap-2.5">
+                        <span class="flex items-center justify-center size-8 rounded-full bg-sage/15 text-forest font-manrope text-sm font-extrabold shrink-0">
+                            {{ mb_substr(\App\Models\Recipe::nutritionProfileLabel('wife'), 0, 1) }}
+                        </span>
+                        <span class="font-manrope text-[14.5px] font-semibold text-ink">{{ \App\Models\Recipe::nutritionProfileLabel('wife') }}</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button
+                            type="button"
+                            @click="portionsWife = Math.max(1, portionsWife - 1)"
+                            class="flex items-center justify-center size-7 rounded-full bg-sand text-ink font-manrope font-bold leading-none">−</button>
+                        <span class="font-manrope text-[15px] font-extrabold text-ink w-4 text-center" x-text="portionsWife">1</span>
+                        <button
+                            type="button"
+                            @click="portionsWife = portionsWife + 1"
+                            class="flex items-center justify-center size-7 rounded-full bg-sand text-ink font-manrope font-bold leading-none">+</button>
+                    </div>
+                </div>
+                @endif
+            </div>
+            @endif
 
             <div>
                 @foreach ($recipe->ingredients as $index => $ingredient)
@@ -107,14 +169,14 @@ new #[Layout('layouts::app')] class extends Component {
                     @if ($pivot && ($pivot->amount_me !== null || $pivot->amount_wife !== null))
                     <div class="flex flex-col items-end gap-1">
                         @if ($pivot->amount_me !== null)
-                        <span class="font-manrope text-[11px] font-extrabold text-terracotta-dark bg-sand px-2.5 py-1 rounded-full whitespace-nowrap">
-                            {{ \App\Models\Recipe::nutritionProfileLabel('me') }}: {{ $pivot->displayQuantityFor('me') }}
-                        </span>
+                        <span
+                            class="font-manrope text-[11px] font-extrabold text-terracotta-dark bg-sand px-2.5 py-1 rounded-full whitespace-nowrap"
+                            x-text="`{{ \App\Models\Recipe::nutritionProfileLabel('me') }}: ${formatAmount({{ $pivot->amount_me }} * portionsMe)} {{ $pivot->unit }}`">{{ \App\Models\Recipe::nutritionProfileLabel('me') }}: {{ $pivot->displayQuantityFor('me') }}</span>
                         @endif
                         @if ($pivot->amount_wife !== null)
-                        <span class="font-manrope text-[11px] font-extrabold text-terracotta-dark bg-sand px-2.5 py-1 rounded-full whitespace-nowrap">
-                            {{ \App\Models\Recipe::nutritionProfileLabel('wife') }}: {{ $pivot->displayQuantityFor('wife') }}
-                        </span>
+                        <span
+                            class="font-manrope text-[11px] font-extrabold text-terracotta-dark bg-sand px-2.5 py-1 rounded-full whitespace-nowrap"
+                            x-text="`{{ \App\Models\Recipe::nutritionProfileLabel('wife') }}: ${formatAmount({{ $pivot->amount_wife }} * portionsWife)} {{ $pivot->unit }}`">{{ \App\Models\Recipe::nutritionProfileLabel('wife') }}: {{ $pivot->displayQuantityFor('wife') }}</span>
                         @endif
                     </div>
                     @elseif ($pivot?->quantity)
@@ -130,6 +192,13 @@ new #[Layout('layouts::app')] class extends Component {
         @if (filled($this->recipe->content))
         <div class="font-fraunces italic text-[15px] leading-relaxed text-ink/60 mt-2 pt-4 border-t border-ink/25">
             "{{ $this->recipe->content }}"
+        </div>
+        @endif
+
+        @if ($recipe->hasAnyNutrition())
+        <div>
+            <x-ui.eyebrow>{{ __('Wartości odżywcze na porcję') }}</x-ui.eyebrow>
+            <x-recipe.nutrition :recipe="$recipe" />
         </div>
         @endif
     </div>
