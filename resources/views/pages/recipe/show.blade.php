@@ -187,7 +187,7 @@ new #[Layout('layouts::app')] class extends Component {
 
                 @if (filled($this->recipe->content))
                 <div class="font-fraunces italic text-[15px] leading-relaxed text-ink/60 py-4 border-t border-dashed border-ink/25 whitespace-pre-line">
-                    "{{ $this->recipe->content }}"
+                    {{ $this->recipe->content }}
                 </div>
                 @endif
             </div>
