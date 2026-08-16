@@ -156,27 +156,25 @@ new #[Layout('layouts::app')] class extends Component {
             </div>
             @endif
 
-            <div>
+            <div class="bg-white border border-ink/10 rounded-2xl px-4">
                 @foreach ($recipe->ingredients as $index => $ingredient)
                 @php $pivot = $ingredient->pivot; @endphp
-                <div @class(['flex items-baseline py-[11px]', 'border-t border-dashed border-ink/25' => $index > 0])>
-                    <span class="font-manrope text-[14.5px] font-semibold text-ink whitespace-nowrap">
+                <div @class(['flex items-center justify-between gap-2 py-[11px]', 'border-t border-dashed border-ink/25' => $index > 0])>
+                    <span class="font-manrope text-[14.5px] font-semibold text-ink">
                         {{ $ingredient->name }}
                     </span>
 
-                    <span class="flex-1 border-b-2 border-dotted border-ink/25 mx-2 -translate-y-1"></span>
-
                     @if ($pivot && ($pivot->amount_me !== null || $pivot->amount_wife !== null))
-                    <div class="flex flex-col items-end gap-1">
+                    <div class="flex items-center gap-1.5">
                         @if ($pivot->amount_me !== null)
                         <span
                             class="font-manrope text-[11px] font-extrabold text-terracotta-dark bg-sand px-2.5 py-1 rounded-full whitespace-nowrap"
-                            x-text="`{{ \App\Models\Recipe::nutritionProfileLabel('me') }}: ${formatAmount({{ $pivot->amount_me }} * portionsMe)} {{ $pivot->unit }}`">{{ \App\Models\Recipe::nutritionProfileLabel('me') }}: {{ $pivot->displayQuantityFor('me') }}</span>
+                            x-text="`${formatAmount({{ $pivot->amount_me }} * portionsMe)} {{ $pivot->unit }}`">{{ $pivot->displayQuantityFor('me') }}</span>
                         @endif
                         @if ($pivot->amount_wife !== null)
                         <span
-                            class="font-manrope text-[11px] font-extrabold text-terracotta-dark bg-sand px-2.5 py-1 rounded-full whitespace-nowrap"
-                            x-text="`{{ \App\Models\Recipe::nutritionProfileLabel('wife') }}: ${formatAmount({{ $pivot->amount_wife }} * portionsWife)} {{ $pivot->unit }}`">{{ \App\Models\Recipe::nutritionProfileLabel('wife') }}: {{ $pivot->displayQuantityFor('wife') }}</span>
+                            class="font-manrope text-[11px] font-extrabold text-ink/60 bg-ink/8 px-2.5 py-1 rounded-full whitespace-nowrap"
+                            x-text="`${formatAmount({{ $pivot->amount_wife }} * portionsWife)} {{ $pivot->unit }}`">{{ $pivot->displayQuantityFor('wife') }}</span>
                         @endif
                     </div>
                     @elseif ($pivot?->quantity)
@@ -186,14 +184,14 @@ new #[Layout('layouts::app')] class extends Component {
                     @endif
                 </div>
                 @endforeach
+
+                @if (filled($this->recipe->content))
+                <div class="font-fraunces italic text-[15px] leading-relaxed text-ink/60 py-4 border-t border-dashed border-ink/25 whitespace-pre-line">
+                    "{{ $this->recipe->content }}"
+                </div>
+                @endif
             </div>
         </div>
-
-        @if (filled($this->recipe->content))
-        <div class="font-fraunces italic text-[15px] leading-relaxed text-ink/60 mt-2 pt-4 border-t border-ink/25">
-            "{{ $this->recipe->content }}"
-        </div>
-        @endif
 
         @if ($recipe->hasAnyNutrition())
         <div>
