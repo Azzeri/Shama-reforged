@@ -22,7 +22,7 @@ new class extends Component {
     #[Validate('nullable|url|max:255')]
     public string $recipeUrl = '';
 
-    #[Validate('nullable|string|max:1024')]
+    #[Validate('nullable|string')]
     public string $recipeContent = '';
 
     #[Validate(['recipeTags' => 'nullable|array', 'recipeTags.*' => 'exists:tags,id'])]
