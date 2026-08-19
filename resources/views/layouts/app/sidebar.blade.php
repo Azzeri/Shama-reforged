@@ -6,7 +6,7 @@
     @php
         $showBottomNav = request()->routeIs(['recipes.index', 'meals.index', 'shopping-list.index', 'ingredients.index', 'profile.edit', 'security.edit']);
     @endphp
-    <body class="min-h-screen bg-cream {{ $showBottomNav ? 'pb-[calc(6rem+env(safe-area-inset-bottom))]' : 'pb-8' }}">
+    <body class="min-h-dvh bg-cream {{ $showBottomNav ? 'pb-[calc(6rem+env(safe-area-inset-bottom))]' : 'pb-8' }}">
         <div class="max-w-xl mx-auto">
             {{ $slot }}
         </div>
