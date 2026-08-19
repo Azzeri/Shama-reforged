@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Ingredient;
+use App\Models\Meal;
 use App\Models\ShoppingList;
 use App\Models\ShoppingListItem;
 use Illuminate\Support\Collection;
@@ -21,6 +22,7 @@ new #[Layout('layouts::app')] class extends Component {
     public string $editItemQuantity = '';
     public string $editItemWeekDay = '';
     public string $editItemNotes = '';
+    public string $mergeTargetDay = '';
 
     /** @var array<int> */
     public array $groupedItemIds = [];
@@ -41,7 +43,7 @@ new #[Layout('layouts::app')] class extends Component {
     public function items(): Collection
     {
         return $this->shoppingList->items()
-            ->with(['recipe:id,name', 'ingredient:id,purchase_timing,category'])
+            ->with(['recipe:id,name', 'ingredient:id,purchase_timing,category', 'meal:id,date,type'])
             ->orderByDesc('created_at')
             ->get();
     }
@@ -104,7 +106,7 @@ new #[Layout('layouts::app')] class extends Component {
                     ->sortBy(fn (ShoppingListItem $item) => array_search($item->week_day, ShoppingListItem::WEEK_DAYS))
                     ->map(fn (ShoppingListItem $item) => [
                         'id' => $item->id,
-                        'day' => ShoppingListItem::dayLabel($item->week_day),
+                        'day' => $this->breakdownDayLabel($item),
                         'displayQuantity' => $item->displayQuantity(),
                         'recipe' => $item->recipe,
                     ])
@@ -228,7 +230,7 @@ new #[Layout('layouts::app')] class extends Component {
         }
 
         $items = ShoppingListItem::query()
-            ->with('recipe:id,name')
+            ->with(['recipe:id,name', 'meal:id,date,type'])
             ->whereIn('id', $this->groupedItemIds)
             ->get();
 
@@ -261,17 +263,22 @@ new #[Layout('layouts::app')] class extends Component {
             ->values();
     }
 
-    private function dayShort(string $day): string
+    /**
+     * The "split across days" breakdown should reflect where an item's
+     * recipe/meal was actually scheduled, not just its (mutable) week_day —
+     * "Merge with day" changes week_day to move a tile onto another day's
+     * shopping trip, but the underlying Meal keeps its original date, so
+     * showing that instead keeps the breakdown meaningful after a merge.
+     */
+    private function breakdownDayLabel(ShoppingListItem $item): string
     {
-        return match ($day) {
-            'monday' => __('Mon'),
-            'tuesday' => __('Tue'),
-            'wednesday' => __('Wed'),
-            'thursday' => __('Thu'),
-            'friday' => __('Fri'),
-            'saturday' => __('Sat'),
-            'sunday' => __('Sun'),
-        };
+        if ($item->meal) {
+            $mealDay = strtolower($item->meal->date->englishDayOfWeek);
+
+            return ShoppingListItem::dayLabel($mealDay) . ' · ' . Meal::typeLabel($item->meal->type);
+        }
+
+        return ShoppingListItem::dayLabel($item->week_day);
     }
 
     private function pluralItems(int $n): string
@@ -301,7 +308,36 @@ new #[Layout('layouts::app')] class extends Component {
         $this->editItemQuantity = $item->displayQuantity() ?? '';
         $this->editItemWeekDay = $item->week_day ?? '';
         $this->editItemNotes = $item->notes ?? '';
+
+        $this->mergeTargetDay = $item->week_day
+            ? ShoppingListItem::WEEK_DAYS[
+                (array_search($item->week_day, ShoppingListItem::WEEK_DAYS) - 1 + 7) % 7
+            ]
+            : '';
+
         $this->resetErrorBag();
+    }
+
+    /**
+     * Moves this item onto another day by changing its week_day — no
+     * separate "merge" step needed beyond that, since same-day items
+     * sharing an ingredient + unit already combine into one tile.
+     */
+    public function mergeWithDay(): void
+    {
+        $this->validate([
+            'mergeTargetDay' => ['required', 'string', Rule::in(ShoppingListItem::WEEK_DAYS)],
+        ]);
+
+        ShoppingListItem::query()->whereKey($this->editingItemId)->update([
+            ShoppingListItem::WEEK_DAY_COLUMN => $this->mergeTargetDay,
+        ]);
+
+        $this->editingItemId = null;
+        unset($this->items);
+        $this->dispatch('modal-close', name: 'edit-item-modal');
+
+        Flux::toast(variant: 'success', text: __('Merged with the selected day.'));
     }
 
     /** @param array<int> $ids */
@@ -509,9 +545,15 @@ new #[Layout('layouts::app')] class extends Component {
                             pressTimer: null,
                             startPress() {
                                 this.pressTimer = setTimeout(() => {
+                                    @if (count($chip['ids']) > 1)
                                     $wire.showGroupDetails({{ Illuminate\Support\Js::from($chip['ids']) }}).then(() => {
                                         $dispatch('modal-show', { name: 'grouped-item-modal' });
                                     });
+                                    @else
+                                    $wire.editItem({{ $chip['item']->id }}).then(() => {
+                                        $dispatch('modal-show', { name: 'edit-item-modal' });
+                                    });
+                                    @endif
                                 }, 500);
                             },
                             endPress() {
@@ -669,6 +711,29 @@ new #[Layout('layouts::app')] class extends Component {
                     <span>📖 {{ $this->editingItem->recipe->name }}</span>
                     <span class="text-gold-dark text-xs">{{ __('View') }} ›</span>
                 </a>
+            </div>
+            @endif
+
+            @if ($this->editingItem?->week_day)
+            <div class="rounded-xl border border-ink/10 bg-sand/40 p-3.5 space-y-3">
+                <x-ui.eyebrow>{{ __('Merge with day') }}</x-ui.eyebrow>
+                <div class="flex items-center gap-2.5">
+                    <select
+                        wire:model="mergeTargetDay"
+                        class="flex-1 border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-base sm:text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
+                        @foreach (\App\Models\ShoppingListItem::WEEK_DAYS as $day)
+                        <option value="{{ $day }}">{{ ShoppingListItem::dayLabel($day) }}</option>
+                        @endforeach
+                    </select>
+                    <button
+                        type="button"
+                        wire:click="mergeWithDay"
+                        class="shrink-0 bg-forest hover:bg-forest/90 transition-colors text-white rounded-xl px-4 py-3 font-manrope text-sm font-extrabold">
+                        {{ __('Merge') }}
+                    </button>
+                </div>
+                <x-ui.field-error name="mergeTargetDay" />
+                <p class="font-manrope text-xs text-ink/50">{{ __('Moves this item onto that day — if something is already needed there, the quantities combine.') }}</p>
             </div>
             @endif
 

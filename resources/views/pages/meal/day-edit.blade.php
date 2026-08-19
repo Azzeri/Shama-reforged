@@ -6,6 +6,7 @@ use App\Models\Tag;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
@@ -23,6 +24,12 @@ new #[Layout('layouts::app')] class extends Component {
     public string $recipeSearch = '';
 
     public ?int $previewingRecipeId = null;
+
+    public ?string $repeatingKey = null;
+
+    public string $repeatDayOffset = '';
+
+    public string $repeatMealType = '';
 
     public function mount(string $date): void
     {
@@ -96,6 +103,23 @@ new #[Layout('layouts::app')] class extends Component {
     public function day(): CarbonInterface
     {
         return Carbon::parse($this->date)->startOfDay();
+    }
+
+    /**
+     * Day options for the "repeat this recipe" panel, offset (0-6) from the
+     * start of the week the currently-edited day falls in — so "repeat to
+     * Wednesday" always means Wednesday of this same week, regardless of
+     * which day is currently being edited.
+     */
+    #[Computed]
+    public function weekDayOptions(): Collection
+    {
+        $weekStart = $this->day->copy()->startOfWeek();
+
+        return collect(range(0, 6))->map(fn (int $offset) => [
+            'offset' => $offset,
+            'label' => $weekStart->copy()->addDays($offset)->locale('en')->isoFormat('dddd, D MMM'),
+        ]);
     }
 
     #[Computed]
@@ -176,6 +200,55 @@ new #[Layout('layouts::app')] class extends Component {
         unset($this->meals[$type]['recipeIds'][$recipeIndex]);
         $this->meals[$type]['recipeIds'] = array_values($this->meals[$type]['recipeIds']) ?: [''];
         $this->saveDraft();
+    }
+
+    public function openRepeatPanel(string $type, int $recipeIndex): void
+    {
+        $this->repeatingKey = "{$type}:{$recipeIndex}";
+        $this->repeatDayOffset = '';
+        $this->repeatMealType = '';
+        $this->resetErrorBag();
+    }
+
+    public function closeRepeatPanel(): void
+    {
+        $this->repeatingKey = null;
+    }
+
+    /**
+     * Attaches the recipe to another (day, meal type) slot, independent of
+     * the current day's draft/save flow, so shared ingredients merge on the
+     * shopping list once both days are generated (matched by ingredient +
+     * unit, not by any explicit link between the two Meal rows).
+     */
+    public function repeatRecipe(string $type, int $recipeIndex): void
+    {
+        $this->validate([
+            'repeatDayOffset' => ['required', Rule::in(range(0, 6))],
+            'repeatMealType' => ['required', Rule::in(Meal::TYPES)],
+        ]);
+
+        $recipeId = (int) ($this->meals[$type]['recipeIds'][$recipeIndex] ?? 0);
+
+        $targetDate = $this->day->copy()->startOfWeek()->addDays((int) $this->repeatDayOffset);
+
+        $targetMeal = Meal::query()
+            ->whereDate(Meal::DATE_COLUMN, $targetDate->toDateString())
+            ->where(Meal::TYPE_COLUMN, $this->repeatMealType)
+            ->first();
+
+        if (! $targetMeal) {
+            $targetMeal = Meal::create([
+                'date' => $targetDate->copy()->setTime(12, 0),
+                'type' => $this->repeatMealType,
+            ]);
+        }
+
+        $targetMeal->recipes()->syncWithoutDetaching([$recipeId]);
+
+        $this->closeRepeatPanel();
+
+        Flux::toast(variant: 'success', text: __('Recipe added to the selected day.'));
     }
 
     public function cancel(): void
@@ -292,6 +365,57 @@ new #[Layout('layouts::app')] class extends Component {
                                     </button>
                                 </div>
                             </div>
+
+                            <button
+                                type="button"
+                                wire:click="openRepeatPanel('{{ $type }}', {{ $recipeIndex }})"
+                                class="flex items-center gap-1.5 mt-2 font-manrope text-[12.5px] font-bold text-forest">
+                                <flux:icon.arrow-path class="size-3.5" />
+                                {{ __('Repeat on another day') }}
+                            </button>
+
+                            @if ($repeatingKey === "{$type}:{$recipeIndex}")
+                            <div class="mt-2 rounded-xl border border-ink/10 bg-sand/40 p-3.5 space-y-3">
+                                <x-ui.eyebrow>{{ __('Repeat this recipe') }}</x-ui.eyebrow>
+
+                                <div class="grid grid-cols-2 gap-2.5">
+                                    <select
+                                        wire:model="repeatDayOffset"
+                                        class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-base sm:text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
+                                        <option value="">{{ __('Day') }}</option>
+                                        @foreach ($this->weekDayOptions as $option)
+                                        <option value="{{ $option['offset'] }}">{{ $option['label'] }}</option>
+                                        @endforeach
+                                    </select>
+
+                                    <select
+                                        wire:model="repeatMealType"
+                                        class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-base sm:text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
+                                        <option value="">{{ __('Meal type') }}</option>
+                                        @foreach (\App\Models\Meal::TYPES as $optionType)
+                                        <option value="{{ $optionType }}">{{ Meal::typeLabel($optionType) }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                <x-ui.field-error name="repeatDayOffset" />
+                                <x-ui.field-error name="repeatMealType" />
+
+                                <p class="font-manrope text-xs text-ink/50">{{ __('Ingredients will sum up on the shopping list.') }}</p>
+
+                                <div class="flex items-center justify-end gap-3">
+                                    <button type="button" wire:click="closeRepeatPanel" class="font-manrope text-sm font-extrabold text-forest px-3 py-2">
+                                        {{ __('Cancel') }}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        wire:click="repeatRecipe('{{ $type }}', {{ $recipeIndex }})"
+                                        class="bg-forest hover:bg-forest/90 transition-colors text-white rounded-xl px-4 py-2 font-manrope text-sm font-extrabold">
+                                        {{ __('Add') }}
+                                    </button>
+                                </div>
+                            </div>
+                            @endif
                             @else
                             <div class="flex items-center gap-2">
                                 <button

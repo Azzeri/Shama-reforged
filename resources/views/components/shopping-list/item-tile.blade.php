@@ -11,7 +11,7 @@
         longPressed: false,
         startPress() {
             this.longPressed = false;
-            @if ($anytime && $showDaysBadge)
+            @if (count($ids) > 1)
             this.pressTimer = setTimeout(() => {
                 this.longPressed = true;
                 $wire.showGroupDetails({{ Illuminate\Support\Js::from($ids) }}).then(() => {
