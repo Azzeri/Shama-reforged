@@ -80,7 +80,7 @@ class Ingredient extends Model
             self::CATEGORY_DAIRY => __('Dairy & eggs'),
             self::CATEGORY_BREAD => __('Bread'),
             self::CATEGORY_MEAT_FISH => __('Meat, fish & deli'),
-            self::CATEGORY_PRODUCE => __('Fruit & vegetables'),
+            self::CATEGORY_PRODUCE => __('Fruit & veg'),
             self::CATEGORY_PANTRY => __('Pantry & spices'),
             self::CATEGORY_FROZEN => __('Frozen'),
             self::CATEGORY_UNCATEGORIZED => __('Uncategorized'),

@@ -22,6 +22,9 @@ new #[Layout('layouts::app')] class extends Component {
     public string $editItemWeekDay = '';
     public string $editItemNotes = '';
 
+    /** @var array<int> */
+    public array $groupedItemIds = [];
+
     public function render()
     {
         return $this->view()
@@ -44,7 +47,7 @@ new #[Layout('layouts::app')] class extends Component {
     }
 
     #[Computed]
-    public function advanceItems(): Collection
+    public function advanceItemGroups(): Collection
     {
         $items = $this->items
             ->where(ShoppingListItem::IS_CHECKED_COLUMN, false)
@@ -52,7 +55,19 @@ new #[Layout('layouts::app')] class extends Component {
                 || $item->week_day === null)
             ->values();
 
-        return $this->groupByCategory($this->groupAndSum($items));
+        return $this->groupAndSum($items);
+    }
+
+    #[Computed]
+    public function advanceItems(): Collection
+    {
+        return $this->groupByCategory($this->advanceItemGroups);
+    }
+
+    #[Computed]
+    public function advanceCountLabel(): string
+    {
+        return $this->pluralItems($this->advanceItemGroups->count());
     }
 
     /**
@@ -60,7 +75,9 @@ new #[Layout('layouts::app')] class extends Component {
      * the same day each needing salt in grams) into a single tile with a
      * summed amount. Rows without a matching ingredient/unit pair (manual
      * items, free-text quantities) stay as their own singleton group so
-     * nothing gets merged on a guess.
+     * nothing gets merged on a guess. Also tracks which distinct week days
+     * fed into the sum, so a merged tile can show a per-day breakdown
+     * instead of hiding where the quantity came from.
      */
     private function groupAndSum(Collection $items): Collection
     {
@@ -70,18 +87,38 @@ new #[Layout('layouts::app')] class extends Component {
                 : "solo:{$item->id}")
             ->map(function (Collection $group) {
                 $first = $group->first();
+                $isMerged = $group->count() > 1;
 
-                if ($group->count() > 1) {
+                if ($isMerged) {
                     $sum = rtrim(rtrim(number_format($group->sum('amount'), 2, '.', ''), '0'), '.');
                     $displayQuantity = "{$sum} {$first->unit}";
                 } else {
                     $displayQuantity = $first->displayQuantity();
                 }
 
+                $weekDays = $group->pluck('week_day')->filter()->unique()
+                    ->sortBy(fn (string $day) => array_search($day, ShoppingListItem::WEEK_DAYS))
+                    ->values();
+
+                $dayBreakdown = $isMerged && $weekDays->count() > 1
+                    ? $group->filter(fn (ShoppingListItem $item) => $item->week_day !== null)
+                        ->groupBy('week_day')
+                        ->sortBy(fn (Collection $rows, string $day) => array_search($day, ShoppingListItem::WEEK_DAYS))
+                        ->map(fn (Collection $rows) => [
+                            'day' => ShoppingListItem::dayLabel($rows->first()->week_day),
+                            'displayQuantity' => rtrim(rtrim(number_format($rows->sum('amount'), 2, '.', ''), '0'), '.') . " {$first->unit}",
+                        ])
+                        ->values()
+                    : collect();
+
                 return [
                     'item' => $first,
                     'ids' => $group->pluck('id')->all(),
                     'displayQuantity' => $displayQuantity,
+                    'weekDays' => $weekDays,
+                    'showDaysBadge' => $weekDays->count() > 1,
+                    'daysLabel' => $weekDays->count() . ' ' . __('days'),
+                    'dayBreakdown' => $dayBreakdown,
                 ];
             })
             ->values();
@@ -109,10 +146,51 @@ new #[Layout('layouts::app')] class extends Component {
             ->values();
     }
 
+    /**
+     * Per-day view of what's still needed: "fresh" items grouped into aisle
+     * sections, plus a cross-reference to any ingredients the day's recipes
+     * need that are already covered by the "buy anytime" pool above, so they
+     * aren't shown (and don't need buying) twice.
+     */
     #[Computed]
     public function activeByDay(): Collection
     {
-        return $this->groupNonEmpty(false);
+        $weekStart = now()->startOfWeek();
+
+        return collect(ShoppingListItem::WEEK_DAYS)
+            ->map(function (string $day, int $index) use ($weekStart) {
+                $dayItems = $this->items
+                    ->where(ShoppingListItem::IS_CHECKED_COLUMN, false)
+                    ->where(ShoppingListItem::WEEK_DAY_COLUMN, $day)
+                    ->values();
+
+                $freshItems = $dayItems->reject(
+                    fn (ShoppingListItem $item) => $item->ingredient?->purchase_timing === Ingredient::PURCHASE_TIMING_ADVANCE
+                );
+
+                $freshGroups = $this->groupAndSum($freshItems);
+
+                $coveredChips = $this->advanceItemGroups
+                    ->filter(fn (array $group) => $group['weekDays']->contains($day))
+                    ->values();
+
+                if ($freshGroups->isEmpty() && $coveredChips->isEmpty()) {
+                    return null;
+                }
+
+                return [
+                    'day' => $day,
+                    'label' => ShoppingListItem::dayLabel($day),
+                    'date' => $weekStart->copy()->addDays($index)->format('d.m'),
+                    'countLabel' => $this->pluralItems($freshGroups->count()),
+                    'categories' => $this->groupByCategory($freshGroups),
+                    'noFresh' => $freshGroups->isEmpty(),
+                    'coveredChips' => $coveredChips,
+                    'coveredLabel' => $coveredChips->count() . ' ' . __('from today are already covered by the anytime list'),
+                ];
+            })
+            ->filter()
+            ->values();
     }
 
     #[Computed]
@@ -130,7 +208,7 @@ new #[Layout('layouts::app')] class extends Component {
         return $this->items
             ->where(ShoppingListItem::IS_CHECKED_COLUMN, true)
             ->whereNull(ShoppingListItem::WEEK_DAY_COLUMN)
-            ->filter(fn (ShoppingListItem $item) => $item->created_at?->betweenIncluded($weekStart, $weekEnd))
+            ->filter(fn (ShoppingListItem $item) => $item->updated_at?->betweenIncluded($weekStart, $weekEnd))
             ->values();
     }
 
@@ -140,6 +218,18 @@ new #[Layout('layouts::app')] class extends Component {
         return $this->editingItemId
             ? ShoppingListItem::query()->with('recipe:id,name')->find($this->editingItemId)
             : null;
+    }
+
+    #[Computed]
+    public function groupedItemGroup(): ?array
+    {
+        if (empty($this->groupedItemIds)) {
+            return null;
+        }
+
+        $items = ShoppingListItem::query()->whereIn('id', $this->groupedItemIds)->get();
+
+        return $this->groupAndSum($items)->first();
     }
 
     private function groupNonEmpty(bool $checked): Collection
@@ -153,22 +243,37 @@ new #[Layout('layouts::app')] class extends Component {
                     ->where(ShoppingListItem::IS_CHECKED_COLUMN, $checked)
                     ->where(ShoppingListItem::WEEK_DAY_COLUMN, $day)
                     ->when($checked, fn (Collection $collection) => $collection->filter(
-                        fn (ShoppingListItem $item) => $item->created_at?->betweenIncluded($weekStart, $weekEnd)
+                        fn (ShoppingListItem $item) => $item->updated_at?->betweenIncluded($weekStart, $weekEnd)
                     ))
                     ->values();
-
-                $itemGroups = $this->groupAndSum($items);
 
                 return [
                     'day' => $day,
                     'label' => ShoppingListItem::dayLabel($day),
                     'date' => $weekStart->copy()->addDays($index)->format('d.m'),
-                    'items' => $itemGroups,
-                    'categories' => $this->groupByCategory($itemGroups),
+                    'items' => $this->groupAndSum($items),
                 ];
             })
             ->filter(fn (array $group) => $group['items']->isNotEmpty())
             ->values();
+    }
+
+    private function dayShort(string $day): string
+    {
+        return match ($day) {
+            'monday' => __('Mon'),
+            'tuesday' => __('Tue'),
+            'wednesday' => __('Wed'),
+            'thursday' => __('Thu'),
+            'friday' => __('Fri'),
+            'saturday' => __('Sat'),
+            'sunday' => __('Sun'),
+        };
+    }
+
+    private function pluralItems(int $n): string
+    {
+        return $n === 1 ? '1 ' . __('item') : "{$n} " . __('items');
     }
 
     public function toggle(int|array $itemIds): void
@@ -194,6 +299,12 @@ new #[Layout('layouts::app')] class extends Component {
         $this->editItemWeekDay = $item->week_day ?? '';
         $this->editItemNotes = $item->notes ?? '';
         $this->resetErrorBag();
+    }
+
+    /** @param array<int> $ids */
+    public function showGroupDetails(array $ids): void
+    {
+        $this->groupedItemIds = $ids;
     }
 
     public function saveItem(): void
@@ -257,7 +368,7 @@ new #[Layout('layouts::app')] class extends Component {
         $this->shoppingList->items()->where(ShoppingListItem::IS_CHECKED_COLUMN, false)->delete();
         unset($this->items);
 
-        Flux::toast(variant: 'success', text: __('Unchecked items cleared.'));
+        Flux::toast(variant: 'success', text: __('Unbought items cleared.'));
     }
 };
 ?>
@@ -275,26 +386,32 @@ new #[Layout('layouts::app')] class extends Component {
 
             <flux:modal.trigger name="clear-unchecked-modal">
                 <button class="bg-transparent flex items-center gap-1.5 font-manrope text-[13px] font-bold text-terracotta-dark">
-                    🗑 {{ __('Clear unchecked') }}
+                    🗑 {{ __('Clear unbought') }}
                 </button>
             </flux:modal.trigger>
         </div>
 
         @if ($this->advanceItems->isNotEmpty())
         <div>
-            <div class="uppercase text-[12px] font-extrabold tracking-[0.08em] text-ink/55 mb-2.5 font-manrope">{{ __('Can buy anytime this week') }}</div>
+            <div class="flex items-baseline gap-2.5 pb-2.5 mb-3.5 border-b-2 border-gold/70">
+                <div class="font-fraunces text-xl font-semibold text-ink">{{ __('Anytime') }}</div>
+                <div class="flex-1"></div>
+                <div class="font-manrope text-[11px] font-extrabold tracking-[0.05em] text-gold-dark whitespace-nowrap">{{ $this->advanceCountLabel }}</div>
+            </div>
             <div class="space-y-3">
                 @foreach ($this->advanceItems as $categoryGroup)
                 <div wire:key="advance-cat-{{ $categoryGroup['category'] }}">
                     @if ($this->advanceItems->count() > 1)
-                    <div class="font-manrope text-[11px] font-bold text-ink/40 mb-1.5">{{ $categoryGroup['label'] }}</div>
+                    <div class="font-manrope text-[11px] font-bold uppercase tracking-[0.06em] text-ink/40 mb-2">{{ $categoryGroup['label'] }}</div>
                     @endif
-                    <div class="grid grid-cols-3 gap-2.5">
+                    <div class="grid grid-cols-3 gap-2.5 items-start">
                         @foreach ($categoryGroup['items'] as $itemGroup)
                         <x-shopping-list.item-tile
                             :item="$itemGroup['item']"
                             :ids="$itemGroup['ids']"
                             :display-quantity="$itemGroup['displayQuantity']"
+                            :day-breakdown="$itemGroup['dayBreakdown']"
+                            anytime
                             wire:key="item-advance-{{ $itemGroup['ids'][0] }}" />
                         @endforeach
                     </div>
@@ -306,12 +423,21 @@ new #[Layout('layouts::app')] class extends Component {
 
         @foreach ($this->activeByDay as $group)
         <div wire:key="active-day-{{ $group['day'] }}">
-            <div class="uppercase text-[12px] font-extrabold tracking-[0.08em] text-ink/55 mb-2.5 font-manrope">{{ $group['label'] }} · {{ $group['date'] }}</div>
-            <div class="space-y-3">
+            <div class="flex items-baseline gap-2.5 pb-2.5 mb-3 border-b-2 border-ink/[0.16]">
+                <div class="font-fraunces text-xl font-semibold text-ink">{{ $group['label'] }}</div>
+                <div class="font-manrope text-xs font-bold text-ink/40">{{ $group['date'] }}</div>
+                <div class="flex-1"></div>
+                <div class="font-manrope text-[11px] font-extrabold tracking-[0.05em] text-ink/45 whitespace-nowrap">{{ $group['countLabel'] }}</div>
+            </div>
+
+            @if ($group['noFresh'])
+            <div class="font-manrope text-xs font-semibold text-ink/35 {{ $group['coveredChips']->isNotEmpty() ? 'mb-2.5' : '' }}">{{ __('Nothing fresh needed today.') }}</div>
+            @else
+            <div class="space-y-3 {{ $group['coveredChips']->isNotEmpty() ? 'mb-3.5' : '' }}">
                 @foreach ($group['categories'] as $categoryGroup)
                 <div wire:key="active-day-{{ $group['day'] }}-cat-{{ $categoryGroup['category'] }}">
                     @if ($group['categories']->count() > 1)
-                    <div class="font-manrope text-[11px] font-bold text-ink/40 mb-1.5">{{ $categoryGroup['label'] }}</div>
+                    <div class="font-manrope text-[11px] font-bold uppercase tracking-[0.06em] text-ink/40 mb-2">{{ $categoryGroup['label'] }}</div>
                     @endif
                     <div class="grid grid-cols-3 gap-2.5">
                         @foreach ($categoryGroup['items'] as $itemGroup)
@@ -325,6 +451,27 @@ new #[Layout('layouts::app')] class extends Component {
                 </div>
                 @endforeach
             </div>
+            @endif
+
+            @if ($group['coveredChips']->isNotEmpty())
+            <div class="border-t border-dashed border-ink/[0.16] pt-2.5" x-data="{ open: false }">
+                <button type="button" @click="open = ! open" class="flex items-center gap-1.5 font-manrope text-[10.5px] font-bold uppercase tracking-[0.08em] text-ink/35">
+                    <span>↑ {{ $group['coveredLabel'] }}</span>
+                    <flux:icon.chevron-down class="size-3 shrink-0 transition-transform" x-bind:class="open ? 'rotate-180' : ''" />
+                </button>
+                <div x-show="open" x-collapse class="flex flex-wrap gap-1.5 mt-2">
+                    @foreach ($group['coveredChips'] as $chip)
+                    <span class="inline-flex items-center gap-1.5 border border-dashed border-ink/20 rounded-full px-2.5 py-1 font-manrope text-[11px] font-semibold text-ink/40">
+                        {{ $chip['item']->name }}
+                        <span class="opacity-70">{{ $chip['displayQuantity'] }}</span>
+                        @if ($chip['showDaysBadge'])
+                        <span class="font-extrabold text-[9.5px] tracking-[0.03em] text-gold-dark">Σ {{ $chip['daysLabel'] }}</span>
+                        @endif
+                    </span>
+                    @endforeach
+                </div>
+            </div>
+            @endif
         </div>
         @endforeach
 
@@ -336,23 +483,14 @@ new #[Layout('layouts::app')] class extends Component {
                 @foreach ($this->boughtByDay as $group)
                 <div wire:key="bought-day-{{ $group['day'] }}">
                     <div class="text-[12.5px] font-bold text-ink/50 font-manrope mb-2">{{ $group['label'] }} · {{ $group['date'] }}</div>
-                    <div class="space-y-2.5">
-                        @foreach ($group['categories'] as $categoryGroup)
-                        <div wire:key="bought-day-{{ $group['day'] }}-cat-{{ $categoryGroup['category'] }}">
-                            @if ($group['categories']->count() > 1)
-                            <div class="font-manrope text-[10.5px] font-bold text-ink/35 mb-1">{{ $categoryGroup['label'] }}</div>
-                            @endif
-                            <div class="grid grid-cols-3 gap-2.5">
-                                @foreach ($categoryGroup['items'] as $itemGroup)
-                                <x-shopping-list.item-tile
-                                    :item="$itemGroup['item']"
-                                    :ids="$itemGroup['ids']"
-                                    :display-quantity="$itemGroup['displayQuantity']"
-                                    bought
-                                    wire:key="item-{{ $itemGroup['ids'][0] }}" />
-                                @endforeach
-                            </div>
-                        </div>
+                    <div class="grid grid-cols-3 gap-2.5">
+                        @foreach ($group['items'] as $itemGroup)
+                        <x-shopping-list.item-tile
+                            :item="$itemGroup['item']"
+                            :ids="$itemGroup['ids']"
+                            :display-quantity="$itemGroup['displayQuantity']"
+                            bought
+                            wire:key="item-{{ $itemGroup['ids'][0] }}" />
                         @endforeach
                     </div>
                 </div>
@@ -483,16 +621,59 @@ new #[Layout('layouts::app')] class extends Component {
         </form>
     </flux:modal>
 
+    <flux:modal name="grouped-item-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
+        @if ($this->groupedItemGroup)
+        <div class="space-y-5">
+            <div class="flex items-start justify-between gap-2">
+                <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Grouped item') }}</h3>
+                <flux:modal.close>
+                    <button type="button" class="text-ink/25 hover:text-ink/50 p-1.5 text-lg leading-none">✕</button>
+                </flux:modal.close>
+            </div>
+
+            <div>
+                <x-ui.eyebrow>{{ __('Product name') }}</x-ui.eyebrow>
+                <div class="font-manrope text-base font-bold text-ink">{{ $this->groupedItemGroup['item']->name }}</div>
+            </div>
+
+            <div>
+                <x-ui.eyebrow>{{ __('Total quantity') }}</x-ui.eyebrow>
+                <div class="font-manrope text-base font-extrabold text-gold-dark">{{ $this->groupedItemGroup['displayQuantity'] }}</div>
+            </div>
+
+            <div>
+                <x-ui.eyebrow>{{ __('Split across days') }}</x-ui.eyebrow>
+                <div class="border border-ink/10 rounded-2xl divide-y divide-dashed divide-ink/15 overflow-hidden">
+                    @foreach ($this->groupedItemGroup['dayBreakdown'] as $row)
+                    <div class="flex items-center justify-between px-4 py-3">
+                        <span class="font-manrope text-sm font-bold text-ink">{{ $row['day'] }}</span>
+                        <span class="font-manrope text-sm font-bold text-gold-dark">{{ $row['displayQuantity'] }}</span>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-3">
+                <flux:modal.close>
+                    <button type="button" class="font-manrope text-sm font-extrabold text-forest px-4 py-3">
+                        {{ __('Close') }}
+                    </button>
+                </flux:modal.close>
+            </div>
+        </div>
+        @endif
+    </flux:modal>
+
     <flux:modal name="clear-unchecked-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
         <div class="space-y-6">
             <div class="flex items-start justify-between gap-2">
-                <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Clear unchecked items?') }}</h3>
+                <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Clear unbought items?') }}</h3>
                 <flux:modal.close>
                     <button type="button" class="text-ink/25 hover:text-ink/50 p-1.5 text-lg leading-none">✕</button>
                 </flux:modal.close>
             </div>
             <p class="font-manrope text-sm text-ink/60 -mt-4">
-                {{ __('This will remove every unchecked item from your shopping list. This action cannot be undone.') }}
+                {{ __('This will remove every unbought item from your shopping list. This action cannot be undone.') }}
             </p>
 
             <div class="flex gap-2 justify-end">
@@ -507,7 +688,7 @@ new #[Layout('layouts::app')] class extends Component {
                         type="button"
                         wire:click="clearUnchecked"
                         class="bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-2xl px-5 py-2.5 font-manrope text-sm font-extrabold">
-                        {{ __('Clear unchecked') }}
+                        {{ __('Clear unbought') }}
                     </button>
                 </flux:modal.close>
             </div>
