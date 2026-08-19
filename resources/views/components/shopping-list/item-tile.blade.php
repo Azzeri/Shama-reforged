@@ -1,9 +1,8 @@
-@props(['item', 'bought' => false, 'ids' => null, 'displayQuantity' => null, 'anytime' => false, 'dayBreakdown' => null])
+@props(['item', 'bought' => false, 'ids' => null, 'displayQuantity' => null, 'anytime' => false, 'showDaysBadge' => false, 'daysCount' => 0])
 
 @php
     $ids = $ids ?? [$item->id];
     $quantityText = $displayQuantity ?? $item->displayQuantity();
-    $dayBreakdown = $dayBreakdown ?? collect();
 @endphp
 
 <div
@@ -12,14 +11,14 @@
         longPressed: false,
         startPress() {
             this.longPressed = false;
-            @if ($anytime && $dayBreakdown->isNotEmpty())
+            @if ($anytime && $showDaysBadge)
             this.pressTimer = setTimeout(() => {
                 this.longPressed = true;
                 $wire.showGroupDetails({{ Illuminate\Support\Js::from($ids) }}).then(() => {
                     $dispatch('modal-show', { name: 'grouped-item-modal' });
                 });
             }, 500);
-            @elseif (! $anytime)
+            @else
             this.pressTimer = setTimeout(() => {
                 this.longPressed = true;
                 $wire.editItem({{ $item->id }}).then(() => {
@@ -59,8 +58,8 @@
         <span class="font-manrope text-[10.5px] font-semibold leading-tight {{ $bought ? 'text-ink/40 line-through' : 'text-ink/50' }}">
             {{ $quantityText ?: "\u{00A0}" }}
         </span>
-        @if ($dayBreakdown->isNotEmpty())
-        <span class="font-manrope text-[10.5px] font-extrabold text-gold-dark whitespace-nowrap">{{ $dayBreakdown->count() }} {{ __('days') }} ›</span>
+        @if ($showDaysBadge)
+        <span class="font-manrope text-[10.5px] font-extrabold text-gold-dark whitespace-nowrap">{{ $daysCount }} {{ __('days') }} ›</span>
         @endif
     </div>
 </div>

@@ -100,22 +100,22 @@ new #[Layout('layouts::app')] class extends Component {
                     ->sortBy(fn (string $day) => array_search($day, ShoppingListItem::WEEK_DAYS))
                     ->values();
 
-                $dayBreakdown = $isMerged && $weekDays->count() > 1
-                    ? $group->filter(fn (ShoppingListItem $item) => $item->week_day !== null)
-                        ->groupBy('week_day')
-                        ->sortBy(fn (Collection $rows, string $day) => array_search($day, ShoppingListItem::WEEK_DAYS))
-                        ->map(fn (Collection $rows) => [
-                            'day' => ShoppingListItem::dayLabel($rows->first()->week_day),
-                            'displayQuantity' => rtrim(rtrim(number_format($rows->sum('amount'), 2, '.', ''), '0'), '.') . " {$first->unit}",
-                        ])
-                        ->values()
-                    : collect();
+                $dayBreakdown = $group->filter(fn (ShoppingListItem $item) => $item->week_day !== null)
+                    ->sortBy(fn (ShoppingListItem $item) => array_search($item->week_day, ShoppingListItem::WEEK_DAYS))
+                    ->map(fn (ShoppingListItem $item) => [
+                        'id' => $item->id,
+                        'day' => ShoppingListItem::dayLabel($item->week_day),
+                        'displayQuantity' => $item->displayQuantity(),
+                        'recipe' => $item->recipe,
+                    ])
+                    ->values();
 
                 return [
                     'item' => $first,
                     'ids' => $group->pluck('id')->all(),
                     'displayQuantity' => $displayQuantity,
                     'weekDays' => $weekDays,
+                    'daysCount' => $weekDays->count(),
                     'showDaysBadge' => $weekDays->count() > 1,
                     'daysLabel' => $weekDays->count() . ' ' . __('days'),
                     'dayBreakdown' => $dayBreakdown,
@@ -227,7 +227,10 @@ new #[Layout('layouts::app')] class extends Component {
             return null;
         }
 
-        $items = ShoppingListItem::query()->whereIn('id', $this->groupedItemIds)->get();
+        $items = ShoppingListItem::query()
+            ->with('recipe:id,name')
+            ->whereIn('id', $this->groupedItemIds)
+            ->get();
 
         return $this->groupAndSum($items)->first();
     }
@@ -295,7 +298,7 @@ new #[Layout('layouts::app')] class extends Component {
         $item = ShoppingListItem::query()->findOrFail($itemId);
         $this->editingItemId = $itemId;
         $this->editItemName = $item->name;
-        $this->editItemQuantity = $item->quantity ?? '';
+        $this->editItemQuantity = $item->displayQuantity() ?? '';
         $this->editItemWeekDay = $item->week_day ?? '';
         $this->editItemNotes = $item->notes ?? '';
         $this->resetErrorBag();
@@ -305,6 +308,45 @@ new #[Layout('layouts::app')] class extends Component {
     public function showGroupDetails(array $ids): void
     {
         $this->groupedItemIds = $ids;
+    }
+
+    public function removeGroupItem(int $id): void
+    {
+        ShoppingListItem::query()->whereKey($id)->delete();
+
+        $this->groupedItemIds = array_values(array_diff($this->groupedItemIds, [$id]));
+
+        unset($this->items);
+
+        if (count($this->groupedItemIds) < 2) {
+            $this->dispatch('modal-close', name: 'grouped-item-modal');
+        }
+    }
+
+    /**
+     * Rows in a merged group are summed via their numeric `amount` column,
+     * not the free-text `quantity` column, so a plain "save the typed text"
+     * would silently desync the group's total. Parse a leading number (and
+     * optional unit) back into amount/unit when possible, and only fall
+     * back to the free-text column for values that don't parse (e.g. "a pinch").
+     */
+    public function updateGroupItemQuantity(int $id, string $quantity): void
+    {
+        $item = ShoppingListItem::query()->findOrFail($id);
+
+        if (preg_match('/^\s*(\d+(?:[.,]\d+)?)\s*(.*)$/', $quantity, $matches)) {
+            $item->update([
+                ShoppingListItem::QUANTITY_COLUMN => null,
+                'amount' => (float) str_replace(',', '.', $matches[1]),
+                'unit' => $matches[2] !== '' ? $matches[2] : $item->unit,
+            ]);
+        } else {
+            $item->update([
+                ShoppingListItem::QUANTITY_COLUMN => $quantity !== '' ? $quantity : null,
+            ]);
+        }
+
+        unset($this->items);
     }
 
     public function saveItem(): void
@@ -410,7 +452,8 @@ new #[Layout('layouts::app')] class extends Component {
                             :item="$itemGroup['item']"
                             :ids="$itemGroup['ids']"
                             :display-quantity="$itemGroup['displayQuantity']"
-                            :day-breakdown="$itemGroup['dayBreakdown']"
+                            :show-days-badge="$itemGroup['showDaysBadge']"
+                            :days-count="$itemGroup['daysCount']"
                             anytime
                             wire:key="item-advance-{{ $itemGroup['ids'][0] }}" />
                         @endforeach
@@ -461,7 +504,28 @@ new #[Layout('layouts::app')] class extends Component {
                 </button>
                 <div x-show="open" x-collapse class="flex flex-wrap gap-1.5 mt-2">
                     @foreach ($group['coveredChips'] as $chip)
-                    <span class="inline-flex items-center gap-1.5 border border-dashed border-ink/20 rounded-full px-2.5 py-1 font-manrope text-[11px] font-semibold text-ink/40">
+                    <span
+                        x-data="{
+                            pressTimer: null,
+                            startPress() {
+                                this.pressTimer = setTimeout(() => {
+                                    $wire.showGroupDetails({{ Illuminate\Support\Js::from($chip['ids']) }}).then(() => {
+                                        $dispatch('modal-show', { name: 'grouped-item-modal' });
+                                    });
+                                }, 500);
+                            },
+                            endPress() {
+                                clearTimeout(this.pressTimer);
+                            },
+                        }"
+                        @mousedown="startPress"
+                        @mouseup="endPress"
+                        @mouseleave="endPress"
+                        @touchstart="startPress"
+                        @touchend="endPress"
+                        @contextmenu.prevent
+                        wire:key="covered-chip-{{ $chip['ids'][0] }}"
+                        class="inline-flex items-center gap-1.5 border border-dashed border-ink/20 rounded-full px-2.5 py-1 font-manrope text-[11px] font-semibold text-ink/40 select-none cursor-pointer">
                         {{ $chip['item']->name }}
                         <span class="opacity-70">{{ $chip['displayQuantity'] }}</span>
                         @if ($chip['showDaysBadge'])
@@ -645,9 +709,31 @@ new #[Layout('layouts::app')] class extends Component {
                 <x-ui.eyebrow>{{ __('Split across days') }}</x-ui.eyebrow>
                 <div class="border border-ink/10 rounded-2xl divide-y divide-dashed divide-ink/15 overflow-hidden">
                     @foreach ($this->groupedItemGroup['dayBreakdown'] as $row)
-                    <div class="flex items-center justify-between px-4 py-3">
-                        <span class="font-manrope text-sm font-bold text-ink">{{ $row['day'] }}</span>
-                        <span class="font-manrope text-sm font-bold text-gold-dark">{{ $row['displayQuantity'] }}</span>
+                    <div class="flex items-center justify-between gap-2 px-4 py-3" wire:key="breakdown-row-{{ $row['id'] }}">
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2">
+                                <span class="font-manrope text-sm font-bold text-ink">{{ $row['day'] }}</span>
+                                <input
+                                    type="text"
+                                    value="{{ $row['displayQuantity'] }}"
+                                    wire:change="updateGroupItemQuantity({{ $row['id'] }}, $event.target.value)"
+                                    class="w-16 font-manrope text-sm font-bold text-gold-dark bg-transparent border-b border-dashed border-gold/40 focus:outline-none focus:border-gold" />
+                            </div>
+                            @if ($row['recipe'])
+                            <a
+                                href="{{ $row['recipe']->showUrlWithBack() }}"
+                                wire:navigate
+                                class="flex items-center gap-1 mt-0.5 font-manrope text-[11px] font-semibold text-ink/45 truncate">
+                                📖 {{ $row['recipe']->name }} ›
+                            </a>
+                            @endif
+                        </div>
+                        <button
+                            type="button"
+                            wire:click="removeGroupItem({{ $row['id'] }})"
+                            class="text-terracotta/60 hover:text-terracotta p-1.5 shrink-0">
+                            <flux:icon.trash class="size-4" />
+                        </button>
                     </div>
                     @endforeach
                 </div>
