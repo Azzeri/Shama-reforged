@@ -398,9 +398,10 @@ new #[Layout('layouts::app')] class extends Component {
         Flux::toast(variant: 'success', text: __('Merged with the previous day.'));
     }
 
-    public function deleteItem(int $itemId): void
+    /** @param array<int> $itemIds */
+    public function deleteItems(array $itemIds): void
     {
-        ShoppingListItem::query()->whereKey($itemId)->delete();
+        ShoppingListItem::query()->whereIn('id', $itemIds)->delete();
 
         unset($this->items);
     }
@@ -575,7 +576,7 @@ new #[Layout('layouts::app')] class extends Component {
                             :show-days-badge="$block['item']['showDaysBadge']"
                             :days-count="$block['item']['daysCount']"
                             anytime
-                            wire:key="item-advance-{{ $block['item']['ids'][0] }}" />
+                            wire:key="item-advance-{{ $block['item']['ids'][0] }}-{{ count($block['item']['ids']) }}" />
                         @else
                         <div class="rounded-2xl border border-ink/10 overflow-hidden divide-y divide-ink/8 bg-white">
                             @foreach ($block['items'] as $itemGroup)
@@ -585,7 +586,7 @@ new #[Layout('layouts::app')] class extends Component {
                                 :display-quantity="$itemGroup['displayQuantity']"
                                 anytime
                                 grouped
-                                wire:key="item-advance-{{ $itemGroup['ids'][0] }}" />
+                                wire:key="item-advance-{{ $itemGroup['ids'][0] }}-{{ count($itemGroup['ids']) }}" />
                             @endforeach
                         </div>
                         @endif
@@ -624,7 +625,7 @@ new #[Layout('layouts::app')] class extends Component {
                             :display-quantity="$block['item']['displayQuantity']"
                             :show-days-badge="$block['item']['showDaysBadge']"
                             :days-count="$block['item']['daysCount']"
-                            wire:key="item-{{ $block['item']['ids'][0] }}" />
+                            wire:key="item-{{ $block['item']['ids'][0] }}-{{ count($block['item']['ids']) }}" />
                         @else
                         <div class="rounded-2xl border border-ink/10 overflow-hidden divide-y divide-ink/8 bg-white">
                             @foreach ($block['items'] as $itemGroup)
@@ -633,7 +634,7 @@ new #[Layout('layouts::app')] class extends Component {
                                 :ids="$itemGroup['ids']"
                                 :display-quantity="$itemGroup['displayQuantity']"
                                 grouped
-                                wire:key="item-{{ $itemGroup['ids'][0] }}" />
+                                wire:key="item-{{ $itemGroup['ids'][0] }}-{{ count($itemGroup['ids']) }}" />
                             @endforeach
                         </div>
                         @endif
@@ -711,7 +712,7 @@ new #[Layout('layouts::app')] class extends Component {
                             :show-days-badge="$block['item']['showDaysBadge']"
                             :days-count="$block['item']['daysCount']"
                             bought
-                            wire:key="item-{{ $block['item']['ids'][0] }}" />
+                            wire:key="item-{{ $block['item']['ids'][0] }}-{{ count($block['item']['ids']) }}" />
                         @else
                         <div class="rounded-2xl border border-ink/10 overflow-hidden divide-y divide-ink/8 bg-[#F7F3EA]">
                             @foreach ($block['items'] as $itemGroup)
@@ -721,7 +722,7 @@ new #[Layout('layouts::app')] class extends Component {
                                 :display-quantity="$itemGroup['displayQuantity']"
                                 bought
                                 grouped
-                                wire:key="item-{{ $itemGroup['ids'][0] }}" />
+                                wire:key="item-{{ $itemGroup['ids'][0] }}-{{ count($itemGroup['ids']) }}" />
                             @endforeach
                         </div>
                         @endif

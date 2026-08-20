@@ -5,7 +5,7 @@
     $quantityText = $displayQuantity ?? $item->displayQuantity();
     $isSolo = count($ids) === 1;
     $canMerge = $isSolo && $item->week_day;
-    $revealWidth = $isSolo ? ($canMerge ? 140 : 70) : 0;
+    $revealWidth = $canMerge ? 140 : 70;
 @endphp
 
 <div
@@ -41,7 +41,6 @@
             }, 1100);
         },
 
-        @if ($isSolo)
         startDrag(e) {
             this.startX = e.touches[0].clientX;
             this.startY = e.touches[0].clientY;
@@ -74,7 +73,6 @@
             this.dx = 0;
             this.open = false;
         },
-        @endif
 
         openModal() {
             @if ($isSolo)
@@ -99,9 +97,7 @@
         },
         handleRowClick() {
             if (this.dragging) return;
-            @if ($isSolo)
             if (this.open) { this.closeSwipe(); return; }
-            @endif
             if (this.longPressed) { this.longPressed = false; return; }
             this.openModal();
         },
@@ -109,9 +105,8 @@
     x-show="! removing"
     x-collapse.duration.300ms
     class="relative overflow-hidden {{ $grouped ? '' : 'rounded-xl' }}"
-    wire:key="row-wrap-{{ $ids[0] }}">
+    wire:key="row-wrap-{{ $ids[0] }}-{{ count($ids) }}">
 
-    @if ($isSolo)
     <div class="absolute inset-y-0 right-0 flex">
         @if ($canMerge)
         <button
@@ -124,20 +119,17 @@
         @endif
         <button
             type="button"
-            wire:click="deleteItem({{ $item->id }})"
+            wire:click="deleteItems({{ Illuminate\Support\Js::from($ids) }})"
             class="w-[70px] flex items-center justify-center bg-terracotta text-white font-manrope text-[12px] font-extrabold">
             {{ __('Delete') }}
         </button>
     </div>
-    @endif
 
     <div
-        @if ($isSolo)
         @touchstart="startDrag"
         @touchmove="onDrag($event)"
         @touchend="endDrag"
         :style="`transform: translateX(${dx}px)`"
-        @endif
         @mousedown="startPress"
         @mouseup="endPress"
         @mouseleave="endPress"
