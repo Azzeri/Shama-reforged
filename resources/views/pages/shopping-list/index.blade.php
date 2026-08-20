@@ -9,6 +9,7 @@ use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\On;
 use Flux\Flux;
 
 new #[Layout('layouts::app')] class extends Component {
@@ -31,6 +32,18 @@ new #[Layout('layouts::app')] class extends Component {
     {
         return $this->view()
             ->title(__('Shopping list'));
+    }
+
+    /**
+     * Broadcast from ShoppingListItem::booted() lands here whenever another
+     * open tab changes the list — just invalidate the computed cache so the
+     * next render re-derives everything (grouping, merging, totals) fresh
+     * from the DB. No client-side diffing/merging.
+     */
+    #[On('echo:shopping-list.1,ShoppingListUpdated')]
+    public function refreshFromBroadcast(): void
+    {
+        unset($this->items);
     }
 
     #[Computed]

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Events\ShoppingListUpdated;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,6 +14,23 @@ class ShoppingListItem extends Model
     use HasFactory;
 
     public const WEEK_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+    /**
+     * One broadcast hook catches every mutation path (toggle, add, edit,
+     * delete, merge-with-day, quantity edit, bulk generation from the meal
+     * plan) so other open tabs know to refetch, instead of wiring a
+     * broadcast call into each Livewire action individually.
+     */
+    protected static function booted(): void
+    {
+        static::saved(function (self $item) {
+            broadcast(new ShoppingListUpdated($item->shopping_list_id))->toOthers();
+        });
+
+        static::deleted(function (self $item) {
+            broadcast(new ShoppingListUpdated($item->shopping_list_id))->toOthers();
+        });
+    }
 
     public static function dayLabel(string $day): string
     {

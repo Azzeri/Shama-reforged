@@ -13,7 +13,7 @@ services:
       - TZ=Europe/Warsaw
     volumes:
       - ../:/var/www
-    build:
+    build: &app-build
       context: ../
       dockerfile_inline: |
         FROM php:8.5-fpm
@@ -23,6 +23,23 @@ services:
             && docker-php-ext-install pdo_mysql gd
         RUN echo "date.timezone=Europe/Warsaw" > /usr/local/etc/php/conf.d/timezone.ini
         COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+  # Kontener Reverb (WebSockety - lista zakupów na żywo)
+  reverb:
+    container_name: laravel-reverb
+    restart: unless-stopped
+    working_dir: /var/www
+    command: php artisan reverb:start --host=0.0.0.0
+    env_file:
+      - ../.env
+    environment:
+      - TZ=Europe/Warsaw
+    volumes:
+      - ../:/var/www
+    build: *app-build
+    depends_on:
+      - app
+
   # Kontener Nginx
   web:
     container_name: laravel-web
@@ -44,6 +61,7 @@ services:
             && ln -snf /usr/share/zoneinfo/Europe/Warsaw /etc/localtime && echo "Europe/Warsaw" > /etc/timezone
     depends_on:
       - app
+      - reverb
 
   # Kontener MySQL
   db:
