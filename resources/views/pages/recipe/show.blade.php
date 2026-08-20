@@ -78,6 +78,50 @@ new #[Layout('layouts::app')] class extends Component {
             </flux:modal.trigger>
         </div>
 
+        <div
+            x-data="{
+                awake: false,
+                supported: typeof navigator !== 'undefined' && 'wakeLock' in navigator,
+                lock: null,
+                async acquire() {
+                    try {
+                        this.lock = await navigator.wakeLock.request('screen');
+                        this.awake = true;
+                        this.lock.addEventListener('release', () => { this.awake = false; });
+                    } catch (e) {
+                        this.awake = false;
+                    }
+                },
+                async release() {
+                    if (this.lock) {
+                        await this.lock.release();
+                        this.lock = null;
+                    }
+                    this.awake = false;
+                },
+                toggle() {
+                    this.awake ? this.release() : this.acquire();
+                },
+                onVisible() {
+                    if (this.awake && ! this.lock && document.visibilityState === 'visible') {
+                        this.acquire();
+                    }
+                },
+            }"
+            x-init="document.addEventListener('visibilitychange', onVisible)"
+            x-show="supported"
+            x-cloak>
+            <button
+                type="button"
+                @click="toggle()"
+                class="w-full inline-flex items-center justify-center gap-1.5 rounded-2xl px-4 py-[11px] font-manrope text-[13.5px] font-extrabold border-[1.5px] transition-colors"
+                :class="awake ? 'bg-gold/15 border-gold text-gold-dark' : 'border-ink/15 text-ink/50'">
+                <flux:icon.sun class="size-4" variant="solid" x-show="awake" x-cloak />
+                <flux:icon.moon class="size-4" x-show="! awake" x-cloak />
+                <span x-text="awake ? '{{ __('Screen will stay on') }}' : '{{ __('Keep screen on') }}'"></span>
+            </button>
+        </div>
+
         <div class="flex flex-wrap gap-2">
             @foreach ($recipe->tags as $tag)
             <x-recipe.tag-badge :tag="$tag" />
