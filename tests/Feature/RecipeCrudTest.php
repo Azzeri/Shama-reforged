@@ -117,15 +117,14 @@ test('the recipe list paginates at 10 results per page', function () {
         ->assertSee('Przepis K');
 });
 
-test('going to details redirects to the recipe show page', function () {
+test('recipe cards link to the recipe show page', function () {
     $user = User::factory()->create();
     $recipe = Recipe::query()->create(['name' => 'Owsianka']);
 
     $this->actingAs($user);
 
     Livewire::test('pages::recipe.index')
-        ->call('goToDetails', $recipe)
-        ->assertRedirect(route('recipes.show', $recipe));
+        ->assertSeeHtml('href="' . route('recipes.show', $recipe) . '"');
 });
 
 // ---------------------------------------------------------------------

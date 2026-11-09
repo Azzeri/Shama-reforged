@@ -57,16 +57,6 @@ new #[Layout('layouts::app')] class extends Component {
             ->all();
     }
 
-    public function goToRecipe(Recipe $recipe): void
-    {
-        $this->redirect($recipe->showUrlWithBack());
-    }
-
-    public function goToEditDay(): void
-    {
-        $this->redirectRoute('meals.day.edit', $this->date);
-    }
-
     public function confirmDelete(int $mealId): void
     {
         $this->mealToDelete = $mealId;
@@ -103,7 +93,7 @@ new #[Layout('layouts::app')] class extends Component {
 
         <div class="space-y-3">
             @forelse ($this->meals as $meal)
-            <div wire:key="meal-{{ $meal->id }}" wire:click="goToEditDay" class="bg-white rounded-[18px] p-4 border border-ink/10 cursor-pointer">
+            <div wire:key="meal-{{ $meal->id }}" x-data x-on:click="Livewire.navigate('{{ route('meals.day.edit', $date) }}')" class="bg-white rounded-[18px] p-4 border border-ink/10 cursor-pointer">
                 <div class="flex items-center justify-between mb-2.5">
                     <span class="font-manrope text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink/50">
                         {{ Meal::typeLabel($meal->type) }}
@@ -125,7 +115,7 @@ new #[Layout('layouts::app')] class extends Component {
                 @endif
 
                 @forelse ($meal->recipes as $recipe)
-                <div wire:click.stop="goToRecipe({{ $recipe->id }})" class="border border-ink/10 rounded-xl px-3.5 py-2.5 mb-2 cursor-pointer hover:bg-sand/40 transition-colors">
+                <div x-on:click.stop="window.openRecipe('{{ route('recipes.show', $recipe) }}')" class="border border-ink/10 rounded-xl px-3.5 py-2.5 mb-2 cursor-pointer hover:bg-sand/40 transition-colors">
                     <div class="font-manrope text-sm text-ink">
                         {{ $recipe->name }}
                     </div>

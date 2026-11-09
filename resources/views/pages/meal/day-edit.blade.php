@@ -474,8 +474,13 @@ new #[Layout('layouts::app')] class extends Component {
     </div>
 
     @if ($pickingType !== null)
-    <div class="fixed inset-0 z-50 bg-cream overflow-y-auto">
-        <div class="max-w-xl mx-auto px-4 py-6 pb-8">
+    <div
+        x-data="{
+            init() { document.documentElement.classList.add('overflow-hidden') },
+            destroy() { document.documentElement.classList.remove('overflow-hidden') },
+        }"
+        class="fixed inset-0 z-50 bg-cream overflow-y-auto overscroll-contain">
+        <div class="max-w-xl mx-auto px-4 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(2rem+env(safe-area-inset-bottom))]">
             <button
                 type="button"
                 wire:click="closeRecipePicker"
@@ -520,7 +525,8 @@ new #[Layout('layouts::app')] class extends Component {
                     @mousedown="startPress"
                     @mouseup="endPress"
                     @mouseleave="endPress"
-                    @touchstart="startPress"
+                    @touchstart.passive="startPress"
+                    @touchmove.passive="endPress"
                     @touchend="endPress"
                     @click="handleClick"
                     @contextmenu.prevent
@@ -539,9 +545,9 @@ new #[Layout('layouts::app')] class extends Component {
 
     @if ($previewingRecipeId !== null)
     <div
-        class="fixed inset-0 z-[60] bg-[rgba(27,21,16,0.45)] flex items-end justify-center"
+        class="fixed inset-0 z-[60] bg-[rgba(27,21,16,0.45)] flex items-end justify-center overscroll-contain"
         wire:click.self="closeRecipePreview">
-        <div class="w-full max-w-xl rounded-t-[24px] bg-cream max-h-[88dvh] overflow-y-auto shadow-[0_-10px_40px_rgba(0,0,0,0.3)] p-5">
+        <div class="w-full max-w-xl rounded-t-[24px] bg-cream max-h-[88dvh] overflow-y-auto overscroll-contain shadow-[0_-10px_40px_rgba(0,0,0,0.3)] p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
             <div class="flex justify-end -mt-1 -me-1 mb-1">
                 <button
                     type="button"

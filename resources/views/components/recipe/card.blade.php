@@ -8,9 +8,10 @@ $dotClasses = match ($dot) {
 };
 @endphp
 
-<div
-    wire:click="goToDetails({{ $recipe->id }})"
-    class="relative bg-white rounded-[18px] p-4 shadow-[0_1px_2px_rgba(43,33,24,0.06),0_10px_24px_rgba(43,33,24,0.07)] border border-ink/5 cursor-pointer"
+<a
+    href="{{ route('recipes.show', $recipe) }}"
+    wire:navigate
+    class="block relative bg-white rounded-[18px] p-4 shadow-[0_1px_2px_rgba(43,33,24,0.06),0_10px_24px_rgba(43,33,24,0.07)] border border-ink/5 cursor-pointer"
 >
     <span class="absolute top-4 right-4 size-2.5 rounded-full {{ $dotClasses }}"></span>
 
@@ -27,4 +28,4 @@ $dotClasses = match ($dot) {
         <x-recipe.tag-badge :tag="$tag" />
         @endforeach
     </div>
-</div>
+</a>

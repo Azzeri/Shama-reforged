@@ -77,16 +77,6 @@ new #[Layout('layouts::app')] class extends Component {
         return $this->days;
     }
 
-    public function goToDay(string $date): void
-    {
-        $this->redirectRoute('meals.day', $date);
-    }
-
-    public function goToRecipe(Recipe $recipe): void
-    {
-        $this->redirect($recipe->showUrlWithBack());
-    }
-
     public function mealCalorieTotals(Meal $meal): array
     {
         return Recipe::calorieTotals($meal->recipes);
@@ -248,9 +238,10 @@ new #[Layout('layouts::app')] class extends Component {
         </div>
 
         @foreach ($this->visibleDays as $dayData)
-            <div
+            <a
+                href="{{ route('meals.day', $dayData['date']->toDateString()) }}"
+                wire:navigate
                 wire:key="day-{{ $dayData['date']->toDateString() }}"
-                wire:click="goToDay('{{ $dayData['date']->toDateString() }}')"
                 class="block bg-white rounded-[18px] p-4 shadow-[0_1px_2px_rgba(43,33,24,0.06),0_10px_24px_rgba(43,33,24,0.07)] cursor-pointer">
                 <div class="flex justify-between items-start mb-2.5">
                     <div>
@@ -275,7 +266,9 @@ new #[Layout('layouts::app')] class extends Component {
                     <div class="font-manrope text-sm text-ink">
                         @forelse ($meal->recipes as $recipe)
                         <span
-                            wire:click.stop="goToRecipe({{ $recipe->id }})"
+                            x-data
+                            x-on:mousedown.stop
+                            x-on:click.prevent.stop="window.openRecipe('{{ route('recipes.show', $recipe) }}')"
                             class="hover:underline hover:text-terracotta-dark">{{ $recipe->name }}</span>{{ !$loop->last ? ', ' : '' }}
                         @empty
                         @if (filled($meal->note))
@@ -294,7 +287,7 @@ new #[Layout('layouts::app')] class extends Component {
                 @endforelse
 
                 <x-recipe.calorie-chips :totals="$this->dayCalorieTotals($dayData['meals'])" suffix="razem" class="mt-1" />
-            </div>
+            </a>
         @endforeach
     </div>
 

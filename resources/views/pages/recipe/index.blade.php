@@ -83,11 +83,6 @@ new #[Layout('layouts::app')] class extends Component {
         $this->searchCategories = [];
         $this->resetPage();
     }
-
-    public function goToDetails(Recipe $recipe): void
-    {
-        $this->redirectRoute('recipes.show', $recipe);
-    }
 };
 ?>
 <div>

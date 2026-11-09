@@ -676,7 +676,8 @@ new #[Layout('layouts::app')] class extends Component {
                         @mousedown="startPress"
                         @mouseup="endPress"
                         @mouseleave="endPress"
-                        @touchstart="startPress"
+                        @touchstart.passive="startPress"
+                        @touchmove.passive="endPress"
                         @touchend="endPress"
                         @contextmenu.prevent
                         wire:key="covered-chip-{{ $chip['ids'][0] }}"

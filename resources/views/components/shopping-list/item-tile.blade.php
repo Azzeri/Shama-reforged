@@ -23,6 +23,7 @@
         open: false,
         startX: 0,
         startY: 0,
+        lastTouchAt: 0,
 
         toggleChecked() {
             if (this.pending) {
@@ -45,10 +46,15 @@
             this.startX = e.touches[0].clientX;
             this.startY = e.touches[0].clientY;
             this.dragging = false;
+            this.lastTouchAt = Date.now();
+            // iOS only emits mouse events after the finger is lifted, so the
+            // long-press has to be driven by touch events here.
+            this.startPress();
         },
         onDrag(e) {
             const dxRaw = e.touches[0].clientX - this.startX;
             const dyRaw = e.touches[0].clientY - this.startY;
+            if (Math.abs(dxRaw) > 8 || Math.abs(dyRaw) > 8) this.endPress();
             if (! this.dragging) {
                 if (Math.abs(dxRaw) < 8 || Math.abs(dyRaw) > Math.abs(dxRaw)) return;
                 this.dragging = true;
@@ -58,6 +64,7 @@
             this.dx = Math.max(-{{ $revealWidth }}, Math.min(0, base + dxRaw));
         },
         endDrag() {
+            this.endPress();
             if (this.dragging) {
                 if (this.dx < -{{ $revealWidth / 2 }}) {
                     this.dx = -{{ $revealWidth }};
@@ -130,7 +137,8 @@
         @touchmove="onDrag($event)"
         @touchend="endDrag"
         :style="`transform: translateX(${dx}px)`"
-        @mousedown="startPress"
+        :class="dragging && 'transition-none'"
+        @mousedown="if (Date.now() - lastTouchAt > 800) startPress()"
         @mouseup="endPress"
         @mouseleave="endPress"
         @click="handleRowClick"
