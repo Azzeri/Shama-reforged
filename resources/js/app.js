@@ -58,7 +58,10 @@ const removeInaccessibleNodes = (root) => {
     }
 };
 
-document.addEventListener('livewire:navigate', () => removeInaccessibleNodes(document.documentElement));
+// Only Firefox has this problem — elsewhere don't pay for walking the DOM.
+if (navigator.userAgent.includes('Firefox')) {
+    document.addEventListener('livewire:navigate', () => removeInaccessibleNodes(document.documentElement));
+}
 
 /*
  * In-app navigation stack (iOS-style "Back").
@@ -309,3 +312,89 @@ window.openRecipe = (href) => {
 
     window.Livewire.navigate(url.pathname + url.search);
 };
+
+/*
+ * Shopping list row (resources/views/components/shopping-list/item-tile).
+ * Registered once instead of inlining the logic into every row's markup.
+ */
+const registerShoppingTile = (Alpine) => Alpine.data('shoppingTile', ({ ids, bought, reveal }) => ({
+    checked: bought,
+    original: bought,
+    pending: false,
+    removing: false,
+    timer: null,
+    dx: 0,
+    dragging: false,
+    open: false,
+    startX: 0,
+    startY: 0,
+
+    toggle() {
+        if (this.pending) {
+            clearTimeout(this.timer);
+            this.pending = false;
+            this.checked = this.original;
+
+            return;
+        }
+
+        this.checked = ! this.original;
+        this.pending = true;
+        this.timer = setTimeout(() => {
+            this.removing = true;
+            setTimeout(() => this.$wire.toggle(ids, ! this.original), 250);
+        }, 900);
+    },
+    startDrag(e) {
+        this.startX = e.touches[0].clientX;
+        this.startY = e.touches[0].clientY;
+        this.dragging = false;
+    },
+    onDrag(e) {
+        const dx = e.touches[0].clientX - this.startX;
+        const dy = e.touches[0].clientY - this.startY;
+
+        if (! this.dragging) {
+            if (Math.abs(dx) < 8 || Math.abs(dy) > Math.abs(dx)) {
+                return;
+            }
+
+            this.dragging = true;
+        }
+
+        e.preventDefault();
+        const base = this.open ? -reveal : 0;
+        this.dx = Math.max(-reveal, Math.min(0, base + dx));
+    },
+    endDrag() {
+        if (this.dragging) {
+            this.open = this.dx < -reveal / 2;
+            this.dx = this.open ? -reveal : 0;
+        }
+
+        setTimeout(() => { this.dragging = false; }, 50);
+    },
+    close() {
+        this.dx = 0;
+        this.open = false;
+    },
+    tapRow() {
+        if (this.dragging) {
+            return;
+        }
+
+        if (this.open) {
+            this.close();
+
+            return;
+        }
+
+        this.$wire.openGroup(ids).then(() => this.$dispatch('modal-show', { name: 'item-modal' }));
+    },
+}));
+
+if (window.Alpine) {
+    registerShoppingTile(window.Alpine);
+} else {
+    document.addEventListener('alpine:init', () => registerShoppingTile(window.Alpine));
+}

@@ -23,6 +23,9 @@ new #[Layout('layouts::app')] class extends Component {
 
     public string $ingredientSearch = '';
 
+    /** The ingredient list in the filter sheet is only rendered once opened. */
+    public bool $ingredientFilterLoaded = false;
+
     public function render()
     {
         return $this->view()->title(__('Recipes'));
@@ -81,6 +84,12 @@ new #[Layout('layouts::app')] class extends Component {
             ->get(['id', 'name']);
     }
 
+    public function openIngredientFilter(): void
+    {
+        $this->ingredientFilterLoaded = true;
+        $this->dispatch('modal-show', name: 'ingredient-filter-modal');
+    }
+
     public function toggleTag(int $tagId): void
     {
         $this->tagIds = in_array($tagId, $this->tagIds)
@@ -128,16 +137,14 @@ new #[Layout('layouts::app')] class extends Component {
         </div>
 
         <div class="-mx-4 px-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <flux:modal.trigger name="ingredient-filter-modal">
-                <button type="button" @class([
+            <button type="button" wire:click="openIngredientFilter" @class([
                     'shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 font-manrope text-[14px] font-bold',
                     'bg-ink border-ink text-white' => $ingredientIds,
                     'bg-white border-ink/10 text-ink' => ! $ingredientIds,
                 ])>
                     <flux:icon.funnel class="size-4" />
                     {{ __('Ingredient') }}@if ($ingredientIds) · {{ count($ingredientIds) }}@endif
-                </button>
-            </flux:modal.trigger>
+            </button>
 
             @foreach ($this->filterTags as $tag)
             @php $active = in_array($tag->id, $tagIds); @endphp
@@ -186,7 +193,7 @@ new #[Layout('layouts::app')] class extends Component {
                     </div>
                     @endif
                 </div>
-                <flux:icon.chevron-right class="size-4 shrink-0 text-ink/35" />
+                <x-ui.chevron-right />
             </a>
             @endforeach
         </div>
@@ -216,7 +223,7 @@ new #[Layout('layouts::app')] class extends Component {
                 class="w-full rounded-2xl border border-ink/10 bg-white px-3.5 py-3 font-manrope text-base text-ink placeholder:text-ink/40 focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
 
             <div class="rounded-2xl border border-ink/10 bg-white divide-y divide-ink/8 max-h-[50dvh] overflow-y-auto">
-                @forelse ($this->ingredientOptions as $ingredient)
+                @forelse ($ingredientFilterLoaded ? $this->ingredientOptions : [] as $ingredient)
                 @php $selected = in_array($ingredient->id, $ingredientIds); @endphp
                 <button type="button" wire:key="ingredient-option-{{ $ingredient->id }}" wire:click="toggleIngredient({{ $ingredient->id }})" class="w-full flex items-center gap-3 px-4 py-3 text-left">
                     <span @class([

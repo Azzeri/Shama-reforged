@@ -227,7 +227,7 @@ new #[Layout('layouts::app')] class extends Component {
                         @endif
                     </span>
                 </span>
-                <flux:icon.chevron-right class="size-4 shrink-0 text-ink/35" />
+                <x-ui.chevron-right />
             </button>
             @endforeach
         </div>

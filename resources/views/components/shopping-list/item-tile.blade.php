@@ -4,6 +4,7 @@
     One row of the shopping list (a merged group of item rows).
     Tap the checkbox to tick it off (short delay so a mis-tap can be undone),
     tap the row to open details, swipe left for "earlier" / "delete".
+    Behaviour lives in the shared Alpine component `shoppingTile` (app.js).
 --}}
 @php
     $ids = $group['ids'];
@@ -12,65 +13,7 @@
 @endphp
 
 <div
-    x-data="{
-        checked: {{ $bought ? 'true' : 'false' }},
-        original: {{ $bought ? 'true' : 'false' }},
-        pending: false,
-        removing: false,
-        timer: null,
-        dx: 0,
-        dragging: false,
-        open: false,
-        startX: 0,
-        startY: 0,
-
-        toggle() {
-            if (this.pending) {
-                clearTimeout(this.timer);
-                this.pending = false;
-                this.checked = this.original;
-                return;
-            }
-            this.checked = ! this.original;
-            this.pending = true;
-            this.timer = setTimeout(() => {
-                this.removing = true;
-                setTimeout(() => $wire.toggle({{ $idsJs }}, ! this.original), 250);
-            }, 900);
-        },
-        startDrag(e) {
-            this.startX = e.touches[0].clientX;
-            this.startY = e.touches[0].clientY;
-            this.dragging = false;
-        },
-        onDrag(e) {
-            const dx = e.touches[0].clientX - this.startX;
-            const dy = e.touches[0].clientY - this.startY;
-            if (! this.dragging) {
-                if (Math.abs(dx) < 8 || Math.abs(dy) > Math.abs(dx)) return;
-                this.dragging = true;
-            }
-            e.preventDefault();
-            const base = this.open ? -{{ $revealWidth }} : 0;
-            this.dx = Math.max(-{{ $revealWidth }}, Math.min(0, base + dx));
-        },
-        endDrag() {
-            if (this.dragging) {
-                this.open = this.dx < -{{ $revealWidth / 2 }};
-                this.dx = this.open ? -{{ $revealWidth }} : 0;
-            }
-            setTimeout(() => { this.dragging = false }, 50);
-        },
-        close() {
-            this.dx = 0;
-            this.open = false;
-        },
-        tapRow() {
-            if (this.dragging) return;
-            if (this.open) { this.close(); return; }
-            $wire.openGroup({{ $idsJs }}).then(() => $dispatch('modal-show', { name: 'item-modal' }));
-        },
-    }"
+    x-data="shoppingTile({ ids: {{ $idsJs }}, bought: {{ $bought ? 'true' : 'false' }}, reveal: {{ $revealWidth }} })"
     x-show="! removing"
     x-collapse.duration.250ms
     wire:key="row-{{ $group['key'] }}-{{ implode('-', $ids) }}"

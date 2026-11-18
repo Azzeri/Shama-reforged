@@ -13,9 +13,10 @@ COMPOSE="sudo docker compose -f .deploy/docker-compose.yml"
 
 echo "🚀 Rozpoczynam wdrażanie nowej wersji aplikacji ($(git log -1 --format='%h %s'))..."
 
-# 1. Upewnienie się, że kontenery działają
+# 1. Upewnienie się, że kontenery działają (przebudowa tylko gdy zmienił się
+#    docker-compose.yml — warstwy są cache'owane, więc zwykle trwa to sekundę)
 echo "🐳 Uruchamianie kontenerów..."
-$COMPOSE up -d
+$COMPOSE up -d --build
 
 # 2. Upewnienie się, że foldery tymczasowe istnieją
 echo "📁 Sprawdzanie struktury folderów..."
@@ -50,5 +51,13 @@ echo "⚡ Optymalizacja i cache'owanie aplikacji..."
 $COMPOSE exec -T app php artisan optimize:clear
 $COMPOSE exec -T app php artisan optimize
 $COMPOSE exec -T app php artisan view:cache
+
+# 9. Restart PHP-FPM, żeby OPcache wczytał nowy kod (validate_timestamps=0)
+echo "♻️ Restart PHP-FPM (OPcache)..."
+$COMPOSE restart app
+
+# 10. Przeładowanie konfiguracji nginx (gzip, cache assetów), bez przerwy w działaniu
+echo "🔁 Przeładowanie nginx..."
+$COMPOSE exec -T web nginx -s reload
 
 echo "✨ Wdrożenie zakończone sukcesem! Aplikacja działa."

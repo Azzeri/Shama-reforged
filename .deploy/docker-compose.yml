@@ -20,8 +20,18 @@ services:
         RUN apt-get update && apt-get install -y libpng-dev libjpeg-dev libfreetype6-dev zip git unzip tzdata \
             && ln -snf /usr/share/zoneinfo/Europe/Warsaw /etc/localtime && echo "Europe/Warsaw" > /etc/timezone \
             && docker-php-ext-configure gd --with-freetype --with-jpeg \
-            && docker-php-ext-install pdo_mysql gd
+            && docker-php-ext-install pdo_mysql gd opcache
         RUN echo "date.timezone=Europe/Warsaw" > /usr/local/etc/php/conf.d/timezone.ini
+        # OPcache: without it PHP recompiles the whole framework on every request.
+        # Code only changes on deploy (which restarts PHP-FPM), so timestamps
+        # aren't re-checked.
+        RUN { \
+              echo 'opcache.enable=1'; \
+              echo 'opcache.memory_consumption=128'; \
+              echo 'opcache.interned_strings_buffer=16'; \
+              echo 'opcache.max_accelerated_files=20000'; \
+              echo 'opcache.validate_timestamps=0'; \
+            } > /usr/local/etc/php/conf.d/opcache.ini
         COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
   # Kontener Nginx
   web:

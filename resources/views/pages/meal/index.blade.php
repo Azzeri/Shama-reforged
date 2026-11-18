@@ -294,7 +294,7 @@ new #[Layout('layouts::app')] class extends Component {
                             x-on:click="window.openRecipe('{{ route('recipes.show', $recipe) }}')"
                             class="w-full flex items-center gap-2 py-3 text-left">
                             <span class="flex-1 font-manrope text-[15.5px] text-ink">{{ $recipe->name }}</span>
-                            <flux:icon.chevron-right class="size-4 text-ink/35 shrink-0" />
+                            <x-ui.chevron-right />
                         </button>
                         @endforeach
 
