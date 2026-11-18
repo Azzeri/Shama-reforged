@@ -32,6 +32,7 @@ $isActive = fn (array $paths) => collect($paths)->contains(fn ($p) => $currentPa
         <a
             href="{{ route($item['route']) }}"
             wire:navigate
+            data-nav-root
             x-on:click="path = new URL($el.href).pathname"
             @if ($isActive($item['paths'])) data-active @endif
             x-bind:data-active="isActive({{ Js::from($item['paths']) }})"

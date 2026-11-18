@@ -3,6 +3,7 @@
 @if ($href)
 <a
     href="{{ $href }}"
+    data-back-button
     x-data
     x-on:click.prevent="window.goBack($el.href)"
     {{ $attributes->merge(['class' => '-ml-2 inline-flex items-center gap-0.5 px-2 py-1.5 font-manrope text-[17px] text-forest shrink-0']) }}>
