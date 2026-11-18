@@ -70,14 +70,23 @@ class Ingredient extends Model
 
     public const CATEGORY_FROZEN = 'frozen';
 
+    public const CATEGORY_SPICES = 'spices';
+
+    public const CATEGORY_GRAINS = 'grains';
+
+    public const CATEGORY_BAKING = 'baking';
+
     public const CATEGORY_UNCATEGORIZED = 'uncategorized';
 
     public const CATEGORIES = [
-        self::CATEGORY_DAIRY,
+        self::CATEGORY_SPICES,
+        self::CATEGORY_GRAINS,
+        self::CATEGORY_BAKING,
+        self::CATEGORY_PANTRY,
         self::CATEGORY_BREAD,
         self::CATEGORY_MEAT_FISH,
+        self::CATEGORY_DAIRY,
         self::CATEGORY_PRODUCE,
-        self::CATEGORY_PANTRY,
         self::CATEGORY_FROZEN,
         self::CATEGORY_UNCATEGORIZED,
     ];
@@ -89,8 +98,11 @@ class Ingredient extends Model
             self::CATEGORY_BREAD => __('Bread'),
             self::CATEGORY_MEAT_FISH => __('Meat, fish & deli'),
             self::CATEGORY_PRODUCE => __('Fruit & veg'),
-            self::CATEGORY_PANTRY => __('Pantry & spices'),
+            self::CATEGORY_PANTRY => __('Pantry'),
             self::CATEGORY_FROZEN => __('Frozen'),
+            self::CATEGORY_SPICES => __('Spices'),
+            self::CATEGORY_GRAINS => __('Flour, groats & grains'),
+            self::CATEGORY_BAKING => __('Sweet & baking'),
             self::CATEGORY_UNCATEGORIZED => __('Uncategorized'),
             default => ucfirst($category),
         };
@@ -123,14 +135,14 @@ class Ingredient extends Model
     {
         $grams = $this->gramsFor($unit, $amount);
 
-        return $grams === null ? '' : ' ≈ ' . self::formatGrams($grams);
+        return $grams === null ? '' : ' ≈ '.self::formatGrams($grams);
     }
 
     public static function formatGrams(float $grams): string
     {
         return $grams >= 1000
-            ? rtrim(rtrim(number_format($grams / 1000, 2, '.', ''), '0'), '.') . ' kg'
-            : round($grams) . ' g';
+            ? rtrim(rtrim(number_format($grams / 1000, 2, '.', ''), '0'), '.').' kg'
+            : round($grams).' g';
     }
 
     protected function name(): Attribute

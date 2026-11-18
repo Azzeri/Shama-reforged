@@ -2,7 +2,7 @@
 
 use App\Models\Meal;
 use App\Models\Recipe;
-use App\Models\ShoppingList;
+use App\Actions\ShoppingList\GenerateShoppingList;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -162,58 +162,22 @@ new #[Layout('layouts::app')] class extends Component {
         $dates = collect($dateStrings)
             ->map(fn (string $date) => Carbon::parse($date)->startOfDay())
             ->filter(fn (CarbonInterface $date) => $date->betweenIncluded($this->rangeStart, $this->rangeEnd))
-            ->values();
+            ->map(fn (CarbonInterface $date) => $date->toDateString())
+            ->values()
+            ->all();
 
-        if ($dates->isEmpty()) {
+        if (empty($dates)) {
             return;
         }
 
-        $meals = Meal::query()
-            ->with(['recipes' => fn ($query) => $query->with('ingredients:id,name')])
-            ->where(function ($query) use ($dates) {
-                foreach ($dates as $date) {
-                    $query->orWhereDate(Meal::DATE_COLUMN, $date->toDateString());
-                }
-            })
-            ->get();
-
-        $shoppingList = ShoppingList::query()->firstOrCreate(['id' => 1], ['name' => 'Main shopping list']);
-
-        $addedCount = 0;
-
-        foreach ($meals as $meal) {
-            foreach ($meal->recipes as $recipe) {
-                foreach ($recipe->ingredients as $ingredient) {
-                    $quantity = trim((string) ($ingredient->pivot?->quantity ?? ''));
-                    $amount = $ingredient->pivot?->totalAmount();
-
-                    if ($quantity === '' && $amount === null) {
-                        continue;
-                    }
-
-                    $shoppingList->items()->create([
-                        'name' => $ingredient->name,
-                        'quantity' => $quantity !== '' ? $quantity : null,
-                        'amount' => $amount,
-                        'unit' => $ingredient->pivot?->unit,
-                        'is_checked' => false,
-                        'week_day' => strtolower($meal->date->englishDayOfWeek),
-                        'recipe_id' => $recipe->id,
-                        'meal_id' => $meal->id,
-                        'ingredient_id' => $ingredient->id,
-                    ]);
-
-                    $addedCount++;
-                }
-            }
-        }
+        $result = app(GenerateShoppingList::class)($dates);
 
         $this->selectedDaysForShoppingList = [];
 
         Flux::toast(
             variant: 'success',
-            text: $addedCount > 0
-                ? __(':count items added to shopping list.', ['count' => $addedCount])
+            text: $result['added'] > 0
+                ? __(':count items added to shopping list.', ['count' => $result['added']])
                 : __('No new items to add.'),
         );
 
@@ -359,6 +323,7 @@ new #[Layout('layouts::app')] class extends Component {
             </div>
 
             <p class="font-manrope text-[13px] text-ink/60">{{ __('Select the days to collect ingredients from assigned recipes.') }}</p>
+            <p class="font-manrope text-[12.5px] text-ink/45 -mt-3">{{ __('Generating again for the same days updates the list instead of doubling it; already bought items stay.') }}</p>
 
             <div class="space-y-4">
                 <div class="space-y-2">

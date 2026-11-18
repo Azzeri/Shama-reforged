@@ -1,175 +1,125 @@
-@props(['item', 'bought' => false, 'ids' => null, 'displayQuantity' => null, 'anytime' => false, 'showDaysBadge' => false, 'daysCount' => 0, 'grouped' => false])
+@props(['group', 'bought' => false, 'canMoveEarlier' => false])
 
+{{--
+    One row of the shopping list (a merged group of item rows).
+    Tap the checkbox to tick it off (short delay so a mis-tap can be undone),
+    tap the row to open details, swipe left for "earlier" / "delete".
+--}}
 @php
-    $ids = $ids ?? [$item->id];
-    $quantityText = $displayQuantity ?? $item->displayQuantity();
-    $isSolo = count($ids) === 1;
-    $canMerge = $isSolo && $item->week_day;
-    $revealWidth = $canMerge ? 140 : 70;
+    $ids = $group['ids'];
+    $idsJs = \Illuminate\Support\Js::from($ids);
+    $revealWidth = $canMoveEarlier ? 150 : 76;
 @endphp
 
 <div
     x-data="{
         checked: {{ $bought ? 'true' : 'false' }},
-        originalChecked: {{ $bought ? 'true' : 'false' }},
+        original: {{ $bought ? 'true' : 'false' }},
         pending: false,
         removing: false,
-        checkTimer: null,
-        removeTimer: null,
-        pressTimer: null,
-        longPressed: false,
+        timer: null,
         dx: 0,
         dragging: false,
         open: false,
         startX: 0,
         startY: 0,
-        lastTouchAt: 0,
 
-        toggleChecked() {
+        toggle() {
             if (this.pending) {
-                clearTimeout(this.checkTimer);
+                clearTimeout(this.timer);
                 this.pending = false;
-                this.checked = this.originalChecked;
+                this.checked = this.original;
                 return;
             }
-            this.checked = ! this.originalChecked;
+            this.checked = ! this.original;
             this.pending = true;
-            this.checkTimer = setTimeout(() => {
+            this.timer = setTimeout(() => {
                 this.removing = true;
-                this.removeTimer = setTimeout(() => {
-                    $wire.toggle({{ Illuminate\Support\Js::from($ids) }}, ! this.originalChecked);
-                }, 300);
-            }, 1100);
+                setTimeout(() => $wire.toggle({{ $idsJs }}, ! this.original), 250);
+            }, 900);
         },
-
         startDrag(e) {
             this.startX = e.touches[0].clientX;
             this.startY = e.touches[0].clientY;
             this.dragging = false;
-            this.lastTouchAt = Date.now();
-            // iOS only emits mouse events after the finger is lifted, so the
-            // long-press has to be driven by touch events here.
-            this.startPress();
         },
         onDrag(e) {
-            const dxRaw = e.touches[0].clientX - this.startX;
-            const dyRaw = e.touches[0].clientY - this.startY;
-            if (Math.abs(dxRaw) > 8 || Math.abs(dyRaw) > 8) this.endPress();
+            const dx = e.touches[0].clientX - this.startX;
+            const dy = e.touches[0].clientY - this.startY;
             if (! this.dragging) {
-                if (Math.abs(dxRaw) < 8 || Math.abs(dyRaw) > Math.abs(dxRaw)) return;
+                if (Math.abs(dx) < 8 || Math.abs(dy) > Math.abs(dx)) return;
                 this.dragging = true;
             }
             e.preventDefault();
             const base = this.open ? -{{ $revealWidth }} : 0;
-            this.dx = Math.max(-{{ $revealWidth }}, Math.min(0, base + dxRaw));
+            this.dx = Math.max(-{{ $revealWidth }}, Math.min(0, base + dx));
         },
         endDrag() {
-            this.endPress();
             if (this.dragging) {
-                if (this.dx < -{{ $revealWidth / 2 }}) {
-                    this.dx = -{{ $revealWidth }};
-                    this.open = true;
-                } else {
-                    this.dx = 0;
-                    this.open = false;
-                }
+                this.open = this.dx < -{{ $revealWidth / 2 }};
+                this.dx = this.open ? -{{ $revealWidth }} : 0;
             }
-            setTimeout(() => { this.dragging = false; }, 50);
+            setTimeout(() => { this.dragging = false }, 50);
         },
-        closeSwipe() {
+        close() {
             this.dx = 0;
             this.open = false;
         },
-
-        openModal() {
-            @if ($isSolo)
-            $wire.editItem({{ $item->id }}).then(() => {
-                $dispatch('modal-show', { name: 'edit-item-modal' });
-            });
-            @else
-            $wire.showGroupDetails({{ Illuminate\Support\Js::from($ids) }}).then(() => {
-                $dispatch('modal-show', { name: 'grouped-item-modal' });
-            });
-            @endif
-        },
-        startPress() {
-            this.longPressed = false;
-            this.pressTimer = setTimeout(() => {
-                this.longPressed = true;
-                this.openModal();
-            }, 500);
-        },
-        endPress() {
-            clearTimeout(this.pressTimer);
-        },
-        handleRowClick() {
+        tapRow() {
             if (this.dragging) return;
-            if (this.open) { this.closeSwipe(); return; }
-            if (this.longPressed) { this.longPressed = false; return; }
-            this.openModal();
+            if (this.open) { this.close(); return; }
+            $wire.openGroup({{ $idsJs }}).then(() => $dispatch('modal-show', { name: 'item-modal' }));
         },
     }"
     x-show="! removing"
-    x-collapse.duration.300ms
-    class="relative overflow-hidden {{ $grouped ? '' : 'rounded-xl' }}"
-    wire:key="row-wrap-{{ $ids[0] }}-{{ count($ids) }}">
+    x-collapse.duration.250ms
+    wire:key="row-{{ $group['key'] }}-{{ implode('-', $ids) }}"
+    class="relative overflow-hidden">
 
     <div class="absolute inset-y-0 right-0 flex">
-        @if ($canMerge)
+        @if ($canMoveEarlier)
         <button
             type="button"
-            wire:click="mergeToPreviousDay({{ $item->id }})"
-            @click="closeSwipe()"
-            class="w-[70px] flex items-center justify-center bg-gold text-white font-manrope text-[12px] font-extrabold">
-            {{ __('Merge') }}
+            wire:click="moveEarlier({{ $idsJs }})"
+            x-on:click="close()"
+            class="w-[74px] flex items-center justify-center bg-gold text-white font-manrope text-[12px] font-extrabold">
+            {{ __('Day earlier') }}
         </button>
         @endif
         <button
             type="button"
-            wire:click="deleteItems({{ Illuminate\Support\Js::from($ids) }})"
-            class="w-[70px] flex items-center justify-center bg-terracotta text-white font-manrope text-[12px] font-extrabold">
+            wire:click="deleteItems({{ $idsJs }})"
+            class="w-[76px] flex items-center justify-center bg-terracotta text-white font-manrope text-[12px] font-extrabold">
             {{ __('Delete') }}
         </button>
     </div>
 
     <div
-        @touchstart="startDrag"
-        @touchmove="onDrag($event)"
-        @touchend="endDrag"
+        x-on:touchstart="startDrag"
+        x-on:touchmove="onDrag($event)"
+        x-on:touchend="endDrag"
+        x-on:click="tapRow"
         :style="`transform: translateX(${dx}px)`"
         :class="dragging && 'transition-none'"
-        @mousedown="if (Date.now() - lastTouchAt > 800) startPress()"
-        @mouseup="endPress"
-        @mouseleave="endPress"
-        @click="handleRowClick"
-        @contextmenu.prevent
-        {{ $attributes->class([
-            'relative flex items-center gap-3 px-3 py-3 select-none cursor-pointer transition-transform',
-            'bg-[#F7F3EA]' => $bought,
-            'bg-white' => ! $bought && $grouped,
-            'bg-white border border-gold/45 rounded-xl' => $anytime && ! $bought && ! $grouped,
-            'bg-white border border-ink/5 shadow-[0_1px_2px_rgba(43,33,24,0.06),0_4px_10px_rgba(43,33,24,0.05)] rounded-xl' => ! $anytime && ! $bought && ! $grouped,
-        ]) }}>
+        class="relative flex items-center gap-3.5 px-3.5 py-3 select-none cursor-pointer transition-transform {{ $bought ? 'bg-[#FBF9F4]' : 'bg-white' }}">
         <button
             type="button"
-            @click.stop="toggleChecked()"
-            class="shrink-0 size-6 rounded-md border-2 flex items-center justify-center"
+            x-on:click.stop="toggle()"
+            aria-label="{{ __('Bought') }}"
+            class="shrink-0 size-[26px] rounded-[8px] border-[1.5px] flex items-center justify-center transition-colors"
             :class="checked ? 'bg-forest border-forest' : 'border-ink/25 bg-white'">
-            <flux:icon.check class="size-3.5 text-white" x-show="checked" />
+            <flux:icon.check class="size-4 text-white" variant="mini" x-show="checked" />
         </button>
 
         <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-1.5 flex-wrap">
-                <span class="font-manrope text-[13.5px] font-bold truncate" :class="checked ? 'text-ink/40 line-through' : 'text-ink'">{{ $item->name }}</span>
-                @if ($showDaysBadge)
-                <span class="font-manrope text-[10.5px] font-extrabold text-gold-dark whitespace-nowrap">{{ $daysCount }} {{ __('days') }} ›</span>
-                @endif
-            </div>
-            @if ($isSolo && $item->recipe)
-            <div class="font-manrope text-[11px] text-ink/40 truncate">📖 {{ $item->recipe->name }}</div>
+            <div class="font-manrope text-[16px] font-medium leading-snug truncate" :class="checked ? 'text-ink/40 line-through' : 'text-ink'">{{ $group['name'] }}</div>
+            @if ($group['subtitle'])
+            <div class="font-manrope text-[12.5px] text-ink/50 truncate">{{ $group['subtitle'] }}</div>
             @endif
         </div>
 
-        <span class="shrink-0 font-manrope text-[12.5px] font-semibold" :class="checked ? 'text-ink/35 line-through' : 'text-ink/55'">{{ $quantityText }}</span>
+        @if ($group['quantity'])
+        <span class="shrink-0 max-w-[45%] text-right font-manrope text-[15px]" :class="checked ? 'text-ink/35 line-through' : 'text-ink/70'">{{ $group['quantity'] }}</span>
+        @endif
     </div>
 </div>

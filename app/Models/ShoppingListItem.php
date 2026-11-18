@@ -2,31 +2,18 @@
 
 namespace App\Models;
 
+use App\Support\ShoppingList\Quantity;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Date;
 
-#[Fillable(['name', 'quantity', 'is_checked', 'notes', 'week_day', 'shopping_list_id', 'recipe_id', 'meal_id', 'ingredient_id', 'amount', 'unit'])]
+#[Fillable(['name', 'quantity', 'is_checked', 'checked_at', 'notes', 'needed_on', 'shopping_list_id', 'recipe_id', 'meal_id', 'ingredient_id', 'amount', 'unit'])]
 class ShoppingListItem extends Model
 {
     use HasFactory;
-
-    public const WEEK_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-
-    public static function dayLabel(string $day): string
-    {
-        return match ($day) {
-            'monday' => __('Monday'),
-            'tuesday' => __('Tuesday'),
-            'wednesday' => __('Wednesday'),
-            'thursday' => __('Thursday'),
-            'friday' => __('Friday'),
-            'saturday' => __('Saturday'),
-            'sunday' => __('Sunday'),
-            default => ucfirst($day),
-        };
-    }
 
     public const NAME_COLUMN = 'name';
 
@@ -34,14 +21,30 @@ class ShoppingListItem extends Model
 
     public const IS_CHECKED_COLUMN = 'is_checked';
 
-    public const WEEK_DAY_COLUMN = 'week_day';
+    public const NEEDED_ON_COLUMN = 'needed_on';
+
+    public const CHECKED_AT_COLUMN = 'checked_at';
 
     protected function casts(): array
     {
         return [
             'is_checked' => 'boolean',
+            'checked_at' => 'datetime',
             'amount' => 'float',
         ];
+    }
+
+    /**
+     * Stored as a plain Y-m-d string (not the default date cast's datetime
+     * format) so string comparisons and whereIn on dates behave the same in
+     * SQLite and MySQL.
+     */
+    protected function neededOn(): Attribute
+    {
+        return Attribute::make(
+            get: fn (?string $value) => $value !== null ? Date::parse($value)->startOfDay() : null,
+            set: fn ($value) => filled($value) ? Date::parse($value)->toDateString() : null,
+        );
     }
 
     public function shoppingList(): BelongsTo
@@ -66,16 +69,10 @@ class ShoppingListItem extends Model
 
     public function displayQuantity(): ?string
     {
-        if ($this->quantity) {
+        if (filled($this->quantity)) {
             return $this->quantity;
         }
 
-        if ($this->amount !== null && $this->unit) {
-            $amount = rtrim(rtrim(number_format($this->amount, 2, '.', ''), '0'), '.');
-
-            return "{$amount} {$this->unit}";
-        }
-
-        return null;
+        return Quantity::format($this->amount, $this->unit);
     }
 }

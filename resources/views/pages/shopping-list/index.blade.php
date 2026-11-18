@@ -1,765 +1,424 @@
 <?php
 
 use App\Models\Ingredient;
-use App\Models\Meal;
 use App\Models\ShoppingList;
 use App\Models\ShoppingListItem;
+use App\Support\ShoppingList\Quantity;
+use App\Support\ShoppingList\ShoppingListBuilder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
 use Flux\Flux;
 
 new #[Layout('layouts::app')] class extends Component {
+    /** Bought rows older than this are deleted on visit. */
+    private const PURGE_BOUGHT_AFTER_DAYS = 14;
+
+    /** Unbought rows for dates this far in the past are deleted on visit. */
+    private const PURGE_STALE_AFTER_DAYS = 7;
+
     public string $newItemName = '';
     public string $newItemQuantity = '';
-    public string $newItemWeekDay = '';
+    public string $newItemDate = '';
     public string $newItemNotes = '';
 
-    public ?int $editingItemId = null;
-    public string $editItemName = '';
-    public string $editItemQuantity = '';
-    public string $editItemWeekDay = '';
-    public string $editItemNotes = '';
-    public string $mergeTargetDay = '';
+    /** @var list<int> rows of the group opened in the item modal */
+    public array $openIds = [];
+    public string $editName = '';
+    public string $editQuantity = '';
+    public string $editDate = '';
+    public string $editNotes = '';
 
-    /** @var array<int> */
-    public array $groupedItemIds = [];
+    public function mount(): void
+    {
+        $list = ShoppingList::main();
+
+        $list->items()
+            ->where(ShoppingListItem::IS_CHECKED_COLUMN, true)
+            ->where(fn ($query) => $query
+                ->where(ShoppingListItem::CHECKED_AT_COLUMN, '<', now()->subDays(self::PURGE_BOUGHT_AFTER_DAYS))
+                ->orWhere(fn ($query) => $query
+                    ->whereNull(ShoppingListItem::CHECKED_AT_COLUMN)
+                    ->where('updated_at', '<', now()->subDays(self::PURGE_BOUGHT_AFTER_DAYS))))
+            ->delete();
+
+        $list->items()
+            ->where(ShoppingListItem::IS_CHECKED_COLUMN, false)
+            ->where(ShoppingListItem::NEEDED_ON_COLUMN, '<', today()->subDays(self::PURGE_STALE_AFTER_DAYS)->toDateString())
+            ->delete();
+    }
 
     public function render()
     {
-        return $this->view()
-            ->title(__('Shopping list'));
-    }
-
-    #[Computed]
-    public function shoppingList(): ShoppingList
-    {
-        return ShoppingList::query()->firstOrCreate(['id' => 1], ['name' => 'Main shopping list']);
+        return $this->view()->title(__('Shopping'));
     }
 
     #[Computed]
     public function items(): Collection
     {
-        return $this->shoppingList->items()
-            ->with(['recipe:id,name', 'ingredient:id,purchase_timing,category,unit_weights', 'meal:id,date,type'])
-            ->orderByDesc('created_at')
+        return ShoppingList::main()->items()
+            ->with(['recipe:id,name', 'ingredient:id,name,purchase_timing,category,unit_weights'])
             ->get();
     }
 
     #[Computed]
-    public function advanceItemGroups(): Collection
+    public function list(): array
     {
-        $items = $this->items
-            ->where(ShoppingListItem::IS_CHECKED_COLUMN, false)
-            ->filter(fn (ShoppingListItem $item) => $item->ingredient?->purchase_timing === Ingredient::PURCHASE_TIMING_ADVANCE
-                || $item->week_day === null)
-            ->values();
-
-        return $this->groupAndSum($items);
+        return app(ShoppingListBuilder::class)->build($this->items, today());
     }
 
     #[Computed]
-    public function advanceItems(): Collection
+    public function rangeLabel(): ?string
     {
-        return $this->groupByCategory($this->advanceItemGroups);
-    }
-
-    #[Computed]
-    public function advanceCountLabel(): string
-    {
-        return $this->pluralItems($this->advanceItemGroups->count());
-    }
-
-    /**
-     * Merges rows for the same ingredient + unit (e.g. several recipes on
-     * the same day each needing salt in grams) into a single tile with a
-     * summed amount. Rows without a matching ingredient/unit pair (manual
-     * items, free-text quantities) stay as their own singleton group so
-     * nothing gets merged on a guess. Also tracks which distinct week days
-     * fed into the sum, so a merged tile can show a per-day breakdown
-     * instead of hiding where the quantity came from.
-     */
-    private function groupAndSum(Collection $items): Collection
-    {
-        return $items
-            ->groupBy(fn (ShoppingListItem $item) => $item->ingredient_id && $item->unit
-                ? "{$item->ingredient_id}:{$item->unit}"
-                : "solo:{$item->id}")
-            ->map(function (Collection $group) {
-                $first = $group->first();
-                $isMerged = $group->count() > 1;
-
-                if ($isMerged) {
-                    $sum = rtrim(rtrim(number_format($group->sum('amount'), 2, '.', ''), '0'), '.');
-                    $displayQuantity = "{$sum} {$first->unit}";
-                } else {
-                    $displayQuantity = $first->displayQuantity();
-                }
-
-                $weightLabel = ! $first->quantity && $first->ingredient
-                    ? $first->ingredient->approxWeightLabel($first->unit, $isMerged ? (float) $group->sum('amount') : $first->amount)
-                    : '';
-
-                if ($weightLabel !== '' && $displayQuantity !== null) {
-                    $displayQuantity .= $weightLabel;
-                }
-
-                $weekDays = $group->pluck('week_day')->filter()->unique()
-                    ->sortBy(fn (string $day) => array_search($day, ShoppingListItem::WEEK_DAYS))
-                    ->values();
-
-                $dayBreakdown = $group->filter(fn (ShoppingListItem $item) => $item->week_day !== null)
-                    ->sortBy(fn (ShoppingListItem $item) => array_search($item->week_day, ShoppingListItem::WEEK_DAYS))
-                    ->map(fn (ShoppingListItem $item) => [
-                        'id' => $item->id,
-                        'day' => $this->breakdownDayLabel($item),
-                        'displayQuantity' => $item->displayQuantity(),
-                        'recipe' => $item->recipe,
-                    ])
-                    ->values();
-
-                return [
-                    'item' => $first,
-                    'ids' => $group->pluck('id')->all(),
-                    'displayQuantity' => $displayQuantity,
-                    'weekDays' => $weekDays,
-                    'daysCount' => $weekDays->count(),
-                    'showDaysBadge' => $weekDays->count() > 1,
-                    'daysLabel' => $weekDays->count() . ' ' . __('days'),
-                    'dayBreakdown' => $dayBreakdown,
-                ];
-            })
-            ->values();
-    }
-
-    /**
-     * Splits already-merged item groups into aisle sections (dairy, bread,
-     * ...) in Ingredient::CATEGORIES order, so the day's list reads like a
-     * shopping trip instead of a random pile. Sections with nothing in them
-     * are dropped rather than shown empty.
-     */
-    private function groupByCategory(Collection $itemGroups): Collection
-    {
-        $byCategory = $itemGroups->groupBy(
-            fn (array $group) => $group['item']->ingredient?->category ?? Ingredient::CATEGORY_UNCATEGORIZED
-        );
-
-        return collect(Ingredient::CATEGORIES)
-            ->map(function (string $category) use ($byCategory) {
-                $items = $byCategory->get($category, collect());
-
-                return [
-                    'category' => $category,
-                    'label' => Ingredient::categoryLabel($category),
-                    'items' => $items,
-                    'blocks' => $this->blockifyItems($items),
-                ];
-            })
-            ->filter(fn (array $section) => $section['items']->isNotEmpty())
-            ->values();
-    }
-
-    /**
-     * Groups consecutive plain tiles into one shared card with hairline
-     * dividers between rows, while a multi-day "Σ N days" tile stays its
-     * own individually-bordered card — mirrors the design's split between
-     * "special" merged tiles and the plain grouped list beneath them.
-     */
-    private function blockifyItems(Collection $itemGroups): Collection
-    {
-        $blocks = collect();
-        $current = collect();
-
-        foreach ($itemGroups as $itemGroup) {
-            if ($itemGroup['showDaysBadge']) {
-                if ($current->isNotEmpty()) {
-                    $blocks->push(['type' => 'group', 'items' => $current->values()]);
-                    $current = collect();
-                }
-
-                $blocks->push(['type' => 'single', 'item' => $itemGroup]);
-            } else {
-                $current->push($itemGroup);
-            }
+        if (! $range = $this->list['range']) {
+            return null;
         }
 
-        if ($current->isNotEmpty()) {
-            $blocks->push(['type' => 'group', 'items' => $current->values()]);
+        [$from, $to] = $range;
+        $locale = app()->getLocale();
+
+        if ($from->isSameDay($to)) {
+            return $to->locale($locale)->isoFormat('D MMMM');
         }
 
-        return $blocks->values();
-    }
-
-    /**
-     * Per-day view of what's still needed: "fresh" items grouped into aisle
-     * sections, plus a cross-reference to any ingredients the day's recipes
-     * need that are already covered by the "buy anytime" pool above, so they
-     * aren't shown (and don't need buying) twice.
-     */
-    #[Computed]
-    public function activeByDay(): Collection
-    {
-        $weekStart = now()->startOfWeek();
-
-        return collect(ShoppingListItem::WEEK_DAYS)
-            ->map(function (string $day, int $index) use ($weekStart) {
-                $dayItems = $this->items
-                    ->where(ShoppingListItem::IS_CHECKED_COLUMN, false)
-                    ->where(ShoppingListItem::WEEK_DAY_COLUMN, $day)
-                    ->values();
-
-                $freshItems = $dayItems->reject(
-                    fn (ShoppingListItem $item) => $item->ingredient?->purchase_timing === Ingredient::PURCHASE_TIMING_ADVANCE
-                );
-
-                $freshGroups = $this->groupAndSum($freshItems);
-
-                $coveredChips = $this->advanceItemGroups
-                    ->filter(fn (array $group) => $group['weekDays']->contains($day))
-                    ->values();
-
-                if ($freshGroups->isEmpty() && $coveredChips->isEmpty()) {
-                    return null;
-                }
-
-                return [
-                    'day' => $day,
-                    'label' => ShoppingListItem::dayLabel($day),
-                    'date' => $weekStart->copy()->addDays($index)->format('d.m'),
-                    'countLabel' => $this->pluralItems($freshGroups->count()),
-                    'categories' => $this->groupByCategory($freshGroups),
-                    'noFresh' => $freshGroups->isEmpty(),
-                    'coveredChips' => $coveredChips,
-                    'coveredLabel' => $coveredChips->count() . ' ' . __('from today are already covered by the anytime list'),
-                ];
-            })
-            ->filter()
-            ->values();
+        return $from->isSameMonth($to)
+            ? $from->format('j') . ' – ' . $to->locale($locale)->isoFormat('D MMMM')
+            : $from->locale($locale)->isoFormat('D MMM') . ' – ' . $to->locale($locale)->isoFormat('D MMM');
     }
 
     #[Computed]
-    public function boughtByDay(): Collection
+    public function openGroupData(): ?array
     {
-        return $this->groupNonEmpty(true);
-    }
-
-    #[Computed]
-    public function unassignedBoughtItems(): Collection
-    {
-        $weekStart = now()->startOfWeek();
-        $weekEnd = now()->endOfWeek();
-
-        return $this->items
-            ->where(ShoppingListItem::IS_CHECKED_COLUMN, true)
-            ->whereNull(ShoppingListItem::WEEK_DAY_COLUMN)
-            ->filter(fn (ShoppingListItem $item) => $item->updated_at?->betweenIncluded($weekStart, $weekEnd))
-            ->values();
-    }
-
-    #[Computed]
-    public function editingItem(): ?ShoppingListItem
-    {
-        return $this->editingItemId
-            ? ShoppingListItem::query()->with('recipe:id,name')->find($this->editingItemId)
-            : null;
-    }
-
-    #[Computed]
-    public function groupedItemGroup(): ?array
-    {
-        if (empty($this->groupedItemIds)) {
+        if (empty($this->openIds)) {
             return null;
         }
 
         $items = ShoppingListItem::query()
-            ->with(['recipe:id,name', 'meal:id,date,type'])
-            ->whereIn('id', $this->groupedItemIds)
+            ->with(['recipe:id,name', 'ingredient:id,name,purchase_timing,category,unit_weights', 'meal:id,date,type'])
+            ->whereIn('id', $this->openIds)
+            ->orderBy(ShoppingListItem::NEEDED_ON_COLUMN)
             ->get();
 
-        return $this->groupAndSum($items)->first();
-    }
-
-    private function groupNonEmpty(bool $checked): Collection
-    {
-        $weekStart = now()->startOfWeek();
-        $weekEnd = now()->endOfWeek();
-
-        return collect(ShoppingListItem::WEEK_DAYS)
-            ->map(function (string $day, int $index) use ($checked, $weekStart, $weekEnd) {
-                $items = $this->items
-                    ->where(ShoppingListItem::IS_CHECKED_COLUMN, $checked)
-                    ->where(ShoppingListItem::WEEK_DAY_COLUMN, $day)
-                    ->when($checked, fn (Collection $collection) => $collection->filter(
-                        fn (ShoppingListItem $item) => $item->updated_at?->betweenIncluded($weekStart, $weekEnd)
-                    ))
-                    ->values();
-
-                $itemGroups = $this->groupAndSum($items);
-
-                return [
-                    'day' => $day,
-                    'label' => ShoppingListItem::dayLabel($day),
-                    'date' => $weekStart->copy()->addDays($index)->format('d.m'),
-                    'items' => $itemGroups,
-                    'blocks' => $this->blockifyItems($itemGroups),
-                ];
-            })
-            ->filter(fn (array $group) => $group['items']->isNotEmpty())
-            ->values();
-    }
-
-    /**
-     * The "split across days" breakdown should reflect where an item's
-     * recipe/meal was actually scheduled, not just its (mutable) week_day —
-     * "Merge with day" changes week_day to move a tile onto another day's
-     * shopping trip, but the underlying Meal keeps its original date, so
-     * showing that instead keeps the breakdown meaningful after a merge.
-     */
-    private function breakdownDayLabel(ShoppingListItem $item): string
-    {
-        if ($item->meal) {
-            $mealDay = strtolower($item->meal->date->englishDayOfWeek);
-
-            return ShoppingListItem::dayLabel($mealDay) . ' · ' . Meal::typeLabel($item->meal->type);
+        if ($items->isEmpty()) {
+            return null;
         }
 
-        return ShoppingListItem::dayLabel($item->week_day);
-    }
-
-    private function pluralItems(int $n): string
-    {
-        return $n === 1 ? '1 ' . __('item') : "{$n} " . __('items');
-    }
-
-    /**
-     * $checked is the state the user asked for. Setting it explicitly (not
-     * flipping what's in the DB) keeps two people editing the list at once
-     * from undoing each other's ticks when one of them has a stale view.
-     */
-    public function toggle(int|array $itemIds, ?bool $checked = null): void
-    {
-        $ids = is_array($itemIds) ? $itemIds : [$itemIds];
-
-        if ($checked === null) {
-            $items = ShoppingListItem::query()->whereIn('id', $ids)->get();
-            $checked = ! $items->every(fn (ShoppingListItem $item) => $item->is_checked);
-        }
-
-        ShoppingListItem::query()->whereIn('id', $ids)->update([
-            ShoppingListItem::IS_CHECKED_COLUMN => $checked,
-        ]);
-
-        unset($this->items);
-    }
-
-    public function editItem(int $itemId): void
-    {
-        $item = ShoppingListItem::query()->findOrFail($itemId);
-        $this->editingItemId = $itemId;
-        $this->editItemName = $item->name;
-        $this->editItemQuantity = $item->displayQuantity() ?? '';
-        $this->editItemWeekDay = $item->week_day ?? '';
-        $this->editItemNotes = $item->notes ?? '';
-
-        $this->mergeTargetDay = $item->week_day
-            ? ShoppingListItem::WEEK_DAYS[
-                (array_search($item->week_day, ShoppingListItem::WEEK_DAYS) - 1 + 7) % 7
-            ]
-            : '';
-
-        $this->resetErrorBag();
-    }
-
-    /**
-     * Moves this item onto another day by changing its week_day — no
-     * separate "merge" step needed beyond that, since same-day items
-     * sharing an ingredient + unit already combine into one tile.
-     */
-    public function mergeWithDay(): void
-    {
-        $this->validate([
-            'mergeTargetDay' => ['required', 'string', Rule::in(ShoppingListItem::WEEK_DAYS)],
-        ]);
-
-        ShoppingListItem::query()->whereKey($this->editingItemId)->update([
-            ShoppingListItem::WEEK_DAY_COLUMN => $this->mergeTargetDay,
-        ]);
-
-        $this->editingItemId = null;
-        unset($this->items);
-        $this->dispatch('modal-close', name: 'edit-item-modal');
-
-        Flux::toast(variant: 'success', text: __('Merged with the selected day.'));
-    }
-
-    public function mergeToPreviousDay(int $itemId): void
-    {
-        $item = ShoppingListItem::query()->findOrFail($itemId);
-
-        if (! $item->week_day) {
-            return;
-        }
-
-        $previousDay = ShoppingListItem::WEEK_DAYS[
-            (array_search($item->week_day, ShoppingListItem::WEEK_DAYS) - 1 + 7) % 7
+        return [
+            'items' => $items,
+            'name' => $items->first()->ingredient?->name ?? $items->first()->name,
+            'total' => app(ShoppingListBuilder::class)->quantityLabel($items, $items->first()->ingredient),
+            'single' => $items->count() === 1,
+            'canMoveEarlier' => $items->contains(fn (ShoppingListItem $item) => $item->needed_on !== null),
         ];
-
-        $item->update([ShoppingListItem::WEEK_DAY_COLUMN => $previousDay]);
-
-        unset($this->items);
-
-        Flux::toast(variant: 'success', text: __('Merged with the previous day.'));
     }
 
-    /** @param array<int> $itemIds */
-    public function deleteItems(array $itemIds): void
+    /** "Czwartek" style day name in the app locale. */
+    public function dayName(\Carbon\CarbonInterface $date): string
     {
-        ShoppingListItem::query()->whereIn('id', $itemIds)->delete();
-
-        unset($this->items);
+        return mb_convert_case($date->locale(app()->getLocale())->isoFormat('dddd'), MB_CASE_TITLE);
     }
 
-    /** @param array<int> $ids */
-    public function showGroupDetails(array $ids): void
+    /** Dates offered in the add/edit forms: today + the next 13 days. */
+    #[Computed]
+    public function dateOptions(): Collection
     {
-        $this->groupedItemIds = $ids;
+        return collect(range(0, 13))->map(function (int $offset) {
+            $date = today()->addDays($offset);
+
+            return [
+                'value' => $date->toDateString(),
+                'label' => $this->dayName($date) . ' ' . $date->format('d.m'),
+            ];
+        });
     }
 
-    public function removeGroupItem(int $id): void
+    private function refreshList(): void
     {
-        ShoppingListItem::query()->whereKey($id)->delete();
+        unset($this->items, $this->list, $this->rangeLabel, $this->openGroupData);
+    }
 
-        $this->groupedItemIds = array_values(array_diff($this->groupedItemIds, [$id]));
+    /** Ids from the client, restricted to rows of the shopping list. */
+    private function rows(array $ids)
+    {
+        return ShoppingList::main()->items()->whereIn('id', array_map('intval', $ids));
+    }
 
-        unset($this->items);
+    /**
+     * Sets the state the user asked for instead of flipping what's stored,
+     * so two people ticking the same row at once don't undo each other.
+     */
+    public function toggle(array $ids, bool $checked = true): void
+    {
+        $this->rows($ids)->update([
+            ShoppingListItem::IS_CHECKED_COLUMN => $checked,
+            ShoppingListItem::CHECKED_AT_COLUMN => $checked ? now() : null,
+        ]);
 
-        if (count($this->groupedItemIds) < 2) {
-            $this->dispatch('modal-close', name: 'grouped-item-modal');
+        $this->refreshList();
+    }
+
+    public function deleteItems(array $ids): void
+    {
+        $this->rows($ids)->delete();
+        $this->openIds = array_values(array_diff($this->openIds, $ids));
+        $this->refreshList();
+    }
+
+    /** Moves the rows to the previous day's shopping (e.g. to buy together). */
+    public function moveEarlier(array $ids): void
+    {
+        $this->rows($ids)->whereNotNull(ShoppingListItem::NEEDED_ON_COLUMN)->get()
+            ->each(fn (ShoppingListItem $item) => $item->update([
+                ShoppingListItem::NEEDED_ON_COLUMN => $item->needed_on->copy()->subDay()->toDateString(),
+            ]));
+
+        $this->refreshList();
+        $this->dispatch('modal-close', name: 'item-modal');
+
+        Flux::toast(variant: 'success', text: __('Moved to the day before.'));
+    }
+
+    public function openGroup(array $ids): void
+    {
+        $this->openIds = array_map('intval', $ids);
+        unset($this->openGroupData);
+        $this->resetErrorBag();
+
+        $item = $this->openGroupData['items'][0] ?? null;
+
+        if ($item) {
+            $this->editName = $item->name;
+            $this->editQuantity = $item->displayQuantity() ?? '';
+            $this->editDate = $item->needed_on?->toDateString() ?? '';
+            $this->editNotes = $item->notes ?? '';
         }
     }
 
     /**
-     * Rows in a merged group are summed via their numeric `amount` column,
-     * not the free-text `quantity` column, so a plain "save the typed text"
-     * would silently desync the group's total. Parse a leading number (and
-     * optional unit) back into amount/unit when possible, and only fall
-     * back to the free-text column for values that don't parse (e.g. "a pinch").
+     * Saves the single-row edit form. A typed "300 g" goes into amount+unit
+     * (so it keeps summing with other rows), anything else is free text.
      */
-    public function updateGroupItemQuantity(int $id, string $quantity): void
-    {
-        $item = ShoppingListItem::query()->findOrFail($id);
-
-        if (preg_match('/^\s*(\d+(?:[.,]\d+)?)\s*(.*)$/', $quantity, $matches)) {
-            $item->update([
-                ShoppingListItem::QUANTITY_COLUMN => null,
-                'amount' => (float) str_replace(',', '.', $matches[1]),
-                'unit' => $matches[2] !== '' ? $matches[2] : $item->unit,
-            ]);
-        } else {
-            $item->update([
-                ShoppingListItem::QUANTITY_COLUMN => $quantity !== '' ? $quantity : null,
-            ]);
-        }
-
-        unset($this->items);
-    }
-
     public function saveItem(): void
     {
         $this->validate([
-            'editItemName' => ['required', 'string', 'max:255'],
-            'editItemQuantity' => ['nullable', 'string', 'max:255'],
-            'editItemWeekDay' => ['nullable', 'string', Rule::in(ShoppingListItem::WEEK_DAYS)],
-            'editItemNotes' => ['nullable', 'string', 'max:500'],
+            'editName' => ['required', 'string', 'max:255'],
+            'editQuantity' => ['nullable', 'string', 'max:255'],
+            'editDate' => ['nullable', 'date'],
+            'editNotes' => ['nullable', 'string', 'max:500'],
         ]);
 
-        ShoppingListItem::query()->whereKey($this->editingItemId)->update([
-            ShoppingListItem::NAME_COLUMN => $this->editItemName,
-            ShoppingListItem::QUANTITY_COLUMN => $this->editItemQuantity ?: null,
-            ShoppingListItem::WEEK_DAY_COLUMN => $this->editItemWeekDay ?: null,
-            'notes' => $this->editItemNotes ?: null,
+        $item = $this->rows($this->openIds)->firstOrFail();
+
+        $item->update([
+            'name' => trim($this->editName),
+            ...$this->quantityAttributes($this->editQuantity),
+            'needed_on' => $this->editDate ?: null,
+            'notes' => trim($this->editNotes) ?: null,
         ]);
 
-        $this->editingItemId = null;
-        unset($this->items);
-        $this->dispatch('modal-close', name: 'edit-item-modal');
+        $this->openIds = [];
+        $this->refreshList();
+        $this->dispatch('modal-close', name: 'item-modal');
 
         Flux::toast(variant: 'success', text: __('Item updated.'));
     }
 
+    /** Edits one row's quantity inside a merged group. */
+    public function updateRowQuantity(int $id, string $quantity): void
+    {
+        $this->rows([$id])->firstOrFail()->update($this->quantityAttributes($quantity));
+        $this->refreshList();
+    }
+
+    private function quantityAttributes(string $text): array
+    {
+        $text = trim($text);
+        $parsed = $text !== '' ? Quantity::parse($text) : null;
+
+        return $parsed
+            ? ['amount' => $parsed[0], 'unit' => $parsed[1], 'quantity' => null]
+            : ['amount' => null, 'unit' => null, 'quantity' => $text !== '' ? $text : null];
+    }
+
     public function resetNewItemForm(): void
     {
-        $this->newItemName = '';
-        $this->newItemQuantity = '';
-        $this->newItemWeekDay = '';
-        $this->newItemNotes = '';
+        $this->reset('newItemName', 'newItemQuantity', 'newItemDate', 'newItemNotes');
         $this->resetErrorBag();
     }
 
+    /**
+     * A manual item whose name matches a known ingredient is linked to it,
+     * so it lands in the right aisle and sums with the same ingredient from
+     * recipes.
+     */
     public function addItem(): void
     {
         $this->validate([
             'newItemName' => ['required', 'string', 'max:255'],
             'newItemQuantity' => ['nullable', 'string', 'max:255'],
-            'newItemWeekDay' => ['nullable', 'string', Rule::in(ShoppingListItem::WEEK_DAYS)],
+            'newItemDate' => ['nullable', 'date'],
             'newItemNotes' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $this->shoppingList->items()->create([
-            ShoppingListItem::NAME_COLUMN => $this->newItemName,
-            ShoppingListItem::QUANTITY_COLUMN => $this->newItemQuantity ?: null,
-            ShoppingListItem::WEEK_DAY_COLUMN => $this->newItemWeekDay ?: null,
-            ShoppingListItem::IS_CHECKED_COLUMN => false,
-            'notes' => $this->newItemNotes ?: null,
+        $name = trim($this->newItemName);
+        $ingredient = Ingredient::query()->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->first();
+
+        ShoppingList::main()->items()->create([
+            'name' => $ingredient?->name ?? $name,
+            ...$this->quantityAttributes($this->newItemQuantity),
+            'needed_on' => $this->newItemDate ?: null,
+            'notes' => trim($this->newItemNotes) ?: null,
+            'ingredient_id' => $ingredient?->id,
+            'is_checked' => false,
         ]);
 
         $this->resetNewItemForm();
-        unset($this->items);
+        $this->refreshList();
         $this->dispatch('modal-close', name: 'add-item-modal');
 
         Flux::toast(variant: 'success', text: __('Item added.'));
     }
 
-    /**
-     * Clears everything currently visible on the page: unbought items
-     * outright, plus bought ones that are actually shown (this week's
-     * bought section) — not stale checked rows from past weeks that
-     * already aren't displayed anywhere.
-     */
-    public function clearList(): void
+    public function clearBought(): void
     {
-        $weekStart = now()->startOfWeek();
-        $weekEnd = now()->endOfWeek();
+        ShoppingList::main()->items()->where(ShoppingListItem::IS_CHECKED_COLUMN, true)->delete();
+        $this->refreshList();
 
-        $this->shoppingList->items()
-            ->where(function ($query) use ($weekStart, $weekEnd) {
-                $query->where(ShoppingListItem::IS_CHECKED_COLUMN, false)
-                    ->orWhere(function ($query) use ($weekStart, $weekEnd) {
-                        $query->where(ShoppingListItem::IS_CHECKED_COLUMN, true)
-                            ->whereBetween('updated_at', [$weekStart, $weekEnd]);
-                    });
-            })
-            ->delete();
+        Flux::toast(variant: 'success', text: __('Bought items cleared.'));
+    }
 
-        unset($this->items);
+    public function clearAll(): void
+    {
+        ShoppingList::main()->items()->delete();
+        $this->refreshList();
 
         Flux::toast(variant: 'success', text: __('List cleared.'));
     }
 };
 ?>
 
+@php
+    $list = $this->list;
+    $progress = $list['progress'];
+@endphp
+
 {{-- Polls so changes made by someone else on another phone show up live. --}}
 <div wire:poll.5s>
     <div class="space-y-5">
-        <h1 class="font-fraunces text-[28px] font-semibold text-ink">{{ __('Shopping list') }}</h1>
+        <div>
+            <div class="flex items-center justify-between gap-3">
+                <h1 class="font-fraunces text-[34px] font-semibold leading-none text-ink">{{ __('Shopping') }}</h1>
 
-        <div class="flex items-center gap-4 flex-wrap">
-            <flux:modal.trigger name="add-item-modal">
-                <button class="bg-terracotta text-white rounded-2xl px-[18px] py-3 font-manrope text-[13.5px] font-extrabold shadow-[0_8px_18px_rgba(193,68,45,0.3)]">
-                    + {{ __('Add item') }}
-                </button>
-            </flux:modal.trigger>
+                <div class="flex items-center gap-2">
+                    <flux:modal.trigger name="add-item-modal">
+                        <button type="button" wire:click="resetNewItemForm" class="inline-flex items-center gap-1.5 rounded-full bg-terracotta px-4 py-2.5 font-manrope text-[15px] font-bold text-white shadow-[0_6px_14px_rgba(193,68,45,0.3)]">
+                            <flux:icon.plus class="size-4" />
+                            {{ __('Add') }}
+                        </button>
+                    </flux:modal.trigger>
 
-            <flux:modal.trigger name="clear-unchecked-modal">
-                <button class="bg-transparent flex items-center gap-1.5 font-manrope text-[13px] font-bold text-terracotta-dark">
-                    🗑 {{ __('Clear list') }}
-                </button>
-            </flux:modal.trigger>
+                    <flux:dropdown position="bottom" align="end">
+                        <button type="button" class="flex items-center justify-center size-11 rounded-full border border-ink/10 bg-white text-ink" aria-label="{{ __('More') }}">
+                            <flux:icon.ellipsis-horizontal class="size-5" />
+                        </button>
+                        <flux:menu>
+                            <flux:menu.item icon="calendar-days" :href="route('meals.index')" wire:navigate>{{ __('Generate from the meal plan') }}</flux:menu.item>
+                            <flux:menu.item icon="check-circle" wire:click="clearBought">{{ __('Clear bought items') }}</flux:menu.item>
+                            <flux:modal.trigger name="clear-list-modal">
+                                <flux:menu.item icon="trash" variant="danger">{{ __('Clear the whole list') }}</flux:menu.item>
+                            </flux:modal.trigger>
+                        </flux:menu>
+                    </flux:dropdown>
+                </div>
+            </div>
+
+            @if ($progress['total'] > 0)
+            <div class="mt-4 flex items-center justify-between font-manrope text-[13.5px] text-ink/60">
+                <span>{{ __('Bought :bought of :total', $progress) }}</span>
+                @if ($this->rangeLabel)
+                <span>{{ $this->rangeLabel }}</span>
+                @endif
+            </div>
+            <div class="mt-1.5 h-1.5 rounded-full bg-ink/10 overflow-hidden">
+                <div class="h-full rounded-full bg-forest transition-all" style="width: {{ round($progress['bought'] / $progress['total'] * 100) }}%"></div>
+            </div>
+            @endif
         </div>
 
-        @if ($this->advanceItems->isNotEmpty())
-        <div>
-            <div class="flex items-baseline gap-2.5 pb-2.5 mb-3.5 border-b-2 border-gold/70">
-                <div class="font-fraunces text-xl font-semibold text-ink">{{ __('Anytime') }}</div>
-                <div class="flex-1"></div>
-                <div class="font-manrope text-[11px] font-extrabold tracking-[0.05em] text-gold-dark whitespace-nowrap">{{ $this->advanceCountLabel }}</div>
-            </div>
-            <div class="space-y-3">
-                @foreach ($this->advanceItems as $categoryGroup)
-                <div wire:key="advance-cat-{{ $categoryGroup['category'] }}">
-                    @if ($this->advanceItems->count() > 1)
-                    <div class="font-manrope text-[11px] font-bold uppercase tracking-[0.06em] text-ink/40 mb-2">{{ $categoryGroup['label'] }}</div>
-                    @endif
-                    <div class="space-y-2">
-                        @foreach ($categoryGroup['blocks'] as $block)
-                        @if ($block['type'] === 'single')
-                        <x-shopping-list.item-tile
-                            :item="$block['item']['item']"
-                            :ids="$block['item']['ids']"
-                            :display-quantity="$block['item']['displayQuantity']"
-                            :show-days-badge="$block['item']['showDaysBadge']"
-                            :days-count="$block['item']['daysCount']"
-                            anytime
-                            wire:key="item-advance-{{ $block['item']['ids'][0] }}-{{ count($block['item']['ids']) }}" />
-                        @else
-                        <div class="rounded-2xl border border-ink/10 overflow-hidden divide-y divide-ink/8 bg-white">
-                            @foreach ($block['items'] as $itemGroup)
-                            <x-shopping-list.item-tile
-                                :item="$itemGroup['item']"
-                                :ids="$itemGroup['ids']"
-                                :display-quantity="$itemGroup['displayQuantity']"
-                                anytime
-                                grouped
-                                wire:key="item-advance-{{ $itemGroup['ids'][0] }}-{{ count($itemGroup['ids']) }}" />
-                            @endforeach
-                        </div>
-                        @endif
-                        @endforeach
-                    </div>
-                </div>
-                @endforeach
-            </div>
+        @if ($progress['total'] === 0)
+        <div class="rounded-[22px] border border-dashed border-ink/20 px-5 py-10 text-center space-y-3">
+            <p class="font-manrope text-[15px] text-ink/60">{{ __('The shopping list is empty.') }}</p>
+            <a href="{{ route('meals.index') }}" wire:navigate class="inline-flex items-center gap-1.5 font-manrope text-[15px] font-bold text-terracotta-dark">
+                <flux:icon.calendar-days class="size-4" />
+                {{ __('Generate from the meal plan') }}
+            </a>
         </div>
         @endif
 
-        @foreach ($this->activeByDay as $group)
-        <div wire:key="active-day-{{ $group['day'] }}">
-            <div class="flex items-baseline gap-2.5 pb-2.5 mb-3 border-b-2 border-ink/[0.16]">
-                <div class="font-fraunces text-xl font-semibold text-ink">{{ $group['label'] }}</div>
-                <div class="font-manrope text-xs font-bold text-ink/40">{{ $group['date'] }}</div>
-                <div class="flex-1"></div>
-                <div class="font-manrope text-[11px] font-extrabold tracking-[0.05em] text-ink/45 whitespace-nowrap">{{ $group['countLabel'] }}</div>
-            </div>
+        @if ($list['weekly']['count'] > 0)
+        <section x-data="{ open: $persist(true).as('shopping-weekly-open') }">
+            <button type="button" x-on:click="open = ! open" class="w-full flex items-center gap-2 text-left">
+                <span class="font-fraunces text-[22px] font-semibold text-ink">{{ __('For the whole week') }}</span>
+                <span class="font-manrope text-[13px] text-ink/50">{{ __('buy right away') }}</span>
+                <span class="ml-auto font-manrope text-[14px] font-bold text-ink/60">{{ $list['weekly']['count'] }}</span>
+                <flux:icon.chevron-down class="size-4 text-ink/50 transition-transform" x-bind:class="open || '-rotate-90'" />
+            </button>
 
-            @if ($group['noFresh'])
-            <div class="font-manrope text-xs font-semibold text-ink/35 {{ $group['coveredChips']->isNotEmpty() ? 'mb-2.5' : '' }}">{{ __('Nothing fresh needed today.') }}</div>
-            @else
-            <div class="space-y-3 {{ $group['coveredChips']->isNotEmpty() ? 'mb-3.5' : '' }}">
-                @foreach ($group['categories'] as $categoryGroup)
-                <div wire:key="active-day-{{ $group['day'] }}-cat-{{ $categoryGroup['category'] }}">
-                    @if ($group['categories']->count() > 1)
-                    <div class="font-manrope text-[11px] font-bold uppercase tracking-[0.06em] text-ink/40 mb-2">{{ $categoryGroup['label'] }}</div>
-                    @endif
-                    <div class="space-y-2">
-                        @foreach ($categoryGroup['blocks'] as $block)
-                        @if ($block['type'] === 'single')
-                        <x-shopping-list.item-tile
-                            :item="$block['item']['item']"
-                            :ids="$block['item']['ids']"
-                            :display-quantity="$block['item']['displayQuantity']"
-                            :show-days-badge="$block['item']['showDaysBadge']"
-                            :days-count="$block['item']['daysCount']"
-                            wire:key="item-{{ $block['item']['ids'][0] }}-{{ count($block['item']['ids']) }}" />
-                        @else
-                        <div class="rounded-2xl border border-ink/10 overflow-hidden divide-y divide-ink/8 bg-white">
-                            @foreach ($block['items'] as $itemGroup)
-                            <x-shopping-list.item-tile
-                                :item="$itemGroup['item']"
-                                :ids="$itemGroup['ids']"
-                                :display-quantity="$itemGroup['displayQuantity']"
-                                grouped
-                                wire:key="item-{{ $itemGroup['ids'][0] }}-{{ count($itemGroup['ids']) }}" />
-                            @endforeach
-                        </div>
-                        @endif
-                        @endforeach
-                    </div>
-                </div>
+            <div x-show="open" x-collapse class="mt-3 space-y-4">
+                @foreach ($list['weekly']['categories'] as $category)
+                <x-shopping-list.category :category="$category" wire:key="weekly-{{ $category['category'] }}" />
                 @endforeach
             </div>
-            @endif
+        </section>
+        @endif
 
-            @if ($group['coveredChips']->isNotEmpty())
-            <div class="border-t border-dashed border-ink/[0.16] pt-2.5" x-data="{ open: false }">
-                <button type="button" @click="open = ! open" class="flex items-center gap-1.5 font-manrope text-[10.5px] font-bold uppercase tracking-[0.08em] text-ink/35">
-                    <span>↑ {{ $group['coveredLabel'] }}</span>
-                    <flux:icon.chevron-down class="size-3 shrink-0 transition-transform" x-bind:class="open ? 'rotate-180' : ''" />
-                </button>
-                <div x-show="open" x-collapse class="flex flex-wrap gap-1.5 mt-2">
-                    @foreach ($group['coveredChips'] as $chip)
-                    <span
-                        x-data="{
-                            pressTimer: null,
-                            startPress() {
-                                this.pressTimer = setTimeout(() => {
-                                    @if (count($chip['ids']) > 1)
-                                    $wire.showGroupDetails({{ Illuminate\Support\Js::from($chip['ids']) }}).then(() => {
-                                        $dispatch('modal-show', { name: 'grouped-item-modal' });
-                                    });
-                                    @else
-                                    $wire.editItem({{ $chip['item']->id }}).then(() => {
-                                        $dispatch('modal-show', { name: 'edit-item-modal' });
-                                    });
-                                    @endif
-                                }, 500);
-                            },
-                            endPress() {
-                                clearTimeout(this.pressTimer);
-                            },
-                        }"
-                        @mousedown="startPress"
-                        @mouseup="endPress"
-                        @mouseleave="endPress"
-                        @touchstart.passive="startPress"
-                        @touchmove.passive="endPress"
-                        @touchend="endPress"
-                        @contextmenu.prevent
-                        wire:key="covered-chip-{{ $chip['ids'][0] }}"
-                        class="inline-flex items-center gap-1.5 border border-dashed border-ink/20 rounded-full px-2.5 py-1 font-manrope text-[11px] font-semibold text-ink/40 select-none cursor-pointer">
-                        {{ $chip['item']->name }}
-                        <span class="opacity-70">{{ $chip['displayQuantity'] }}</span>
-                        @if ($chip['showDaysBadge'])
-                        <span class="font-extrabold text-[9.5px] tracking-[0.03em] text-gold-dark">Σ {{ $chip['daysLabel'] }}</span>
-                        @endif
-                    </span>
+        @foreach ($list['days'] as $day)
+        @php $dateKey = $day['date']->toDateString(); @endphp
+        <section wire:key="day-{{ $dateKey }}" x-data="{ open: true }">
+            <button type="button" x-on:click="open = ! open" class="w-full flex items-baseline gap-2 text-left">
+                <span class="font-fraunces text-[22px] font-semibold {{ $day['date']->isToday() ? 'text-terracotta-dark' : 'text-ink' }}">{{ $this->dayName($day['date']) }}</span>
+                <span class="font-manrope text-[13px] text-ink/50">{{ $day['date']->isToday() ? __('today') : $day['date']->format('d.m') }}</span>
+                @if ($day['date']->lt(today()))
+                <span class="font-manrope text-[12px] font-bold text-terracotta-dark">{{ __('overdue') }}</span>
+                @endif
+                <span class="ml-auto font-manrope text-[14px] font-bold text-ink/60">{{ $day['count'] }}</span>
+                <flux:icon.chevron-down class="size-4 self-center text-ink/50 transition-transform" x-bind:class="open || '-rotate-90'" />
+            </button>
+
+            <div x-show="open" x-collapse class="mt-3 space-y-4">
+                @foreach ($day['categories'] as $category)
+                <x-shopping-list.category :category="$category" can-move-earlier wire:key="day-{{ $dateKey }}-{{ $category['category'] }}" />
+                @endforeach
+
+                @if ($day['coveredCount'] > 0)
+                <p class="flex items-start gap-1.5 font-manrope text-[13px] text-ink/50">
+                    <flux:icon.check-badge class="size-4 shrink-0 mt-px" />
+                    {{ trans_choice(':count product for this day is already in the For the whole week section|:count products for this day are already in the For the whole week section', $day['coveredCount']) }}
+                </p>
+                @endif
+            </div>
+        </section>
+        @endforeach
+
+        @if ($list['bought']['count'] > 0)
+        <section x-data="{ open: $persist(false).as('shopping-bought-open') }">
+            <button type="button" x-on:click="open = ! open" class="w-full flex items-center gap-2 text-left">
+                <span class="font-fraunces text-[22px] font-semibold text-ink">{{ __('Bought') }}</span>
+                <span class="font-manrope text-[13px] text-ink/50">{{ __('last 7 days') }}</span>
+                <span class="ml-auto font-manrope text-[14px] font-bold text-ink/60">{{ $list['bought']['count'] }}</span>
+                <flux:icon.chevron-down class="size-4 text-ink/50 transition-transform" x-bind:class="open || '-rotate-90'" />
+            </button>
+
+            <div x-show="open" x-collapse class="mt-3">
+                <div class="rounded-[18px] border border-ink/10 overflow-hidden divide-y divide-ink/8 bg-white">
+                    @foreach ($list['bought']['groups'] as $group)
+                    <x-shopping-list.item-tile :group="$group" bought />
                     @endforeach
                 </div>
             </div>
-            @endif
-        </div>
-        @endforeach
-
-        @if ($this->boughtByDay->isNotEmpty() || $this->unassignedBoughtItems->isNotEmpty())
-        <div>
-            <div class="uppercase text-[12px] font-extrabold tracking-[0.08em] text-ink/55 mb-3 font-manrope">{{ __('Bought (this week)') }}</div>
-
-            <div class="space-y-3.5">
-                @foreach ($this->boughtByDay as $group)
-                <div wire:key="bought-day-{{ $group['day'] }}">
-                    <div class="text-[12.5px] font-bold text-ink/50 font-manrope mb-2">{{ $group['label'] }} · {{ $group['date'] }}</div>
-                    <div class="space-y-2">
-                        @foreach ($group['blocks'] as $block)
-                        @if ($block['type'] === 'single')
-                        <x-shopping-list.item-tile
-                            :item="$block['item']['item']"
-                            :ids="$block['item']['ids']"
-                            :display-quantity="$block['item']['displayQuantity']"
-                            :show-days-badge="$block['item']['showDaysBadge']"
-                            :days-count="$block['item']['daysCount']"
-                            bought
-                            wire:key="item-{{ $block['item']['ids'][0] }}-{{ count($block['item']['ids']) }}" />
-                        @else
-                        <div class="rounded-2xl border border-ink/10 overflow-hidden divide-y divide-ink/8 bg-[#F7F3EA]">
-                            @foreach ($block['items'] as $itemGroup)
-                            <x-shopping-list.item-tile
-                                :item="$itemGroup['item']"
-                                :ids="$itemGroup['ids']"
-                                :display-quantity="$itemGroup['displayQuantity']"
-                                bought
-                                grouped
-                                wire:key="item-{{ $itemGroup['ids'][0] }}-{{ count($itemGroup['ids']) }}" />
-                            @endforeach
-                        </div>
-                        @endif
-                        @endforeach
-                    </div>
-                </div>
-                @endforeach
-
-                @if ($this->unassignedBoughtItems->isNotEmpty())
-                <div wire:key="bought-unassigned">
-                    <div class="text-[12.5px] font-bold text-ink/50 font-manrope mb-2">{{ __('No day assigned') }}</div>
-                    <div class="rounded-2xl border border-ink/10 overflow-hidden divide-y divide-ink/8 bg-[#F7F3EA]">
-                        @foreach ($this->unassignedBoughtItems as $item)
-                        <x-shopping-list.item-tile :item="$item" bought grouped wire:key="item-{{ $item->id }}" />
-                        @endforeach
-                    </div>
-                </div>
-                @endif
-            </div>
-        </div>
+        </section>
         @endif
     </div>
 
@@ -768,10 +427,9 @@ new #[Layout('layouts::app')] class extends Component {
             <div class="flex items-start justify-between gap-2">
                 <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Add item') }}</h3>
                 <flux:modal.close>
-                    <button type="button" wire:click="resetNewItemForm" class="text-ink/25 hover:text-ink/50 p-1.5 text-lg leading-none">✕</button>
+                    <button type="button" class="text-ink/25 hover:text-ink/50 p-1.5 text-lg leading-none">✕</button>
                 </flux:modal.close>
             </div>
-            <p class="font-manrope text-[13px] text-ink/60">{{ __('Only the product name is required.') }}</p>
 
             <div>
                 <x-ui.eyebrow>{{ __('Product name') }}</x-ui.eyebrow>
@@ -779,19 +437,20 @@ new #[Layout('layouts::app')] class extends Component {
                 <x-ui.field-error name="newItemName" />
             </div>
 
-            <div>
-                <x-ui.eyebrow optional>{{ __('Quantity') }}</x-ui.eyebrow>
-                <x-ui.text-input wire:model="newItemQuantity" class="w-full" />
-            </div>
-
-            <div>
-                <x-ui.eyebrow optional>{{ __('Day of week') }}</x-ui.eyebrow>
-                <select wire:model="newItemWeekDay" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-base sm:text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
-                    <option value="">{{ __('Unassigned') }}</option>
-                    @foreach (\App\Models\ShoppingListItem::WEEK_DAYS as $day)
-                    <option value="{{ $day }}">{{ ShoppingListItem::dayLabel($day) }}</option>
-                    @endforeach
-                </select>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <x-ui.eyebrow optional>{{ __('Quantity') }}</x-ui.eyebrow>
+                    <x-ui.text-input wire:model="newItemQuantity" placeholder="{{ __('e.g. 500 g') }}" class="w-full" />
+                </div>
+                <div>
+                    <x-ui.eyebrow optional>{{ __('For when') }}</x-ui.eyebrow>
+                    <select wire:model="newItemDate" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-base sm:text-sm text-ink">
+                        <option value="">{{ __('Whole week') }}</option>
+                        @foreach ($this->dateOptions as $option)
+                        <option value="{{ $option['value'] }}">{{ $option['label'] }}</option>
+                        @endforeach
+                    </select>
+                </div>
             </div>
 
             <div>
@@ -799,161 +458,95 @@ new #[Layout('layouts::app')] class extends Component {
                 <x-ui.text-input wire:model="newItemNotes" class="w-full" />
             </div>
 
-            <div class="flex items-center justify-end gap-3">
-                <flux:modal.close>
-                    <button type="button" wire:click="resetNewItemForm" class="font-manrope text-sm font-extrabold text-forest px-4 py-3">
-                        {{ __('Cancel') }}
-                    </button>
-                </flux:modal.close>
-                <button type="submit" class="bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-[14px] px-5 py-3 font-manrope text-sm font-extrabold">
-                    + {{ __('Add') }}
-                </button>
-            </div>
+            <button type="submit" class="w-full bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-[14px] py-3.5 font-manrope text-sm font-extrabold">
+                + {{ __('Add') }}
+            </button>
         </form>
     </flux:modal>
 
-    <flux:modal name="edit-item-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
-        <form wire:submit="saveItem" class="space-y-5">
-            <div class="flex items-start justify-between gap-2">
-                <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Edit item') }}</h3>
-                <flux:modal.close>
-                    <button type="button" class="text-ink/25 hover:text-ink/50 p-1.5 text-lg leading-none">✕</button>
-                </flux:modal.close>
-            </div>
-
-            <div>
-                <x-ui.eyebrow>{{ __('Product name') }}</x-ui.eyebrow>
-                <x-ui.text-input wire:model="editItemName" class="w-full" required autofocus />
-                <x-ui.field-error name="editItemName" />
-            </div>
-
-            <div>
-                <x-ui.eyebrow optional>{{ __('Quantity') }}</x-ui.eyebrow>
-                <x-ui.text-input wire:model="editItemQuantity" class="w-full" />
-            </div>
-
-            <div>
-                <x-ui.eyebrow optional>{{ __('Day of week') }}</x-ui.eyebrow>
-                <select wire:model="editItemWeekDay" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-base sm:text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
-                    <option value="">{{ __('Unassigned') }}</option>
-                    @foreach (\App\Models\ShoppingListItem::WEEK_DAYS as $day)
-                    <option value="{{ $day }}">{{ ShoppingListItem::dayLabel($day) }}</option>
-                    @endforeach
-                </select>
-            </div>
-
-            <div>
-                <x-ui.eyebrow optional>{{ __('Note') }}</x-ui.eyebrow>
-                <x-ui.text-input wire:model="editItemNotes" class="w-full" />
-            </div>
-
-            @if ($this->editingItem?->recipe)
-            <div>
-                <x-ui.eyebrow>{{ __('Needed for recipes') }}</x-ui.eyebrow>
-                <a
-                    href="{{ $this->editingItem->recipe->showUrlWithBack() }}"
-                    wire:navigate
-                    class="flex items-center justify-between gap-2 bg-sand rounded-xl px-3.5 py-[11px] font-manrope text-[13.5px] font-bold text-ink">
-                    <span>📖 {{ $this->editingItem->recipe->name }}</span>
-                    <span class="text-gold-dark text-xs">{{ __('View') }} ›</span>
-                </a>
-            </div>
-            @endif
-
-            @if ($this->editingItem?->week_day)
-            <div class="rounded-xl border border-ink/10 bg-sand/40 p-3.5 space-y-3">
-                <x-ui.eyebrow>{{ __('Merge with day') }}</x-ui.eyebrow>
-                <div class="flex items-center gap-2.5">
-                    <select
-                        wire:model="mergeTargetDay"
-                        class="flex-1 border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-base sm:text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
-                        @foreach (\App\Models\ShoppingListItem::WEEK_DAYS as $day)
-                        <option value="{{ $day }}">{{ ShoppingListItem::dayLabel($day) }}</option>
-                        @endforeach
-                    </select>
-                    <button
-                        type="button"
-                        wire:click="mergeWithDay"
-                        class="shrink-0 bg-forest hover:bg-forest/90 transition-colors text-white rounded-xl px-4 py-3 font-manrope text-sm font-extrabold">
-                        {{ __('Merge') }}
-                    </button>
-                </div>
-                <x-ui.field-error name="mergeTargetDay" />
-                <p class="font-manrope text-xs text-ink/50">{{ __('Moves this item onto that day — if something is already needed there, the quantities combine.') }}</p>
-            </div>
-            @endif
-
-            <div class="flex items-center justify-end gap-3">
-                <flux:modal.close>
-                    <button type="button" class="font-manrope text-sm font-extrabold text-forest px-4 py-3">
-                        {{ __('Cancel') }}
-                    </button>
-                </flux:modal.close>
-                <button type="submit" class="bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-[14px] px-5 py-3 font-manrope text-sm font-extrabold">
-                    {{ __('Save') }}
-                </button>
-            </div>
-        </form>
-    </flux:modal>
-
-    <flux:modal name="grouped-item-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
-        @if ($this->groupedItemGroup)
+    <flux:modal name="item-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
+        @if ($group = $this->openGroupData)
         <div class="space-y-5">
             <div class="flex items-start justify-between gap-2">
-                <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Grouped item') }}</h3>
+                <div>
+                    <h3 class="font-fraunces text-xl font-semibold text-ink">{{ $group['name'] }}</h3>
+                    @if ($group['total'])
+                    <div class="font-manrope text-[14px] text-ink/60">{{ __('Total') }}: {{ $group['total'] }}</div>
+                    @endif
+                </div>
                 <flux:modal.close>
                     <button type="button" class="text-ink/25 hover:text-ink/50 p-1.5 text-lg leading-none">✕</button>
                 </flux:modal.close>
             </div>
 
-            <div>
-                <x-ui.eyebrow>{{ __('Product name') }}</x-ui.eyebrow>
-                <div class="font-manrope text-base font-bold text-ink">{{ $this->groupedItemGroup['item']->name }}</div>
-            </div>
-
-            <div>
-                <x-ui.eyebrow>{{ __('Total quantity') }}</x-ui.eyebrow>
-                <div class="font-manrope text-base font-extrabold text-gold-dark">{{ $this->groupedItemGroup['displayQuantity'] }}</div>
-            </div>
-
-            <div>
-                <x-ui.eyebrow>{{ __('Split across days') }}</x-ui.eyebrow>
-                <div class="border border-ink/10 rounded-2xl divide-y divide-dashed divide-ink/15 overflow-hidden">
-                    @foreach ($this->groupedItemGroup['dayBreakdown'] as $row)
-                    <div class="flex items-center justify-between gap-2 px-4 py-3" wire:key="breakdown-row-{{ $row['id'] }}">
-                        <div class="min-w-0">
-                            <div class="flex items-center gap-2">
-                                <span class="font-manrope text-sm font-bold text-ink">{{ $row['day'] }}</span>
-                                <input
-                                    type="text"
-                                    value="{{ $row['displayQuantity'] }}"
-                                    wire:change="updateGroupItemQuantity({{ $row['id'] }}, $event.target.value)"
-                                    class="w-16 font-manrope text-sm font-bold text-gold-dark bg-transparent border-b border-dashed border-gold/40 focus:outline-none focus:border-gold" />
-                            </div>
-                            @if ($row['recipe'])
-                            <a
-                                href="{{ $row['recipe']->showUrlWithBack() }}"
-                                wire:navigate
-                                class="flex items-center gap-1 mt-0.5 font-manrope text-[11px] font-semibold text-ink/45 truncate">
-                                📖 {{ $row['recipe']->name }} ›
-                            </a>
-                            @endif
-                        </div>
-                        <button
-                            type="button"
-                            wire:click="removeGroupItem({{ $row['id'] }})"
-                            class="text-terracotta/60 hover:text-terracotta p-1.5 shrink-0">
-                            <flux:icon.trash class="size-4" />
-                        </button>
-                    </div>
-                    @endforeach
+            @if ($group['single'])
+            <form wire:submit="saveItem" class="space-y-4">
+                <div>
+                    <x-ui.eyebrow>{{ __('Product name') }}</x-ui.eyebrow>
+                    <x-ui.text-input wire:model="editName" class="w-full" required />
+                    <x-ui.field-error name="editName" />
                 </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <x-ui.eyebrow optional>{{ __('Quantity') }}</x-ui.eyebrow>
+                        <x-ui.text-input wire:model="editQuantity" class="w-full" />
+                    </div>
+                    <div>
+                        <x-ui.eyebrow optional>{{ __('For when') }}</x-ui.eyebrow>
+                        <select wire:model="editDate" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-base sm:text-sm text-ink">
+                            <option value="">{{ __('Whole week') }}</option>
+                            @if ($editDate && ! $this->dateOptions->contains('value', $editDate))
+                            <option value="{{ $editDate }}">{{ $this->dayName(Carbon::parse($editDate)) }} {{ Carbon::parse($editDate)->format('d.m') }}</option>
+                            @endif
+                            @foreach ($this->dateOptions as $option)
+                            <option value="{{ $option['value'] }}">{{ $option['label'] }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <x-ui.eyebrow optional>{{ __('Note') }}</x-ui.eyebrow>
+                    <x-ui.text-input wire:model="editNotes" class="w-full" />
+                </div>
+                @if ($recipe = $group['items'][0]->recipe)
+                <p class="font-manrope text-[13px] text-ink/50">{{ __('From recipe') }}: {{ $recipe->name }}</p>
+                @endif
+                <button type="submit" class="w-full bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-[14px] py-3.5 font-manrope text-sm font-extrabold">
+                    {{ __('Save') }}
+                </button>
+            </form>
+            @else
+            <div class="rounded-2xl border border-ink/10 bg-white divide-y divide-ink/8">
+                @foreach ($group['items'] as $row)
+                <div wire:key="open-row-{{ $row->id }}" class="flex items-center gap-3 px-3.5 py-2.5">
+                    <div class="flex-1 min-w-0">
+                        <div class="font-manrope text-[14px] font-semibold text-ink truncate">{{ $row->recipe?->name ?? $row->name }}</div>
+                        <div class="font-manrope text-[12px] text-ink/50">
+                            {{ $row->needed_on ? $this->dayName($row->needed_on) . ' ' . $row->needed_on->format('d.m') : __('Whole week') }}
+                        </div>
+                    </div>
+                    <input
+                        type="text"
+                        value="{{ $row->displayQuantity() }}"
+                        x-on:change="$wire.updateRowQuantity({{ $row->id }}, $event.target.value)"
+                        class="w-24 rounded-xl border border-ink/15 bg-cream px-2.5 py-1.5 text-right font-manrope text-base sm:text-sm text-ink" />
+                    <button type="button" wire:click="deleteItems([{{ $row->id }}])" class="text-ink/40 p-1" aria-label="{{ __('Delete') }}">
+                        <flux:icon.x-mark class="size-4" />
+                    </button>
+                </div>
+                @endforeach
             </div>
+            @endif
 
-            <div class="flex items-center justify-end gap-3">
+            <div class="grid grid-cols-2 gap-2">
+                @if ($group['canMoveEarlier'])
+                <button type="button" wire:click="moveEarlier({{ \Illuminate\Support\Js::from($openIds) }})" class="rounded-[14px] border border-ink/10 bg-white py-3 font-manrope text-sm font-bold text-ink">
+                    {{ __('Buy a day earlier') }}
+                </button>
+                @endif
                 <flux:modal.close>
-                    <button type="button" class="font-manrope text-sm font-extrabold text-forest px-4 py-3">
-                        {{ __('Close') }}
+                    <button type="button" wire:click="deleteItems({{ \Illuminate\Support\Js::from($openIds) }})" class="w-full rounded-[14px] py-3 font-manrope text-sm font-bold text-terracotta-dark">
+                        {{ __('Delete') }}
                     </button>
                 </flux:modal.close>
             </div>
@@ -961,32 +554,16 @@ new #[Layout('layouts::app')] class extends Component {
         @endif
     </flux:modal>
 
-    <flux:modal name="clear-unchecked-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
-        <div class="space-y-6">
-            <div class="flex items-start justify-between gap-2">
-                <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Clear the list?') }}</h3>
-                <flux:modal.close>
-                    <button type="button" class="text-ink/25 hover:text-ink/50 p-1.5 text-lg leading-none">✕</button>
-                </flux:modal.close>
-            </div>
-            <p class="font-manrope text-sm text-ink/60 -mt-4">
-                {{ __('This will remove every item from your shopping list, including anything already checked off as bought. This action cannot be undone.') }}
-            </p>
-
+    <flux:modal name="clear-list-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
+        <div class="space-y-5">
+            <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Clear the whole list?') }}</h3>
+            <p class="font-manrope text-sm text-ink/60">{{ __('All items will be removed, including bought ones. This cannot be undone.') }}</p>
             <div class="flex gap-2 justify-end">
                 <flux:modal.close>
-                    <button type="button" class="font-manrope text-sm font-extrabold text-ink/60 hover:text-ink px-4 py-2.5">
-                        {{ __('Cancel') }}
-                    </button>
+                    <button type="button" class="font-manrope text-sm font-extrabold text-ink/60 px-4 py-2.5">{{ __('Cancel') }}</button>
                 </flux:modal.close>
-
                 <flux:modal.close>
-                    <button
-                        type="button"
-                        wire:click="clearList"
-                        class="bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-2xl px-5 py-2.5 font-manrope text-sm font-extrabold">
-                        {{ __('Clear list') }}
-                    </button>
+                    <button type="button" wire:click="clearAll" class="bg-terracotta text-white rounded-2xl px-5 py-2.5 font-manrope text-sm font-extrabold">{{ __('Clear list') }}</button>
                 </flux:modal.close>
             </div>
         </div>
