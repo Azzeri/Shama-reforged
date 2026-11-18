@@ -37,7 +37,7 @@
             this.checkTimer = setTimeout(() => {
                 this.removing = true;
                 this.removeTimer = setTimeout(() => {
-                    $wire.toggle({{ Illuminate\Support\Js::from($ids) }});
+                    $wire.toggle({{ Illuminate\Support\Js::from($ids) }}, ! this.originalChecked);
                 }, 300);
             }, 1100);
         },

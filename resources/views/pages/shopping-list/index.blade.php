@@ -333,15 +333,22 @@ new #[Layout('layouts::app')] class extends Component {
         return $n === 1 ? '1 ' . __('item') : "{$n} " . __('items');
     }
 
-    public function toggle(int|array $itemIds): void
+    /**
+     * $checked is the state the user asked for. Setting it explicitly (not
+     * flipping what's in the DB) keeps two people editing the list at once
+     * from undoing each other's ticks when one of them has a stale view.
+     */
+    public function toggle(int|array $itemIds, ?bool $checked = null): void
     {
         $ids = is_array($itemIds) ? $itemIds : [$itemIds];
 
-        $items = ShoppingListItem::query()->whereIn('id', $ids)->get();
-        $allChecked = $items->every(fn (ShoppingListItem $item) => $item->is_checked);
+        if ($checked === null) {
+            $items = ShoppingListItem::query()->whereIn('id', $ids)->get();
+            $checked = ! $items->every(fn (ShoppingListItem $item) => $item->is_checked);
+        }
 
         ShoppingListItem::query()->whereIn('id', $ids)->update([
-            ShoppingListItem::IS_CHECKED_COLUMN => ! $allChecked,
+            ShoppingListItem::IS_CHECKED_COLUMN => $checked,
         ]);
 
         unset($this->items);
@@ -543,7 +550,8 @@ new #[Layout('layouts::app')] class extends Component {
 };
 ?>
 
-<div>
+{{-- Polls so changes made by someone else on another phone show up live. --}}
+<div wire:poll.5s>
     <div class="space-y-5">
         <h1 class="font-fraunces text-[28px] font-semibold text-ink">{{ __('Shopping list') }}</h1>
 
