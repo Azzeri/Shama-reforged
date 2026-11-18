@@ -148,3 +148,17 @@ ui-toast-group {
 ui-toast-group * {
     pointer-events: none !important;
 }
+
+/*
+ * Livewire's navigation progress bar sits at top: 0, which in the iOS
+ * home-screen app is hidden under the status bar. Move it below the notch
+ * and make it a bit thicker so a slow page switch is visible.
+ */
+#nprogress .bar {
+    top: env(safe-area-inset-top) !important;
+    height: 3px !important;
+}
+
+#nprogress .peg {
+    display: none !important;
+}
