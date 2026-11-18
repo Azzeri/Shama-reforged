@@ -26,6 +26,14 @@ sudo ./svc.sh start
 
 Runner łączy się z GitHubem od środka — nie trzeba otwierać żadnych portów.
 
+Etykiety można też dodać później na GitHubie (*Settings → Actions → Runners →
+runner → Labels*), ale **runner trzeba wtedy zrestartować**
+(`sudo ./svc.sh stop && sudo ./svc.sh start`), inaczej joby z etykietą
+`home-server` wiszą na „Waiting for a runner”.
+
+Przydatne: `sudo ./svc.sh status`, logi na żywo:
+`journalctl -u 'actions.runner.*' -f`.
+
 ### 2. sudo bez hasła dla deployu
 
 `deploy.sh` używa `sudo` (docker, chown, chmod). Sprawdź ścieżki (`which docker chown chmod`)
