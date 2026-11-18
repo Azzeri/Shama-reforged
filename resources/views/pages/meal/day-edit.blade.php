@@ -78,7 +78,7 @@ new #[Layout('layouts::app')] class extends Component {
     public function render()
     {
         return $this->view()
-            ->title($this->day->locale('en')->isoFormat('dddd, D MMMM'));
+            ->title(\Illuminate\Support\Str::ucfirst($this->day->locale(app()->getLocale())->isoFormat('dddd, D MMMM')));
     }
 
     #[Computed]
@@ -119,7 +119,7 @@ new #[Layout('layouts::app')] class extends Component {
     {
         return $this->weekDays->map(fn (CarbonInterface $day, int $offset) => [
             'offset' => $offset,
-            'label' => $day->copy()->locale('en')->isoFormat('dddd, D MMM'),
+            'label' => \Illuminate\Support\Str::ucfirst($day->copy()->locale(app()->getLocale())->isoFormat('dddd, D MMM')),
         ]);
     }
 
@@ -144,7 +144,7 @@ new #[Layout('layouts::app')] class extends Component {
             ->when($this->recipeSearch, fn ($query) => $query->where('name', 'like', '%' . $this->recipeSearch . '%'))
             ->whereHas('tags', function ($tagQuery) use ($type) {
                 $tagQuery->where('category', Tag::MEAL_TYPE)
-                    ->where('name', Meal::typeLabel($type));
+                    ->where('name', Meal::tagName($type));
             })
             ->orderBy('name')
             ->get(['id', 'name']);
@@ -328,7 +328,7 @@ new #[Layout('layouts::app')] class extends Component {
     <div class="space-y-4">
         <x-ui.back-button href="{{ route('meals.index') }}" :label="__('Week')" />
 
-        <h1 class="font-fraunces text-[28px] leading-tight font-semibold text-ink">{{ $this->day->locale('en')->isoFormat('dddd, D MMMM') }}</h1>
+        <h1 class="font-fraunces text-[28px] leading-tight font-semibold text-ink">{{ \Illuminate\Support\Str::ucfirst($this->day->locale(app()->getLocale())->isoFormat('dddd, D MMMM')) }}</h1>
 
         <x-meal.week-strip :day="$this->day" route="meals.day.edit" />
 

@@ -15,7 +15,7 @@ new #[Layout('layouts::app')] class extends Component {
     public function render()
     {
         return $this->view()
-            ->title($this->day->locale('en')->isoFormat('dddd, D MMMM'));
+            ->title(\Illuminate\Support\Str::ucfirst($this->day->locale(app()->getLocale())->isoFormat('dddd, D MMMM')));
     }
 
     #[Computed]
@@ -70,7 +70,7 @@ new #[Layout('layouts::app')] class extends Component {
             </a>
         </div>
 
-        <h1 class="font-fraunces text-[28px] leading-tight font-semibold text-ink">{{ $this->day->locale('en')->isoFormat('dddd, D MMMM') }}</h1>
+        <h1 class="font-fraunces text-[28px] leading-tight font-semibold text-ink">{{ \Illuminate\Support\Str::ucfirst($this->day->locale(app()->getLocale())->isoFormat('dddd, D MMMM')) }}</h1>
 
         <x-meal.week-strip :day="$this->day" route="meals.day" />
 

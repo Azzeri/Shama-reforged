@@ -208,9 +208,9 @@ new #[Layout('layouts::app')] class extends Component {
                 </button>
                 <span class="font-manrope text-[15.5px] font-bold text-ink">
                     @if ($this->rangeStart->isSameMonth($this->rangeEnd))
-                    {{ $this->rangeStart->format('j') }} – {{ $this->rangeEnd->copy()->locale('en')->isoFormat('D MMMM') }}
+                    {{ $this->rangeStart->format('j') }} – {{ $this->rangeEnd->copy()->locale(app()->getLocale())->isoFormat('D MMMM') }}
                     @else
-                    {{ $this->rangeStart->copy()->locale('en')->isoFormat('D MMM') }} – {{ $this->rangeEnd->copy()->locale('en')->isoFormat('D MMM') }}
+                    {{ $this->rangeStart->copy()->locale(app()->getLocale())->isoFormat('D MMM') }} – {{ $this->rangeEnd->copy()->locale(app()->getLocale())->isoFormat('D MMM') }}
                     @endif
                 </span>
                 <button type="button" wire:click="goToNextWeek" class="flex items-center justify-center size-9 text-ink" aria-label="{{ __('Next') }}">
@@ -256,7 +256,7 @@ new #[Layout('layouts::app')] class extends Component {
             <div class="flex items-center gap-2.5 px-4 py-3.5">
                 <a href="{{ route('meals.day', $dateString) }}" wire:navigate class="flex items-center gap-2.5 min-w-0">
                     <span class="font-fraunces text-[28px] font-semibold leading-none text-ink">{{ $dayData['date']->format('j') }}</span>
-                    <span class="font-manrope text-[16px] font-bold text-ink truncate">{{ $dayData['date']->copy()->locale('en')->isoFormat('dddd') }}</span>
+                    <span class="font-manrope text-[16px] font-bold text-ink truncate">{{ \Illuminate\Support\Str::ucfirst($dayData['date']->copy()->locale(app()->getLocale())->isoFormat('dddd')) }}</span>
                     @if ($dayData['isToday'])
                     <span class="shrink-0 rounded-full bg-terracotta/12 px-2.5 py-0.5 font-manrope text-[12.5px] font-bold text-terracotta-dark">{{ __('Today') }}</span>
                     @endif
@@ -331,7 +331,7 @@ new #[Layout('layouts::app')] class extends Component {
                     <label wire:key="generate-day-{{ $dayData['date']->toDateString() }}" class="flex items-center gap-2.5 border-[1.5px] border-ink/15 rounded-xl px-3.5 py-2.5 cursor-pointer">
                         <input type="checkbox" wire:model="selectedDaysForShoppingList" value="{{ $dayData['date']->toDateString() }}" class="peer sr-only">
                         <span class="flex items-center justify-center size-5 rounded-[6px] border-2 border-ink/15 text-transparent peer-checked:bg-sage peer-checked:border-sage peer-checked:text-white text-xs font-bold shrink-0 transition-colors">✓</span>
-                        <span class="font-manrope text-sm font-semibold text-ink">{{ $dayData['date']->copy()->locale('en')->isoFormat('dddd D.MM') }}</span>
+                        <span class="font-manrope text-sm font-semibold text-ink">{{ \Illuminate\Support\Str::ucfirst($dayData['date']->copy()->locale(app()->getLocale())->isoFormat('dddd D.MM')) }}</span>
                     </label>
                     @endforeach
                 </div>

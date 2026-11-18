@@ -10,7 +10,7 @@
                     <span class="flex aspect-square size-11 items-center justify-center rounded-[13px] bg-terracotta shadow-sm overflow-hidden">
                         <x-app-logo-icon class="size-8" />
                     </span>
-                    <span class="font-fraunces text-lg font-semibold text-ink">{{ config('app.name', 'Shama') }}</span>
+                    <span class="font-fraunces text-lg font-semibold text-ink">Shama</span>
                 </a>
                 <div class="bg-white border border-ink/10 rounded-[18px] p-6 shadow-[0_1px_2px_rgba(43,33,24,0.06),0_10px_24px_rgba(43,33,24,0.07)] flex flex-col gap-6">
                     {{ $slot }}

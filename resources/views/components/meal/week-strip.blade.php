@@ -12,7 +12,7 @@
         wire:navigate
         wire:key="week-day-{{ $weekDay->toDateString() }}"
         class="flex flex-col items-center rounded-2xl border py-2 {{ $isSelected ? 'bg-ink border-ink text-white' : 'bg-white border-ink/10 text-ink' }}">
-        <span class="font-manrope text-[12px] {{ $isSelected ? 'text-white/80' : 'text-ink/60' }}">{{ $weekDay->copy()->locale('en')->isoFormat('dd') }}</span>
+        <span class="font-manrope text-[12px] {{ $isSelected ? 'text-white/80' : 'text-ink/60' }}">{{ $weekDay->copy()->locale(app()->getLocale())->isoFormat('dd') }}</span>
         <span class="font-manrope text-lg font-bold leading-tight {{ $weekDay->isToday() && ! $isSelected ? 'text-forest' : '' }}">{{ $weekDay->format('d') }}</span>
     </a>
     @endforeach
