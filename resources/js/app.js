@@ -475,6 +475,7 @@ const registerCardScanner = (Alpine) => Alpine.data('cardScanner', () => ({
     async start() {
         this.error = null;
         this.scanning = true;
+        this.$refs.scanner?.showModal();
         await this.$nextTick();
 
         try {
@@ -509,6 +510,10 @@ const registerCardScanner = (Alpine) => Alpine.data('cardScanner', () => ({
         this.controls?.stop();
         this.controls = null;
         this.scanning = false;
+
+        if (this.$refs.scanner?.open) {
+            this.$refs.scanner.close();
+        }
     },
     destroy() {
         this.stop();

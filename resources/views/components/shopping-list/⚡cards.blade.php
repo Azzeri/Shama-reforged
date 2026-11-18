@@ -307,9 +307,13 @@ new class extends Component {
                 @endif
             </div>
 
-            {{-- Camera preview while scanning --}}
-            <template x-teleport="body">
-                <div x-show="scanning" x-cloak class="fixed inset-0 z-[70] bg-black flex flex-col">
+            {{-- Camera preview while scanning. A native modal <dialog>, so it opens
+                 above the form sheet (itself a modal dialog in the top layer). --}}
+            <dialog
+                x-ref="scanner"
+                x-on:cancel.prevent="stop()"
+                class="m-0 p-0 w-screen max-w-none h-dvh max-h-none bg-black backdrop:bg-black">
+                <div class="relative h-full w-full flex flex-col">
                     <video x-ref="video" class="flex-1 w-full object-cover" playsinline muted autoplay></video>
                     <div class="pointer-events-none absolute inset-x-8 top-1/2 -translate-y-1/2 h-40 rounded-2xl border-2 border-white/80"></div>
                     <div class="absolute inset-x-0 bottom-0 p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-center space-y-3">
@@ -317,7 +321,7 @@ new class extends Component {
                         <button type="button" x-on:click="stop()" class="rounded-full bg-white px-6 py-3 font-manrope text-[15px] font-bold text-ink">{{ __('Cancel') }}</button>
                     </div>
                 </div>
-            </template>
+            </dialog>
         </form>
     </flux:modal>
 </div>
