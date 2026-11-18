@@ -26,34 +26,62 @@ new #[Layout('layouts::app')] class extends Component {
             ->title(__('Meal calendar'));
     }
 
+    /**
+     * The calendar shows a rolling 7-day window starting at this date (today
+     * by default), so the next days are always plannable — e.g. on Sunday
+     * the whole upcoming week is visible. `?week=` holds the window start.
+     */
     #[Computed]
-    public function weekStart(): CarbonInterface
+    public function rangeStart(): CarbonInterface
     {
-        $anchor = $this->week ? Carbon::parse($this->week) : now();
-
-        return $anchor->copy()->startOfWeek();
+        return ($this->week ? Carbon::parse($this->week) : now())->copy()->startOfDay();
     }
 
     #[Computed]
-    public function isCurrentWeek(): bool
+    public function rangeEnd(): CarbonInterface
     {
-        return $this->weekStart->isSameWeek(now());
+        return $this->rangeStart->copy()->addDays(6)->endOfDay();
+    }
+
+    #[Computed]
+    public function isCurrentRange(): bool
+    {
+        return $this->rangeStart->isToday();
+    }
+
+    /**
+     * Past days of the current calendar week, shown on demand above today.
+     */
+    #[Computed]
+    public function pastDays(): Collection
+    {
+        $today = now()->startOfDay();
+
+        return $this->buildDays($today->copy()->startOfWeek(), $today->copy()->subDay());
     }
 
     #[Computed]
     public function days(): Collection
     {
-        $weekStart = $this->weekStart;
-        $weekEnd = $weekStart->copy()->endOfWeek();
+        return $this->buildDays($this->rangeStart, $this->rangeEnd);
+    }
+
+    private function buildDays(CarbonInterface $start, CarbonInterface $end): Collection
+    {
+        if ($start->gt($end)) {
+            return collect();
+        }
 
         $meals = Meal::query()
             ->with('recipes:id,name,calories_me,calories_wife')
-            ->whereBetween(Meal::DATE_COLUMN, [$weekStart->copy()->startOfDay(), $weekEnd->copy()->endOfDay()])
+            ->whereBetween(Meal::DATE_COLUMN, [$start->copy()->startOfDay(), $end->copy()->endOfDay()])
             ->orderBy(Meal::DATE_COLUMN)
             ->get();
 
-        return collect(range(0, 6))->map(function (int $offset) use ($weekStart, $meals) {
-            $date = $weekStart->copy()->addDays($offset);
+        $dayCount = (int) $start->copy()->startOfDay()->diffInDays($end->copy()->startOfDay()) + 1;
+
+        return collect(range(0, $dayCount - 1))->map(function (int $offset) use ($start, $meals) {
+            $date = $start->copy()->startOfDay()->addDays($offset);
 
             return [
                 'date' => $date,
@@ -70,8 +98,8 @@ new #[Layout('layouts::app')] class extends Component {
     #[Computed]
     public function visibleDays(): Collection
     {
-        if ($this->isCurrentWeek && ! $this->showPastDays) {
-            return $this->days->reject(fn (array $day) => $day['isPast'])->values();
+        if ($this->isCurrentRange && $this->showPastDays) {
+            return $this->pastDays->concat($this->days)->values();
         }
 
         return $this->days;
@@ -89,19 +117,25 @@ new #[Layout('layouts::app')] class extends Component {
 
     public function goToToday(): void
     {
-        $this->week = now()->toDateString();
+        $this->week = null;
+        unset($this->rangeStart, $this->rangeEnd);
     }
 
     public function goToPreviousWeek(): void
     {
-        $this->week = $this->weekStart->copy()->subWeek()->toDateString();
-        unset($this->weekStart);
+        $this->shiftRange(-7);
     }
 
     public function goToNextWeek(): void
     {
-        $this->week = $this->weekStart->copy()->addWeek()->toDateString();
-        unset($this->weekStart);
+        $this->shiftRange(7);
+    }
+
+    private function shiftRange(int $days): void
+    {
+        $start = $this->rangeStart->copy()->addDays($days);
+        $this->week = $start->isToday() ? null : $start->toDateString();
+        unset($this->rangeStart, $this->rangeEnd);
     }
 
     public function togglePastDays(): void
@@ -117,7 +151,7 @@ new #[Layout('layouts::app')] class extends Component {
     public function generateShoppingListFromFullWeek(): void
     {
         $dates = collect(range(0, 6))
-            ->map(fn (int $offset) => $this->weekStart->copy()->addDays($offset)->toDateString())
+            ->map(fn (int $offset) => $this->rangeStart->copy()->addDays($offset)->toDateString())
             ->all();
 
         $this->generateShoppingListItems($dates);
@@ -125,11 +159,9 @@ new #[Layout('layouts::app')] class extends Component {
 
     private function generateShoppingListItems(array $dateStrings): void
     {
-        $weekStart = $this->weekStart;
-
         $dates = collect($dateStrings)
             ->map(fn (string $date) => Carbon::parse($date)->startOfDay())
-            ->filter(fn (CarbonInterface $date) => $date->betweenIncluded($weekStart, $weekStart->copy()->endOfWeek()))
+            ->filter(fn (CarbonInterface $date) => $date->betweenIncluded($this->rangeStart, $this->rangeEnd))
             ->values();
 
         if ($dates->isEmpty()) {
@@ -197,7 +229,7 @@ new #[Layout('layouts::app')] class extends Component {
 
             <div class="flex items-center gap-2 bg-sand rounded-xl py-1.5 pr-1.5 pl-4 mb-3.5">
                 <span class="flex-1 font-manrope text-sm font-bold text-ink">
-                    {{ $this->weekStart->copy()->locale('en')->isoFormat('D MMMM') }} – {{ $this->weekStart->copy()->endOfWeek()->locale('en')->isoFormat('D MMMM YYYY') }}
+                    {{ $this->rangeStart->copy()->locale('en')->isoFormat('D MMMM') }} – {{ $this->rangeEnd->copy()->locale('en')->isoFormat('D MMMM YYYY') }}
                 </span>
                 <button
                     type="button"
@@ -221,7 +253,7 @@ new #[Layout('layouts::app')] class extends Component {
                     📅 {{ __('Today') }}
                 </button>
 
-                @if ($this->isCurrentWeek)
+                @if ($this->isCurrentRange)
                 <button type="button" wire:click="togglePastDays" class="font-manrope text-[13px] font-bold text-forest">
                     {{ $showPastDays ? __('Hide past days') : __('Show past days') }}
                 </button>
@@ -331,7 +363,7 @@ new #[Layout('layouts::app')] class extends Component {
                 wire:loading.attr="disabled"
                 class="w-full flex items-center justify-center gap-2 bg-transparent border-[1.5px] border-ink/20 text-ink rounded-[14px] py-3.5 font-manrope text-sm font-extrabold disabled:opacity-60">
                 <flux:icon.loading wire:loading wire:target="generateShoppingListFromFullWeek" variant="mini" />
-                <span wire:loading.remove wire:target="generateShoppingListFromFullWeek">📅 {{ __('Add from the whole week') }}</span>
+                <span wire:loading.remove wire:target="generateShoppingListFromFullWeek">📅 {{ __('Add from all 7 days') }}</span>
             </button>
         </div>
     </flux:modal>
