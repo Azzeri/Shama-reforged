@@ -378,7 +378,8 @@ test('the shopping list page renders in Polish', function () {
     $banana = slIngredient('Banan', extra: ['category' => Ingredient::CATEGORY_PRODUCE]);
     slItem(['name' => 'Banan', 'ingredient_id' => $banana->id, 'amount' => 120, 'unit' => 'g', 'needed_on' => SL_THU]);
 
-    $this->actingAs(User::factory()->create())
+    $this->withoutVite()
+        ->actingAs(User::factory()->create())
         ->get(route('shopping-list.index'))
         ->assertOk()
         ->assertSee('Zakupy')

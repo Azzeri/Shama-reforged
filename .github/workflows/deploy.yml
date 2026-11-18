@@ -1,0 +1,83 @@
+name: deploy
+
+# Push to main → tests on GitHub's runners → if green, deploy on the home
+# server through a self-hosted runner (see .deploy/README.md for the
+# one-time server setup).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never run two deploys at once; a newer push waits for the running one.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          tools: composer:v2
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      # Only the shopping list has maintained tests; the rest of tests/
+      # describes the old UI and isn't kept up to date.
+      - name: Run tests
+        run: php artisan test tests/Feature/ShoppingListTest.php
+
+  deploy:
+    needs: test
+    runs-on: [self-hosted, home-server]
+    environment: production
+    steps:
+      - name: Check configuration
+        env:
+          APP_DIR: ${{ vars.APP_DIR }}
+        run: |
+          if [ -z "$APP_DIR" ] || [ ! -d "$APP_DIR/.git" ]; then
+            echo "::error::Set the repository variable APP_DIR to the app's git checkout on the server (Settings → Secrets and variables → Actions → Variables)."
+            exit 1
+          fi
+
+      - name: Update code
+        env:
+          APP_DIR: ${{ vars.APP_DIR }}
+        run: |
+          cd "$APP_DIR"
+          git fetch --prune origin main
+          git reset --hard origin/main
+          git log -1 --oneline
+
+      - name: Deploy
+        env:
+          APP_DIR: ${{ vars.APP_DIR }}
+        run: |
+          cd "$APP_DIR"
+          bash .deploy/deploy.sh
+
+      - name: Health check
+        run: |
+          for i in 1 2 3 4 5; do
+            curl -fsS -o /dev/null "${{ vars.HEALTHCHECK_URL || 'http://localhost/up' }}" && exit 0
+            sleep 3
+          done
+          echo "::error::Health check failed"
+          exit 1
