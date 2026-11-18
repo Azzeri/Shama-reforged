@@ -107,6 +107,18 @@ class Recipe extends Model
      * @param  \Illuminate\Support\Collection<int, self>  $recipes
      * @return array<string, int> profile => total calories, only profiles with a positive total
      */
+    /** "M 601 · N 414 kcal" — per-profile calories, profile shortened to its initial. */
+    public static function shortCalorieLine(array $totals): string
+    {
+        if (empty($totals)) {
+            return '';
+        }
+
+        return collect($totals)
+            ->map(fn (int $kcal, string $profile) => mb_substr(self::nutritionProfileLabel($profile), 0, 1) . ' ' . $kcal)
+            ->implode(' · ') . ' kcal';
+    }
+
     public static function calorieTotals(\Illuminate\Support\Collection $recipes): array
     {
         return collect(self::NUTRITION_PROFILES)

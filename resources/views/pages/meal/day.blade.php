@@ -53,18 +53,6 @@ new #[Layout('layouts::app')] class extends Component {
             ->filter(fn (?int $kcal) => filled($kcal))
             ->all();
     }
-
-    /** "M 601 · N 414 kcal" — per-profile calories, profile shortened to its initial. */
-    public function shortCalorieLine(array $totals): string
-    {
-        if (empty($totals)) {
-            return '';
-        }
-
-        return collect($totals)
-            ->map(fn (int $kcal, string $profile) => mb_substr(Recipe::nutritionProfileLabel($profile), 0, 1) . ' ' . $kcal)
-            ->implode(' · ') . ' kcal';
-    }
 };
 ?>
 
@@ -114,7 +102,7 @@ new #[Layout('layouts::app')] class extends Component {
                     x-on:click="window.openRecipe('{{ route('recipes.show', $recipe) }}')"
                     class="cursor-pointer">
                     <div class="font-manrope text-[16px] font-semibold text-ink">{{ $recipe->name }}</div>
-                    @if ($line = $this->shortCalorieLine($this->recipeCalorieTotals($recipe)))
+                    @if ($line = Recipe::shortCalorieLine($this->recipeCalorieTotals($recipe)))
                     <div class="font-manrope text-[13.5px] text-ink/55">{{ $line }}</div>
                     @endif
                 </div>

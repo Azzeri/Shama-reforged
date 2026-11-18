@@ -223,103 +223,129 @@ new #[Layout('layouts::app')] class extends Component {
 ?>
 
 <div>
-    <div class="space-y-4">
-        <div class="bg-white rounded-[18px] p-[18px] shadow-[0_1px_2px_rgba(43,33,24,0.06),0_10px_24px_rgba(43,33,24,0.07)]">
-            <h1 class="font-fraunces text-2xl font-semibold text-ink mb-4">{{ __('Meal calendar') }}</h1>
-
-            <div class="flex items-center gap-2 bg-sand rounded-xl py-1.5 pr-1.5 pl-4 mb-3.5">
-                <span class="flex-1 font-manrope text-sm font-bold text-ink">
-                    {{ $this->rangeStart->copy()->locale('en')->isoFormat('D MMMM') }} – {{ $this->rangeEnd->copy()->locale('en')->isoFormat('D MMMM YYYY') }}
-                </span>
-                <button
-                    type="button"
-                    wire:click="goToPreviousWeek"
-                    class="flex items-center justify-center w-8 h-8 rounded-[9px] bg-white text-ink">
-                    <flux:icon.chevron-left class="size-4" />
-                </button>
-                <button
-                    type="button"
-                    wire:click="goToNextWeek"
-                    class="flex items-center justify-center w-8 h-8 rounded-[9px] bg-white text-ink">
-                    <flux:icon.chevron-right class="size-4" />
-                </button>
-            </div>
-
-            <div class="flex items-center justify-between mb-3.5">
-                <button
-                    type="button"
-                    wire:click="goToToday"
-                    class="inline-flex items-center gap-1.5 bg-terracotta text-white rounded-[10px] px-3.5 py-2 font-manrope text-[12.5px] font-extrabold">
-                    📅 {{ __('Today') }}
-                </button>
-
-                @if ($this->isCurrentRange)
-                <button type="button" wire:click="togglePastDays" class="font-manrope text-[13px] font-bold text-forest">
-                    {{ $showPastDays ? __('Hide past days') : __('Show past days') }}
-                </button>
-                @endif
-            </div>
+    <div class="space-y-3">
+        <div class="flex items-center justify-between gap-3">
+            <h1 class="font-fraunces text-[34px] font-semibold leading-none text-ink">{{ __('Plan') }}</h1>
 
             <flux:modal.trigger name="generate-shopping-list-modal">
                 <button
                     type="button"
-                    class="w-full bg-transparent border-[1.5px] border-terracotta text-terracotta-dark rounded-xl px-3.5 py-[11px] font-manrope text-[13.5px] font-extrabold">
-                    🛒 {{ __('Generate shopping list') }}
+                    class="inline-flex items-center gap-2 rounded-full border-[1.5px] border-terracotta bg-white px-4 py-2.5 font-manrope text-[14.5px] font-bold text-terracotta-dark">
+                    <flux:icon.shopping-cart class="size-4" />
+                    {{ __('Shopping list') }}
                 </button>
             </flux:modal.trigger>
         </div>
 
-        @foreach ($this->visibleDays as $dayData)
-            <a
-                href="{{ route('meals.day', $dayData['date']->toDateString()) }}"
-                wire:navigate
-                wire:key="day-{{ $dayData['date']->toDateString() }}"
-                class="block bg-white rounded-[18px] p-4 shadow-[0_1px_2px_rgba(43,33,24,0.06),0_10px_24px_rgba(43,33,24,0.07)] cursor-pointer">
-                <div class="flex justify-between items-start mb-2.5">
-                    <div>
-                        <div class="font-manrope text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink/50">
-                            {{ $dayData['date']->copy()->locale('en')->isoFormat('dddd') }}
-                        </div>
-                        <div class="font-fraunces text-2xl font-bold {{ $dayData['isToday'] ? 'text-forest' : 'text-ink' }}">
-                            {{ $dayData['date']->format('d') }}
-                        </div>
-                    </div>
+        <div class="flex items-center gap-2.5">
+            <div class="flex-1 flex items-center justify-between rounded-2xl bg-sand px-1.5 py-1.5">
+                <button type="button" wire:click="goToPreviousWeek" class="flex items-center justify-center size-9 text-ink" aria-label="{{ __('Previous') }}">
+                    <flux:icon.chevron-left class="size-5" />
+                </button>
+                <span class="font-manrope text-[15.5px] font-bold text-ink">
+                    @if ($this->rangeStart->isSameMonth($this->rangeEnd))
+                    {{ $this->rangeStart->format('j') }} – {{ $this->rangeEnd->copy()->locale('en')->isoFormat('D MMMM') }}
+                    @else
+                    {{ $this->rangeStart->copy()->locale('en')->isoFormat('D MMM') }} – {{ $this->rangeEnd->copy()->locale('en')->isoFormat('D MMM') }}
+                    @endif
+                </span>
+                <button type="button" wire:click="goToNextWeek" class="flex items-center justify-center size-9 text-ink" aria-label="{{ __('Next') }}">
+                    <flux:icon.chevron-right class="size-5" />
+                </button>
+            </div>
 
+            <button
+                type="button"
+                wire:click="goToToday"
+                class="shrink-0 rounded-2xl border border-ink/10 bg-white px-4 py-3 font-manrope text-[15px] font-bold text-ink">
+                {{ __('Today') }}
+            </button>
+        </div>
+
+        @if ($this->isCurrentRange)
+        <div class="flex justify-center">
+            <button type="button" wire:click="togglePastDays" class="inline-flex items-center gap-1.5 py-1 font-manrope text-[14px] text-ink/60">
+                @if ($showPastDays)
+                <flux:icon.chevron-down class="size-4" />
+                {{ __('Hide past days') }}
+                @else
+                <flux:icon.chevron-up class="size-4" />
+                {{ __('Show past days') }}
+                @endif
+            </button>
+        </div>
+        @endif
+
+        @foreach ($this->visibleDays as $dayData)
+        @php
+            $dateString = $dayData['date']->toDateString();
+            $dayTotals = $this->dayCalorieTotals($dayData['meals']);
+        @endphp
+        <div
+            wire:key="day-{{ $dateString }}"
+            @class([
+                'bg-white rounded-[22px] border overflow-hidden',
+                'border-terracotta/45' => $dayData['isToday'],
+                'border-ink/10' => ! $dayData['isToday'],
+                'opacity-60' => $dayData['isPast'],
+            ])>
+            <div class="flex items-center gap-2.5 px-4 py-3.5">
+                <a href="{{ route('meals.day', $dateString) }}" wire:navigate class="flex items-center gap-2.5 min-w-0">
+                    <span class="font-fraunces text-[28px] font-semibold leading-none text-ink">{{ $dayData['date']->format('j') }}</span>
+                    <span class="font-manrope text-[16px] font-bold text-ink truncate">{{ $dayData['date']->copy()->locale('en')->isoFormat('dddd') }}</span>
                     @if ($dayData['isToday'])
-                    <span class="bg-sage/18 text-forest font-manrope text-xs font-bold px-2.5 py-1 rounded-full">{{ __('Today') }}</span>
+                    <span class="shrink-0 rounded-full bg-terracotta/12 px-2.5 py-0.5 font-manrope text-[12.5px] font-bold text-terracotta-dark">{{ __('Today') }}</span>
+                    @endif
+                </a>
+
+                <div class="ml-auto flex items-center gap-3 shrink-0">
+                    @if ($dayData['meals']->isEmpty())
+                    <a href="{{ route('meals.day.edit', $dateString) }}" wire:navigate class="inline-flex items-center gap-1.5 font-manrope text-[15px] font-bold text-terracotta-dark">
+                        <flux:icon.plus class="size-4" />
+                        {{ __('Plan it') }}
+                    </a>
+                    @else
+                    @if ($dayTotals)
+                    <span class="font-manrope text-[13.5px] text-ink/60">{{ Recipe::shortCalorieLine($dayTotals) }}</span>
+                    @endif
+                    <a href="{{ route('meals.day.edit', $dateString) }}" wire:navigate class="text-ink/60 p-1 -m-1" aria-label="{{ __('Edit day') }}">
+                        <flux:icon.pencil class="size-[18px]" />
+                    </a>
                     @endif
                 </div>
+            </div>
 
-                @forelse ($dayData['meals'] as $meal)
-                <div wire:key="meal-{{ $meal->id }}" class="border border-ink/10 rounded-xl px-3 py-2.5 mb-2">
-                    <div class="font-manrope text-xs font-bold uppercase tracking-[0.05em] text-ink/50 mb-0.5">
-                        {{ Meal::typeLabel($meal->type) }}
-                    </div>
-                    <div class="font-manrope text-sm text-ink">
-                        @forelse ($meal->recipes as $recipe)
-                        <span
+            @if ($dayData['meals']->isNotEmpty())
+            <div class="divide-y divide-ink/8 border-t border-ink/8">
+                @foreach ($dayData['meals'] as $meal)
+                <div wire:key="meal-{{ $meal->id }}" class="flex gap-3 px-4">
+                    <div class="w-[88px] shrink-0 py-3 font-manrope text-[14px] text-ink/60">{{ Meal::typeLabel($meal->type) }}</div>
+
+                    <div class="flex-1 min-w-0">
+                        @foreach ($meal->recipes as $recipe)
+                        <button
+                            type="button"
+                            wire:key="meal-{{ $meal->id }}-recipe-{{ $recipe->id }}"
                             x-data
-                            x-on:mousedown.stop
-                            x-on:click.prevent.stop="window.openRecipe('{{ route('recipes.show', $recipe) }}')"
-                            class="hover:underline hover:text-terracotta-dark">{{ $recipe->name }}</span>{{ !$loop->last ? ', ' : '' }}
-                        @empty
-                        @if (filled($meal->note))
-                        <span class="font-fraunces italic text-ink/60">{{ $meal->note }}</span>
-                        @else
-                        {{ __('No recipes') }}
-                        @endif
-                        @endforelse
-                    </div>
-                    <x-recipe.calorie-line :totals="$this->mealCalorieTotals($meal)" class="mt-1" />
-                </div>
-                @empty
-                <div class="border border-dashed border-ink/24 rounded-xl py-6 text-center font-manrope text-[13px] text-ink/40">
-                    {{ __('No meals') }}
-                </div>
-                @endforelse
+                            x-on:click="window.openRecipe('{{ route('recipes.show', $recipe) }}')"
+                            class="w-full flex items-center gap-2 py-3 text-left">
+                            <span class="flex-1 font-manrope text-[15.5px] text-ink">{{ $recipe->name }}</span>
+                            <flux:icon.chevron-right class="size-4 text-ink/35 shrink-0" />
+                        </button>
+                        @endforeach
 
-                <x-recipe.calorie-chips :totals="$this->dayCalorieTotals($dayData['meals'])" suffix="razem" class="mt-1" />
-            </a>
+                        @if (filled($meal->note))
+                        <a href="{{ route('meals.day', $dateString) }}" wire:navigate class="flex items-center gap-2 py-3">
+                            <flux:icon.document class="size-4 text-ink/45 shrink-0" />
+                            <span class="font-fraunces italic text-[15px] text-ink/70">{{ $meal->note }}</span>
+                        </a>
+                        @endif
+                    </div>
+                </div>
+                @endforeach
+            </div>
+            @endif
+        </div>
         @endforeach
     </div>
 
