@@ -148,6 +148,13 @@ new #[Layout('layouts::app')] class extends Component {
                 formatAmount(value) {
                     return parseFloat(value.toFixed(2)).toString();
                 },
+                grams(perPortion, portions) {
+                    if (perPortion === null) return '';
+                    const grams = perPortion * portions;
+                    return grams >= 1000
+                        ? ` ≈ ${parseFloat((grams / 1000).toFixed(2))} kg`
+                        : ` ≈ ${Math.round(grams)} g`;
+                },
             }">
             <div class="flex items-center justify-between mb-2.5">
                 <x-ui.eyebrow>{{ __('Składniki') }}</x-ui.eyebrow>
@@ -221,12 +228,12 @@ new #[Layout('layouts::app')] class extends Component {
                         @if ($pivot->amount_me !== null)
                         <span
                             class="font-manrope text-[11px] font-extrabold text-terracotta-dark bg-sand px-2.5 py-1 rounded-full whitespace-nowrap"
-                            x-text="`${formatAmount({{ $pivot->amount_me }} * portionsMe)} {{ $pivot->unit }}`">{{ $pivot->displayQuantityFor('me') }}</span>
+                            x-text="`${formatAmount({{ $pivot->amount_me }} * portionsMe)} {{ $pivot->unit }}${grams({{ $ingredient->gramsFor($pivot->unit, $pivot->amount_me) ?? 'null' }}, portionsMe)}`">{{ $pivot->displayQuantityFor('me') }}{{ $ingredient->approxWeightLabel($pivot->unit, $pivot->amount_me) }}</span>
                         @endif
                         @if ($pivot->amount_wife !== null)
                         <span
                             class="font-manrope text-[11px] font-extrabold text-ink/60 bg-ink/8 px-2.5 py-1 rounded-full whitespace-nowrap"
-                            x-text="`${formatAmount({{ $pivot->amount_wife }} * portionsWife)} {{ $pivot->unit }}`">{{ $pivot->displayQuantityFor('wife') }}</span>
+                            x-text="`${formatAmount({{ $pivot->amount_wife }} * portionsWife)} {{ $pivot->unit }}${grams({{ $ingredient->gramsFor($pivot->unit, $pivot->amount_wife) ?? 'null' }}, portionsWife)}`">{{ $pivot->displayQuantityFor('wife') }}{{ $ingredient->approxWeightLabel($pivot->unit, $pivot->amount_wife) }}</span>
                         @endif
                     </div>
                     @elseif ($pivot?->quantity)

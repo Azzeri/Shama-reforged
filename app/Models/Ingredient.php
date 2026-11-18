@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Str;
 
-#[Fillable(['name', 'purchase_timing', 'category'])]
+#[Fillable(['name', 'purchase_timing', 'category', 'unit_weights'])]
 class Ingredient extends Model
 {
     use HasFactory;
@@ -19,6 +19,14 @@ class Ingredient extends Model
     public const PURCHASE_TIMING_COLUMN = 'purchase_timing';
 
     public const CATEGORY_COLUMN = 'category';
+
+    public const UNIT_WEIGHTS_COLUMN = 'unit_weights';
+
+    /**
+     * Units that can have a gram equivalent set per ingredient (e.g. 1 pcs
+     * of egg = 50 g). Weight units themselves are excluded.
+     */
+    public const WEIGHABLE_UNITS = ['pcs', 'pack', 'tbsp', 'tsp', 'cup', 'can', 'bunch', 'ml', 'l'];
 
     /**
      * When this ingredient needs to be bought, relative to when it's used.
@@ -86,6 +94,43 @@ class Ingredient extends Model
             self::CATEGORY_UNCATEGORIZED => __('Uncategorized'),
             default => ucfirst($category),
         };
+    }
+
+    protected function casts(): array
+    {
+        return [
+            self::UNIT_WEIGHTS_COLUMN => 'array',
+        ];
+    }
+
+    /**
+     * Approximate weight in grams of $amount $unit of this ingredient, or
+     * null when no weight is set for that unit.
+     */
+    public function gramsFor(?string $unit, ?float $amount): ?float
+    {
+        $perUnit = $unit ? ($this->unit_weights[$unit] ?? null) : null;
+
+        if ($perUnit === null || $amount === null) {
+            return null;
+        }
+
+        return $amount * (float) $perUnit;
+    }
+
+    /** " ≈ 100 g" suffix for display, or an empty string. */
+    public function approxWeightLabel(?string $unit, ?float $amount): string
+    {
+        $grams = $this->gramsFor($unit, $amount);
+
+        return $grams === null ? '' : ' ≈ ' . self::formatGrams($grams);
+    }
+
+    public static function formatGrams(float $grams): string
+    {
+        return $grams >= 1000
+            ? rtrim(rtrim(number_format($grams / 1000, 2, '.', ''), '0'), '.') . ' kg'
+            : round($grams) . ' g';
     }
 
     protected function name(): Attribute

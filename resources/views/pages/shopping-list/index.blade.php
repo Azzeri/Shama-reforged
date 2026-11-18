@@ -43,7 +43,7 @@ new #[Layout('layouts::app')] class extends Component {
     public function items(): Collection
     {
         return $this->shoppingList->items()
-            ->with(['recipe:id,name', 'ingredient:id,purchase_timing,category', 'meal:id,date,type'])
+            ->with(['recipe:id,name', 'ingredient:id,purchase_timing,category,unit_weights', 'meal:id,date,type'])
             ->orderByDesc('created_at')
             ->get();
     }
@@ -96,6 +96,14 @@ new #[Layout('layouts::app')] class extends Component {
                     $displayQuantity = "{$sum} {$first->unit}";
                 } else {
                     $displayQuantity = $first->displayQuantity();
+                }
+
+                $weightLabel = ! $first->quantity && $first->ingredient
+                    ? $first->ingredient->approxWeightLabel($first->unit, $isMerged ? (float) $group->sum('amount') : $first->amount)
+                    : '';
+
+                if ($weightLabel !== '' && $displayQuantity !== null) {
+                    $displayQuantity .= $weightLabel;
                 }
 
                 $weekDays = $group->pluck('week_day')->filter()->unique()

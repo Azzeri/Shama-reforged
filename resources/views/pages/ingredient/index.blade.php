@@ -27,6 +27,9 @@ new #[Layout('layouts::app')] class extends Component {
 
     public string $editIngredientCategory = Ingredient::CATEGORY_UNCATEGORIZED;
 
+    /** unit => grams per 1 unit (string, as typed). */
+    public array $editIngredientUnitWeights = [];
+
     public function render()
     {
         return $this->view()
@@ -82,12 +85,19 @@ new #[Layout('layouts::app')] class extends Component {
         $this->editIngredientName = $ingredient->name;
         $this->editIngredientPurchaseTiming = $ingredient->purchase_timing;
         $this->editIngredientCategory = $ingredient->category;
+        $this->editIngredientUnitWeights = collect(Ingredient::WEIGHABLE_UNITS)
+            ->mapWithKeys(fn (string $unit) => [$unit => (string) ($ingredient->unit_weights[$unit] ?? '')])
+            ->all();
         $this->resetErrorBag();
     }
 
     public function saveIngredient(): void
     {
         $this->editIngredientName = Str::ucfirst(trim($this->editIngredientName));
+        $this->editIngredientUnitWeights = array_map(
+            fn ($grams) => trim(str_replace(',', '.', (string) $grams)),
+            $this->editIngredientUnitWeights,
+        );
 
         $this->validate([
             'editIngredientName' => [
@@ -96,12 +106,20 @@ new #[Layout('layouts::app')] class extends Component {
             ],
             'editIngredientPurchaseTiming' => ['required', Rule::in(Ingredient::PURCHASE_TIMINGS)],
             'editIngredientCategory' => ['required', Rule::in(Ingredient::CATEGORIES)],
+            'editIngredientUnitWeights.*' => ['nullable', 'numeric', 'gt:0', 'max:100000'],
         ]);
 
-        Ingredient::query()->whereKey($this->editingIngredientId)->update([
+        $unitWeights = collect($this->editIngredientUnitWeights)
+            ->only(Ingredient::WEIGHABLE_UNITS)
+            ->filter(fn (string $grams) => $grams !== '')
+            ->map(fn (string $grams) => (float) $grams)
+            ->all();
+
+        Ingredient::query()->findOrFail($this->editingIngredientId)->update([
             Ingredient::NAME_COLUMN => $this->editIngredientName,
             Ingredient::PURCHASE_TIMING_COLUMN => $this->editIngredientPurchaseTiming,
             Ingredient::CATEGORY_COLUMN => $this->editIngredientCategory,
+            Ingredient::UNIT_WEIGHTS_COLUMN => $unitWeights ?: null,
         ]);
 
         $this->editingIngredientId = null;
@@ -159,6 +177,9 @@ new #[Layout('layouts::app')] class extends Component {
                         @if ($ingredient->category !== \App\Models\Ingredient::CATEGORY_UNCATEGORIZED)
                         <span class="font-manrope text-[11px] font-semibold text-ink/40">{{ Ingredient::categoryLabel($ingredient->category) }}</span>
                         @endif
+                        @foreach ($ingredient->unit_weights ?? [] as $unit => $grams)
+                        <span class="font-manrope text-[11px] font-semibold text-forest/70">1 {{ $unit }} = {{ Ingredient::formatGrams((float) $grams) }}</span>
+                        @endforeach
                     </div>
                 </div>
 
@@ -277,6 +298,27 @@ new #[Layout('layouts::app')] class extends Component {
                     @endforeach
                 </select>
                 <x-ui.field-error name="editIngredientCategory" />
+            </div>
+
+            <div>
+                <x-ui.eyebrow optional>{{ __('Unit weights') }}</x-ui.eyebrow>
+                <p class="font-manrope text-xs text-ink/50 -mt-1.5 mb-2.5">{{ __('How many grams one unit weighs, e.g. 1 pcs of egg = 50 g.') }}</p>
+                <div class="grid grid-cols-2 gap-2">
+                    @foreach (\App\Models\Ingredient::WEIGHABLE_UNITS as $unit)
+                    <label wire:key="unit-weight-{{ $unit }}" class="flex items-center gap-2 rounded-xl border border-ink/15 bg-white px-3 py-1.5">
+                        <span class="font-manrope text-sm font-semibold text-ink/60 w-14 shrink-0">1 {{ $unit }} =</span>
+                        <input
+                            type="text"
+                            inputmode="decimal"
+                            wire:model="editIngredientUnitWeights.{{ $unit }}"
+                            class="w-full min-w-0 bg-transparent font-manrope text-base sm:text-sm text-ink text-right focus:outline-none" />
+                        <span class="font-manrope text-sm text-ink/50">g</span>
+                    </label>
+                    @endforeach
+                </div>
+                @foreach (\App\Models\Ingredient::WEIGHABLE_UNITS as $unit)
+                <x-ui.field-error name="editIngredientUnitWeights.{{ $unit }}" />
+                @endforeach
             </div>
 
             <div class="flex items-center justify-end gap-3">
