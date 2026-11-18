@@ -31,7 +31,7 @@ $isActive = fn (array $paths) => collect($paths)->contains(fn ($p) => $currentPa
         @foreach ($items as $item)
         <a
             href="{{ route($item['route']) }}"
-            wire:navigate
+            wire:navigate.hover
             data-nav-root
             x-on:click="path = new URL($el.href).pathname"
             @if ($isActive($item['paths'])) data-active @endif

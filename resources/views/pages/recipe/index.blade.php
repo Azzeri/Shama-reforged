@@ -179,7 +179,7 @@ new #[Layout('layouts::app')] class extends Component {
         <div class="rounded-[22px] border border-ink/10 bg-white divide-y divide-ink/8 overflow-hidden">
             @foreach ($this->recipes as $recipe)
             @php $kcal = Recipe::shortCalorieLine(collect(Recipe::NUTRITION_PROFILES)->mapWithKeys(fn ($p) => [$p => $recipe->caloriesFor($p)])->filter()->all()); @endphp
-            <a href="{{ route('recipes.show', $recipe) }}" wire:navigate wire:key="recipe-{{ $recipe->id }}" class="flex items-center gap-3 px-4 py-3.5">
+            <a href="{{ route('recipes.show', $recipe) }}" wire:navigate.hover wire:key="recipe-{{ $recipe->id }}" class="flex items-center gap-3 px-4 py-3.5">
                 <div class="flex-1 min-w-0">
                     <div class="font-fraunces text-[17px] font-semibold leading-snug text-ink">{{ $recipe->name }}</div>
                     @if ($recipe->tags->isNotEmpty() || $kcal !== '')

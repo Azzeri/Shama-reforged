@@ -607,3 +607,42 @@ if (window.Alpine) {
         startedAt = null;
     });
 })();
+
+/*
+ * Start loading the next page as soon as a finger touches a link, instead of
+ * after it's lifted. Links with `wire:navigate.hover` prefetch on mouseenter;
+ * phones have no hover, so touchstart pretends to be one (and a scroll or a
+ * cancelled touch pretends the pointer left). When the tap completes,
+ * Livewire uses the prefetched (or still in-flight) response.
+ */
+(() => {
+    const PREFETCH_LINK = 'a[wire\\:navigate\\.hover]';
+    let touched = null;
+    let startY = 0;
+
+    const leave = () => {
+        touched?.dispatchEvent(new MouseEvent('mouseleave'));
+        touched = null;
+    };
+
+    document.addEventListener('touchstart', (event) => {
+        const link = event.target.closest?.(PREFETCH_LINK);
+
+        if (! link || event.touches.length !== 1) {
+            return;
+        }
+
+        touched = link;
+        startY = event.touches[0].clientY;
+        link.dispatchEvent(new MouseEvent('mouseenter'));
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (event) => {
+        if (touched && Math.abs(event.touches[0].clientY - startY) > 10) {
+            leave();
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchcancel', leave, { passive: true });
+    document.addEventListener('touchend', () => { touched = null; }, { passive: true });
+})();
