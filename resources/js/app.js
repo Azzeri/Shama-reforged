@@ -398,3 +398,125 @@ if (window.Alpine) {
 } else {
     document.addEventListener('alpine:init', () => registerShoppingTile(window.Alpine));
 }
+
+/*
+ * Loyalty cards (shopping → "Cards" tab). The barcode / QR libraries and the
+ * camera scanner are loaded on demand, so they don't weigh down every page.
+ */
+const digitsOnly = (value) => String(value ?? '').replace(/\s+/g, '');
+
+const eanChecksumOk = (digits) => {
+    const body = digits.slice(0, -1).split('').reverse();
+    const sum = body.reduce((acc, d, i) => acc + Number(d) * (i % 2 === 0 ? 3 : 1), 0);
+
+    return (10 - (sum % 10)) % 10 === Number(digits.at(-1));
+};
+
+/** Pick a symbology when the card wasn't scanned (typed in by hand). */
+const guessBarcodeFormat = (number) => {
+    const digits = digitsOnly(number);
+
+    if (/^\d+$/.test(digits)) {
+        if (digits.length === 13 && eanChecksumOk(digits)) return 'EAN13';
+        if (digits.length === 8 && eanChecksumOk(digits)) return 'EAN8';
+        if (digits.length === 12 && eanChecksumOk(digits)) return 'UPC';
+    }
+
+    return 'CODE128';
+};
+
+window.renderCardCode = async (el, { number, codeType, format }) => {
+    const value = digitsOnly(number);
+    el.innerHTML = '';
+
+    if (codeType === 'qr') {
+        const { default: QRCode } = await import('qrcode');
+        el.innerHTML = await QRCode.toString(value, { type: 'svg', margin: 0, errorCorrectionLevel: 'M' });
+
+        return;
+    }
+
+    const { default: JsBarcode } = await import('jsbarcode');
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    el.appendChild(svg);
+
+    const options = { displayValue: false, margin: 0, height: 110, width: 2.4, background: 'transparent' };
+
+    try {
+        JsBarcode(svg, value, { ...options, format: format || guessBarcodeFormat(value) });
+    } catch {
+        JsBarcode(svg, value, { ...options, format: 'CODE128' });
+    }
+
+    svg.removeAttribute('width');
+    svg.removeAttribute('height');
+    svg.setAttribute('preserveAspectRatio', 'none');
+    svg.style.width = '100%';
+    svg.style.height = '110px';
+};
+
+/** ZXing format name → [code type, JsBarcode format]. */
+const fromZxingFormat = (name) => ({
+    QR_CODE: ['qr', null],
+    EAN_13: ['barcode', 'EAN13'],
+    EAN_8: ['barcode', 'EAN8'],
+    UPC_A: ['barcode', 'UPC'],
+    CODE_128: ['barcode', 'CODE128'],
+    CODE_39: ['barcode', 'CODE39'],
+    ITF: ['barcode', 'ITF'],
+}[name] ?? ['barcode', null]);
+
+const registerCardScanner = (Alpine) => Alpine.data('cardScanner', () => ({
+    scanning: false,
+    error: null,
+    controls: null,
+    supported: !! navigator.mediaDevices?.getUserMedia && window.isSecureContext,
+
+    async start() {
+        this.error = null;
+        this.scanning = true;
+        await this.$nextTick();
+
+        try {
+            const [{ BrowserMultiFormatReader }, { BarcodeFormat }] = await Promise.all([
+                import('@zxing/browser'),
+                import('@zxing/library'),
+            ]);
+            const reader = new BrowserMultiFormatReader();
+
+            this.controls = await reader.decodeFromConstraints(
+                { video: { facingMode: 'environment' } },
+                this.$refs.video,
+                (result) => {
+                    if (! result) {
+                        return;
+                    }
+
+                    const [codeType, format] = fromZxingFormat(BarcodeFormat[result.getBarcodeFormat()]);
+                    this.$wire.set('number', result.getText(), false);
+                    this.$wire.set('codeType', codeType, false);
+                    this.$wire.set('format', format, false);
+                    this.$wire.$refresh();
+                    this.stop();
+                },
+            );
+        } catch (e) {
+            this.error = e?.name === 'NotAllowedError' ? 'denied' : 'failed';
+            this.stop();
+        }
+    },
+    stop() {
+        this.controls?.stop();
+        this.controls = null;
+        this.scanning = false;
+    },
+    destroy() {
+        this.stop();
+    },
+}));
+
+if (window.Alpine) {
+    registerCardScanner(window.Alpine);
+} else {
+    document.addEventListener('alpine:init', () => registerCardScanner(window.Alpine));
+}

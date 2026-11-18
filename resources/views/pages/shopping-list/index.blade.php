@@ -10,6 +10,8 @@ use Illuminate\Support\Collection;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\On;
+use Livewire\Attributes\Url;
 use Flux\Flux;
 
 new #[Layout('layouts::app')] class extends Component {
@@ -18,6 +20,10 @@ new #[Layout('layouts::app')] class extends Component {
 
     /** Unbought rows for dates this far in the past are deleted on visit. */
     private const PURGE_STALE_AFTER_DAYS = 7;
+
+    /** "list" or "cards" (loyalty cards). */
+    #[Url(except: 'list')]
+    public string $tab = 'list';
 
     public string $newItemName = '';
     public string $newItemQuantity = '';
@@ -53,6 +59,18 @@ new #[Layout('layouts::app')] class extends Component {
     public function render()
     {
         return $this->view()->title(__('Shopping'));
+    }
+
+    #[Computed]
+    public function cardsCount(): int
+    {
+        return \App\Models\LoyaltyCard::query()->count();
+    }
+
+    #[On('cards-changed')]
+    public function cardsChanged(): void
+    {
+        unset($this->cardsCount);
     }
 
     #[Computed]
@@ -300,8 +318,9 @@ new #[Layout('layouts::app')] class extends Component {
 ?>
 
 @php
-    $list = $this->list;
-    $progress = $list['progress'];
+    $isList = $tab !== 'cards';
+    $list = $isList ? $this->list : null;
+    $progress = $list['progress'] ?? null;
 @endphp
 
 {{-- Polls so changes made by someone else on another phone show up live. --}}
@@ -311,6 +330,12 @@ new #[Layout('layouts::app')] class extends Component {
             <div class="flex items-center justify-between gap-3">
                 <h1 class="font-fraunces text-[34px] font-semibold leading-none text-ink">{{ __('Shopping') }}</h1>
 
+                @if (! $isList)
+                <button type="button" wire:click="$dispatch('card-new')" class="inline-flex items-center gap-1.5 rounded-full bg-terracotta px-4 py-2.5 font-manrope text-[15px] font-bold text-white shadow-[0_6px_14px_rgba(193,68,45,0.3)]">
+                    <flux:icon.plus class="size-4" />
+                    {{ __('Card') }}
+                </button>
+                @else
                 <div class="flex items-center gap-2">
                     <flux:modal.trigger name="add-item-modal">
                         <button type="button" wire:click="resetNewItemForm" class="inline-flex items-center gap-1.5 rounded-full bg-terracotta px-4 py-2.5 font-manrope text-[15px] font-bold text-white shadow-[0_6px_14px_rgba(193,68,45,0.3)]">
@@ -332,9 +357,24 @@ new #[Layout('layouts::app')] class extends Component {
                         </flux:menu>
                     </flux:dropdown>
                 </div>
+                @endif
             </div>
 
-            @if ($progress['total'] > 0)
+            <div class="mt-4 grid grid-cols-2 gap-1 rounded-2xl bg-sand p-1">
+                @foreach (['list' => __('List'), 'cards' => __('Cards')] as $key => $label)
+                <button type="button" wire:click="$set('tab', '{{ $key }}')" @class([
+                    'rounded-xl py-2.5 font-manrope text-[15px] font-bold text-ink transition-colors',
+                    'bg-white shadow-sm' => ($key === 'cards') === ! $isList,
+                ])>
+                    {{ $label }}
+                    @if ($key === 'cards' && $this->cardsCount > 0)
+                    <span class="ml-1 font-semibold text-ink/50">{{ $this->cardsCount }}</span>
+                    @endif
+                </button>
+                @endforeach
+            </div>
+
+            @if ($isList && $progress['total'] > 0)
             <div class="mt-4 flex items-center justify-between font-manrope text-[13.5px] text-ink/60">
                 <span>{{ __('Bought :bought of :total', $progress) }}</span>
                 @if ($this->rangeLabel)
@@ -347,6 +387,9 @@ new #[Layout('layouts::app')] class extends Component {
             @endif
         </div>
 
+        @if (! $isList)
+        <livewire:shopping-list.cards />
+        @else
         @if ($progress['total'] === 0)
         <div class="rounded-[22px] border border-dashed border-ink/20 px-5 py-10 text-center space-y-3">
             <p class="font-manrope text-[15px] text-ink/60">{{ __('The shopping list is empty.') }}</p>
@@ -419,6 +462,7 @@ new #[Layout('layouts::app')] class extends Component {
                 </div>
             </div>
         </section>
+        @endif
         @endif
     </div>
 
