@@ -1,367 +1,345 @@
 <?php
 
 use App\Models\Ingredient;
+use App\Support\ShoppingList\Quantity;
+use Flux\Flux;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
-use Livewire\Component;
-use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
-use Flux\Flux;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
+use Livewire\Component;
 
 new #[Layout('layouts::app')] class extends Component {
-    public ?Ingredient $ingredientToDelete = null;
+    /** "all", "advance" or a category code. */
+    public const FILTER_ALL = 'all';
 
+    public const FILTER_ADVANCE = 'advance';
+
+    #[Url(as: 'q')]
     public string $search = '';
 
-    public string $newIngredientName = '';
+    #[Url(as: 'filter')]
+    public string $filter = self::FILTER_ALL;
 
-    public string $newIngredientPurchaseTiming = Ingredient::PURCHASE_TIMING_FRESH;
+    /** null = the sheet creates a new ingredient. */
+    public ?int $editingId = null;
 
-    public string $newIngredientCategory = Ingredient::CATEGORY_UNCATEGORIZED;
+    public string $name = '';
 
-    public ?int $editingIngredientId = null;
+    public string $purchaseTiming = Ingredient::PURCHASE_TIMING_FRESH;
 
-    public string $editIngredientName = '';
+    public string $category = Ingredient::CATEGORY_UNCATEGORIZED;
 
-    public string $editIngredientPurchaseTiming = Ingredient::PURCHASE_TIMING_FRESH;
+    /** unit => grams per 1 unit, as typed */
+    public array $unitWeights = [];
 
-    public string $editIngredientCategory = Ingredient::CATEGORY_UNCATEGORIZED;
-
-    /** unit => grams per 1 unit (string, as typed). */
-    public array $editIngredientUnitWeights = [];
+    public bool $confirmingDelete = false;
 
     public function render()
     {
-        return $this->view()
-            ->title(__('Ingredients'));
+        return $this->view()->title(__('Ingredients'));
     }
 
     #[Computed]
-    public function ingredients()
+    public function ingredients(): Collection
     {
+        $search = trim($this->search);
+
         return Ingredient::query()
-            ->when($this->search, function ($query) {
-                $query->where(Ingredient::NAME_COLUMN, 'like', '%' . $this->search . '%');
-            })
+            ->when($search !== '', fn ($query) => $query->where(Ingredient::NAME_COLUMN, 'like', "%{$search}%"))
+            ->when($this->filter === self::FILTER_ADVANCE, fn ($query) => $query->where(Ingredient::PURCHASE_TIMING_COLUMN, Ingredient::PURCHASE_TIMING_ADVANCE))
+            ->when(in_array($this->filter, Ingredient::CATEGORIES, true), fn ($query) => $query->where(Ingredient::CATEGORY_COLUMN, $this->filter))
             ->orderBy(Ingredient::NAME_COLUMN)
             ->get();
     }
 
-    public function resetNewIngredientForm(): void
+    /** Filter chips: all, "for the whole week", then aisles that have ingredients. */
+    #[Computed]
+    public function filters(): array
     {
-        $this->newIngredientName = '';
-        $this->newIngredientPurchaseTiming = Ingredient::PURCHASE_TIMING_FRESH;
-        $this->newIngredientCategory = Ingredient::CATEGORY_UNCATEGORIZED;
-        $this->resetErrorBag();
+        $used = Ingredient::query()->distinct()->pluck(Ingredient::CATEGORY_COLUMN)->all();
+
+        return [
+            self::FILTER_ALL => __('All'),
+            self::FILTER_ADVANCE => __('For the whole week'),
+            ...collect(Ingredient::CATEGORIES)
+                ->filter(fn (string $category) => in_array($category, $used, true))
+                ->mapWithKeys(fn (string $category) => [$category => Ingredient::categoryLabel($category)])
+                ->all(),
+        ];
     }
 
-    public function createIngredient(): void
+    #[Computed]
+    public function editingRecipeCount(): int
     {
-        $this->newIngredientName = Str::ucfirst(trim($this->newIngredientName));
-
-        $this->validate([
-            'newIngredientName' => ['required', 'string', 'max:255', 'unique:ingredients,name'],
-            'newIngredientPurchaseTiming' => ['required', Rule::in(Ingredient::PURCHASE_TIMINGS)],
-            'newIngredientCategory' => ['required', Rule::in(Ingredient::CATEGORIES)],
-        ]);
-
-        Ingredient::query()->create([
-            Ingredient::NAME_COLUMN => $this->newIngredientName,
-            Ingredient::PURCHASE_TIMING_COLUMN => $this->newIngredientPurchaseTiming,
-            Ingredient::CATEGORY_COLUMN => $this->newIngredientCategory,
-        ]);
-
-        $this->resetNewIngredientForm();
-        unset($this->ingredients);
-        $this->dispatch('modal-close', name: 'add-ingredient-modal');
-
-        Flux::toast(variant: 'success', text: __('Ingredient added.'));
+        return $this->editingId
+            ? Ingredient::query()->find($this->editingId)?->recipes()->count() ?? 0
+            : 0;
     }
 
-    public function editIngredient(int $ingredientId): void
+    public function setFilter(string $filter): void
     {
-        $ingredient = Ingredient::query()->findOrFail($ingredientId);
-        $this->editingIngredientId = $ingredientId;
-        $this->editIngredientName = $ingredient->name;
-        $this->editIngredientPurchaseTiming = $ingredient->purchase_timing;
-        $this->editIngredientCategory = $ingredient->category;
-        $this->editIngredientUnitWeights = collect(Ingredient::WEIGHABLE_UNITS)
-            ->mapWithKeys(fn (string $unit) => [$unit => (string) ($ingredient->unit_weights[$unit] ?? '')])
+        $this->filter = $filter;
+    }
+
+    public function openNew(): void
+    {
+        $this->resetForm();
+        $this->dispatch('modal-show', name: 'ingredient-modal');
+    }
+
+    public function openEdit(int $id): void
+    {
+        $ingredient = Ingredient::query()->findOrFail($id);
+
+        $this->resetForm();
+        $this->editingId = $ingredient->id;
+        $this->name = $ingredient->name;
+        $this->purchaseTiming = in_array($ingredient->purchase_timing, Ingredient::PURCHASE_TIMINGS, true)
+            ? $ingredient->purchase_timing
+            : Ingredient::PURCHASE_TIMING_FRESH;
+        $this->category = in_array($ingredient->category, Ingredient::CATEGORIES, true)
+            ? $ingredient->category
+            : Ingredient::CATEGORY_UNCATEGORIZED;
+        $this->unitWeights = collect(Ingredient::WEIGHABLE_UNITS)
+            ->mapWithKeys(fn (string $unit) => [$unit => isset($ingredient->unit_weights[$unit]) ? Quantity::number((float) $ingredient->unit_weights[$unit]) : ''])
             ->all();
+
+        $this->dispatch('modal-show', name: 'ingredient-modal');
+    }
+
+    private function resetForm(): void
+    {
+        $this->reset('editingId', 'name', 'purchaseTiming', 'category', 'confirmingDelete');
+        $this->unitWeights = array_fill_keys(Ingredient::WEIGHABLE_UNITS, '');
+        unset($this->editingRecipeCount);
         $this->resetErrorBag();
     }
 
-    public function saveIngredient(): void
+    public function save(): void
     {
-        $this->editIngredientName = Str::ucfirst(trim($this->editIngredientName));
-        $this->editIngredientUnitWeights = array_map(
+        $this->name = Str::ucfirst(trim($this->name));
+        $this->unitWeights = array_map(
             fn ($grams) => trim(str_replace(',', '.', (string) $grams)),
-            $this->editIngredientUnitWeights,
+            $this->unitWeights,
         );
 
         $this->validate([
-            'editIngredientName' => [
-                'required', 'string', 'max:255',
-                Rule::unique('ingredients', 'name')->ignore($this->editingIngredientId),
-            ],
-            'editIngredientPurchaseTiming' => ['required', Rule::in(Ingredient::PURCHASE_TIMINGS)],
-            'editIngredientCategory' => ['required', Rule::in(Ingredient::CATEGORIES)],
-            'editIngredientUnitWeights.*' => ['nullable', 'numeric', 'gt:0', 'max:100000'],
+            'name' => ['required', 'string', 'max:255', Rule::unique('ingredients', 'name')->ignore($this->editingId)],
+            'purchaseTiming' => ['required', Rule::in(Ingredient::PURCHASE_TIMINGS)],
+            'category' => ['required', Rule::in(Ingredient::CATEGORIES)],
+            'unitWeights.*' => ['nullable', 'numeric', 'gt:0', 'max:100000'],
+        ], attributes: [
+            'name' => __('name'),
+            'unitWeights.*' => __('unit weight'),
         ]);
 
-        $unitWeights = collect($this->editIngredientUnitWeights)
+        $unitWeights = collect($this->unitWeights)
             ->only(Ingredient::WEIGHABLE_UNITS)
             ->filter(fn (string $grams) => $grams !== '')
             ->map(fn (string $grams) => (float) $grams)
             ->all();
 
-        Ingredient::query()->findOrFail($this->editingIngredientId)->update([
-            Ingredient::NAME_COLUMN => $this->editIngredientName,
-            Ingredient::PURCHASE_TIMING_COLUMN => $this->editIngredientPurchaseTiming,
-            Ingredient::CATEGORY_COLUMN => $this->editIngredientCategory,
+        $attributes = [
+            Ingredient::NAME_COLUMN => $this->name,
+            Ingredient::PURCHASE_TIMING_COLUMN => $this->purchaseTiming,
+            Ingredient::CATEGORY_COLUMN => $this->category,
             Ingredient::UNIT_WEIGHTS_COLUMN => $unitWeights ?: null,
-        ]);
+        ];
 
-        $this->editingIngredientId = null;
-        unset($this->ingredients);
-        $this->dispatch('modal-close', name: 'edit-ingredient-modal');
+        $this->editingId
+            ? Ingredient::query()->findOrFail($this->editingId)->update($attributes)
+            : Ingredient::query()->create($attributes);
 
-        Flux::toast(variant: 'success', text: __('Ingredient updated.'));
-    }
+        Flux::toast(variant: 'success', text: $this->editingId ? __('Ingredient updated.') : __('Ingredient added.'));
 
-    public function confirmDelete(Ingredient $ingredient): void
-    {
-        $this->ingredientToDelete = $ingredient;
+        $this->resetForm();
+        unset($this->ingredients, $this->filters);
+        $this->dispatch('modal-close', name: 'ingredient-modal');
     }
 
     public function delete(): void
     {
-        $this->ingredientToDelete?->delete();
-        $this->ingredientToDelete = null;
-        unset($this->ingredients);
+        Ingredient::query()->whereKey($this->editingId)->delete();
 
         Flux::toast(variant: 'success', text: __('Ingredient deleted.'));
+
+        $this->resetForm();
+        unset($this->ingredients, $this->filters);
+        $this->dispatch('modal-close', name: 'ingredient-modal');
     }
 };
 ?>
 
 <div>
-    <div class="space-y-5">
-        <div class="flex items-start justify-between">
-            <div>
-                <h1 class="font-fraunces text-[26px] font-semibold leading-tight text-ink mb-1">{{ __('Ingredients') }}</h1>
-                <p class="font-manrope text-[13px] text-ink/60">{{ __('List of all ingredients.') }}</p>
-            </div>
+    <div class="space-y-4">
+        <div class="flex items-center justify-between gap-3">
+            <h1 class="font-fraunces text-[34px] font-semibold leading-none text-ink">{{ __('Ingredients') }}</h1>
 
-            <flux:modal.trigger name="add-ingredient-modal">
-                <button
-                    type="button"
-                    wire:click="resetNewIngredientForm"
-                    class="inline-flex items-center rounded-xl bg-ink text-cream px-3.5 py-2.5 font-manrope text-[12.5px] font-extrabold whitespace-nowrap">
-                    {{ __('Add ingredient') }}
-                </button>
-            </flux:modal.trigger>
+            <button type="button" wire:click="openNew" class="inline-flex items-center gap-1.5 rounded-full bg-terracotta px-4 py-2.5 font-manrope text-[15px] font-bold text-white shadow-[0_6px_14px_rgba(193,68,45,0.3)]">
+                <flux:icon.plus class="size-4" />
+                {{ __('New') }}
+            </button>
         </div>
 
-        <x-ui.text-input wire:model.live="search" placeholder="{{ __('Search by ingredient name') }}" class="w-full" />
-
-        <div class="rounded-2xl border border-ink/10 overflow-hidden">
-            @forelse ($this->ingredients as $ingredient)
-            <div wire:key="ingredient-{{ $ingredient->id }}" class="flex items-center justify-between px-4 py-3.5 bg-white {{ !$loop->last ? 'border-b border-ink/10' : '' }}">
-                <div>
-                    <span class="font-manrope text-[14.5px] font-semibold text-ink">{{ $ingredient->name }}</span>
-                    <div class="flex flex-wrap items-center gap-x-2">
-                        @if ($ingredient->purchase_timing === \App\Models\Ingredient::PURCHASE_TIMING_ADVANCE)
-                        <span class="font-manrope text-[11px] font-semibold text-ink/40">{{ Ingredient::purchaseTimingLabel($ingredient->purchase_timing) }}</span>
-                        @endif
-                        @if ($ingredient->category !== \App\Models\Ingredient::CATEGORY_UNCATEGORIZED)
-                        <span class="font-manrope text-[11px] font-semibold text-ink/40">{{ Ingredient::categoryLabel($ingredient->category) }}</span>
-                        @endif
-                        @foreach ($ingredient->unit_weights ?? [] as $unit => $grams)
-                        <span class="font-manrope text-[11px] font-semibold text-forest/70">1 {{ $unit }} = {{ Ingredient::formatGrams((float) $grams) }}</span>
-                        @endforeach
-                    </div>
-                </div>
-
-                <div class="flex gap-2">
-                    <flux:modal.trigger name="edit-ingredient-modal">
-                        <button
-                            type="button"
-                            wire:click="editIngredient({{ $ingredient->id }})"
-                            class="flex items-center justify-center w-[30px] h-[30px] rounded-[9px] bg-sand text-ink">
-                            <flux:icon.pencil class="size-4" />
-                        </button>
-                    </flux:modal.trigger>
-
-                    <flux:modal.trigger name="delete-ingredient-modal">
-                        <button
-                            type="button"
-                            wire:click="confirmDelete({{ $ingredient->id }})"
-                            class="flex items-center justify-center w-[30px] h-[30px] rounded-[9px] bg-terracotta text-white">
-                            <flux:icon.trash class="size-4" />
-                        </button>
-                    </flux:modal.trigger>
-                </div>
-            </div>
-            @empty
-            <div class="px-4 py-8 text-center bg-white font-manrope text-sm text-ink/50">
-                {{ __('No ingredients yet. Add the first one.') }}
-            </div>
-            @endforelse
+        <div class="relative">
+            <flux:icon.magnifying-glass class="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-ink/45" />
+            <input
+                type="search"
+                wire:model.live.debounce.250ms="search"
+                placeholder="{{ __('Search ingredients') }}"
+                class="w-full rounded-2xl border border-ink/10 bg-white py-3 pl-10 pr-9 font-manrope text-base text-ink placeholder:text-ink/40 focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
+            @if ($search !== '')
+            <button type="button" wire:click="$set('search', '')" class="absolute right-3 top-1/2 -translate-y-1/2 text-ink/35" aria-label="{{ __('Clear') }}">
+                <flux:icon.x-mark class="size-4" />
+            </button>
+            @endif
         </div>
+
+        <div class="-mx-4 px-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            @foreach ($this->filters as $key => $label)
+            <button
+                type="button"
+                wire:key="filter-{{ $key }}"
+                wire:click="setFilter('{{ $key }}')"
+                @class([
+                    'shrink-0 rounded-full border px-3.5 py-2 font-manrope text-[14px] font-semibold whitespace-nowrap',
+                    'bg-ink border-ink text-white' => $filter === $key,
+                    'bg-white border-ink/10 text-ink' => $filter !== $key,
+                ])>
+                {{ $label }}
+            </button>
+            @endforeach
+        </div>
+
+        @if ($this->ingredients->isNotEmpty())
+        <div class="rounded-[22px] border border-ink/10 bg-white divide-y divide-ink/8 overflow-hidden">
+            @foreach ($this->ingredients as $ingredient)
+            <button type="button" wire:key="ingredient-{{ $ingredient->id }}" wire:click="openEdit({{ $ingredient->id }})" class="w-full flex items-center gap-3 px-4 py-3 text-left">
+                <span class="flex-1 min-w-0">
+                    <span class="block font-manrope text-[16px] font-medium text-ink truncate">{{ $ingredient->name }}</span>
+                    <span class="mt-0.5 flex flex-wrap items-center gap-1.5">
+                        <span class="font-manrope text-[12.5px] text-ink/50">{{ Ingredient::categoryLabel($ingredient->category) }}</span>
+                        @if ($ingredient->purchase_timing === Ingredient::PURCHASE_TIMING_ADVANCE)
+                        <span class="rounded-md bg-sage/18 px-1.5 py-px font-manrope text-[11.5px] font-semibold text-forest">{{ __('for the whole week') }}</span>
+                        @endif
+                    </span>
+                </span>
+                <flux:icon.chevron-right class="size-4 shrink-0 text-ink/35" />
+            </button>
+            @endforeach
+        </div>
+        @else
+        <div class="rounded-[22px] border border-dashed border-ink/20 px-4 py-10 text-center font-manrope text-[15px] text-ink/50">
+            {{ __('No ingredients found.') }}
+        </div>
+        @endif
     </div>
 
-    <flux:modal name="add-ingredient-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
-        <form wire:submit="createIngredient" class="space-y-5">
-            <div class="flex items-start justify-between gap-2">
-                <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('New ingredient') }}</h3>
+    <flux:modal name="ingredient-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-white! max-h-[90dvh] overflow-y-auto">
+        <form wire:submit="save" class="space-y-5">
+            <div class="flex items-center justify-between gap-2">
+                <h3 class="font-fraunces text-[22px] font-semibold text-ink">{{ $editingId ? __('Edit ingredient') : __('New ingredient') }}</h3>
                 <flux:modal.close>
-                    <button type="button" wire:click="resetNewIngredientForm" class="text-ink/25 hover:text-ink/50 p-1.5 text-lg leading-none">✕</button>
-                </flux:modal.close>
-            </div>
-
-            <div>
-                <x-ui.eyebrow>{{ __('Ingredient name') }}</x-ui.eyebrow>
-                <x-ui.text-input wire:model="newIngredientName" placeholder="{{ __('e.g. Basmati rice') }}" class="w-full" required autofocus />
-                <x-ui.field-error name="newIngredientName" />
-            </div>
-
-            <div>
-                <x-ui.eyebrow>{{ __('Purchase timing') }}</x-ui.eyebrow>
-                <div class="flex flex-col gap-2">
-                    @foreach (\App\Models\Ingredient::PURCHASE_TIMINGS as $timing)
-                    <label class="flex items-center gap-2.5 border-[1.5px] rounded-xl px-3.5 py-2.5 cursor-pointer {{ $newIngredientPurchaseTiming === $timing ? 'border-terracotta bg-sand' : 'border-ink/15' }}">
-                        <input type="radio" wire:model.live="newIngredientPurchaseTiming" value="{{ $timing }}" class="accent-terracotta" />
-                        <span class="font-manrope text-sm font-semibold text-ink">{{ \App\Models\Ingredient::purchaseTimingLabel($timing) }}</span>
-                    </label>
-                    @endforeach
-                </div>
-                <x-ui.field-error name="newIngredientPurchaseTiming" />
-            </div>
-
-            <div>
-                <x-ui.eyebrow>{{ __('Category') }}</x-ui.eyebrow>
-                <select wire:model="newIngredientCategory" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-base sm:text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
-                    @foreach (\App\Models\Ingredient::CATEGORIES as $category)
-                    <option value="{{ $category }}">{{ \App\Models\Ingredient::categoryLabel($category) }}</option>
-                    @endforeach
-                </select>
-                <x-ui.field-error name="newIngredientCategory" />
-            </div>
-
-            <div class="flex items-center justify-end gap-3">
-                <flux:modal.close>
-                    <button type="button" wire:click="resetNewIngredientForm" class="font-manrope text-sm font-extrabold text-forest px-4 py-3">
-                        {{ __('Cancel') }}
+                    <button type="button" class="p-1 text-ink/60" aria-label="{{ __('Close') }}">
+                        <flux:icon.x-mark class="size-5" />
                     </button>
                 </flux:modal.close>
-                <button type="submit" class="bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-[14px] px-5 py-3 font-manrope text-sm font-extrabold">
-                    + {{ __('Add ingredient') }}
-                </button>
-            </div>
-        </form>
-    </flux:modal>
-
-    <flux:modal name="edit-ingredient-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
-        <form wire:submit="saveIngredient" class="space-y-5">
-            <div class="flex items-start justify-between gap-2">
-                <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Edit ingredient') }}</h3>
-                <flux:modal.close>
-                    <button type="button" class="text-ink/25 hover:text-ink/50 p-1.5 text-lg leading-none">✕</button>
-                </flux:modal.close>
             </div>
 
             <div>
-                <x-ui.eyebrow>{{ __('Ingredient name') }}</x-ui.eyebrow>
-                <x-ui.text-input wire:model="editIngredientName" placeholder="{{ __('e.g. Basmati rice') }}" class="w-full" required autofocus />
-                <x-ui.field-error name="editIngredientName" />
+                <x-ui.eyebrow>{{ __('Name') }}</x-ui.eyebrow>
+                <x-ui.text-input wire:model.live.debounce.200ms="name" placeholder="{{ __('e.g. Basmati rice') }}" class="w-full bg-cream" />
+                <x-ui.field-error name="name" />
             </div>
 
             <div>
-                <x-ui.eyebrow>{{ __('Purchase timing') }}</x-ui.eyebrow>
-                <div class="flex flex-col gap-2">
-                    @foreach (\App\Models\Ingredient::PURCHASE_TIMINGS as $timing)
-                    <label class="flex items-center gap-2.5 border-[1.5px] rounded-xl px-3.5 py-2.5 cursor-pointer {{ $editIngredientPurchaseTiming === $timing ? 'border-terracotta bg-sand' : 'border-ink/15' }}">
-                        <input type="radio" wire:model.live="editIngredientPurchaseTiming" value="{{ $timing }}" class="accent-terracotta" />
-                        <span class="font-manrope text-sm font-semibold text-ink">{{ \App\Models\Ingredient::purchaseTimingLabel($timing) }}</span>
-                    </label>
-                    @endforeach
-                </div>
-                <x-ui.field-error name="editIngredientPurchaseTiming" />
-            </div>
-
-            <div>
-                <x-ui.eyebrow>{{ __('Category') }}</x-ui.eyebrow>
-                <select wire:model="editIngredientCategory" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-base sm:text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
-                    @foreach (\App\Models\Ingredient::CATEGORIES as $category)
-                    <option value="{{ $category }}">{{ \App\Models\Ingredient::categoryLabel($category) }}</option>
-                    @endforeach
-                </select>
-                <x-ui.field-error name="editIngredientCategory" />
-            </div>
-
-            <div>
-                <x-ui.eyebrow optional>{{ __('Unit weights') }}</x-ui.eyebrow>
-                <p class="font-manrope text-xs text-ink/50 -mt-1.5 mb-2.5">{{ __('How many grams one unit weighs, e.g. 1 pcs of egg = 50 g.') }}</p>
-                <div class="grid grid-cols-2 gap-2">
-                    @foreach (\App\Models\Ingredient::WEIGHABLE_UNITS as $unit)
-                    <label wire:key="unit-weight-{{ $unit }}" class="flex items-center gap-2 rounded-xl border border-ink/15 bg-white px-3 py-1.5">
-                        <span class="font-manrope text-sm font-semibold text-ink/60 w-14 shrink-0">1 {{ $unit }} =</span>
-                        <input
-                            type="text"
-                            inputmode="decimal"
-                            wire:model="editIngredientUnitWeights.{{ $unit }}"
-                            class="w-full min-w-0 bg-transparent font-manrope text-base sm:text-sm text-ink text-right focus:outline-none" />
-                        <span class="font-manrope text-sm text-ink/50">g</span>
-                    </label>
-                    @endforeach
-                </div>
-                @foreach (\App\Models\Ingredient::WEIGHABLE_UNITS as $unit)
-                <x-ui.field-error name="editIngredientUnitWeights.{{ $unit }}" />
-                @endforeach
-            </div>
-
-            <div class="flex items-center justify-end gap-3">
-                <flux:modal.close>
-                    <button type="button" class="font-manrope text-sm font-extrabold text-forest px-4 py-3">
-                        {{ __('Cancel') }}
-                    </button>
-                </flux:modal.close>
-                <button type="submit" class="bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-[14px] px-5 py-3 font-manrope text-sm font-extrabold">
-                    {{ __('Save changes') }}
-                </button>
-            </div>
-        </form>
-    </flux:modal>
-
-    <flux:modal name="delete-ingredient-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
-        <div class="space-y-6">
-            <div class="flex items-start justify-between gap-2">
-                <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Delete ingredient?') }}</h3>
-                <flux:modal.close>
-                    <button type="button" class="text-ink/25 hover:text-ink/50 p-1.5 text-lg leading-none">✕</button>
-                </flux:modal.close>
-            </div>
-            <p class="font-manrope text-sm text-ink/60 -mt-4">
-                {{ __('This action cannot be undone. ":name" will be permanently removed.', ['name' => $this->ingredientToDelete?->name]) }}
-            </p>
-
-            <div class="flex gap-2 justify-end">
-                <flux:modal.close>
-                    <button type="button" class="font-manrope text-sm font-extrabold text-ink/60 hover:text-ink px-4 py-2.5">
-                        {{ __('Cancel') }}
-                    </button>
-                </flux:modal.close>
-
-                <flux:modal.close>
+                <x-ui.eyebrow>{{ __('When to buy') }}</x-ui.eyebrow>
+                <div class="grid grid-cols-2 gap-1 rounded-2xl bg-sand p-1">
+                    @foreach ([Ingredient::PURCHASE_TIMING_FRESH => [__('Fresh'), __('day before')], Ingredient::PURCHASE_TIMING_ADVANCE => [__('For the whole week'), __('buy right away')]] as $timing => [$title, $hint])
                     <button
                         type="button"
-                        wire:click="delete"
-                        class="bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-2xl px-5 py-2.5 font-manrope text-sm font-extrabold">
-                        {{ __('Delete ingredient') }}
+                        wire:click="$set('purchaseTiming', '{{ $timing }}')"
+                        @class([
+                            'rounded-xl px-2 py-2 text-center transition-colors',
+                            'bg-white shadow-sm' => $purchaseTiming === $timing,
+                        ])>
+                        <span class="block font-manrope text-[14.5px] font-bold text-ink">{{ $title }}</span>
+                        <span class="block font-manrope text-[12px] text-ink/55">{{ $hint }}</span>
                     </button>
-                </flux:modal.close>
+                    @endforeach
+                </div>
             </div>
-        </div>
+
+            <div>
+                <x-ui.eyebrow>{{ __('Store aisle') }}</x-ui.eyebrow>
+                <select wire:model="category" class="w-full rounded-[14px] border border-ink/15 bg-cream px-3.5 py-3 font-manrope text-base text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
+                    @foreach (Ingredient::CATEGORIES as $categoryOption)
+                    <option value="{{ $categoryOption }}">{{ Ingredient::categoryLabel($categoryOption) }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div x-data="{ open: {{ collect($unitWeights)->filter(fn ($v) => $v !== '')->isNotEmpty() || ! $editingId ? 'true' : 'false' }} }" class="border-t border-ink/8 pt-4">
+                <button type="button" x-on:click="open = ! open" class="w-full flex items-center justify-between">
+                    <x-ui.eyebrow optional class="mb-0!">{{ __('Unit weights') }}</x-ui.eyebrow>
+                    <flux:icon.chevron-down class="size-4 text-ink/50 transition-transform" x-bind:class="open && 'rotate-180'" />
+                </button>
+                <div x-show="open" x-collapse>
+                    <p class="mt-2 mb-3 font-manrope text-[12.5px] text-ink/55">{{ __('How many grams one unit weighs, e.g. 1 pcs of egg = 50 g.') }}</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        @foreach (Ingredient::WEIGHABLE_UNITS as $unit)
+                        <label wire:key="unit-weight-{{ $unit }}" class="flex items-center gap-1.5 rounded-xl border border-ink/12 bg-cream px-3 py-2.5">
+                            <span class="shrink-0 font-manrope text-[13.5px] text-ink/70">1 {{ Quantity::unitLabel($unit) }} =</span>
+                            <input
+                                type="text"
+                                inputmode="decimal"
+                                wire:model="unitWeights.{{ $unit }}"
+                                placeholder="—"
+                                class="w-full min-w-0 bg-transparent text-right font-manrope text-base text-ink placeholder:text-ink/40 focus:outline-none" />
+                            <span class="font-manrope text-[13.5px] text-ink/50">g</span>
+                        </label>
+                        @endforeach
+                    </div>
+                    @foreach (Ingredient::WEIGHABLE_UNITS as $unit)
+                    <x-ui.field-error name="unitWeights.{{ $unit }}" />
+                    @endforeach
+                </div>
+            </div>
+
+            <div class="border-t border-ink/8 pt-4">
+                @if ($confirmingDelete)
+                <div class="flex items-center gap-3">
+                    <p class="flex-1 font-manrope text-[13.5px] text-ink/70">
+                        {{ __('Delete ":name"? This cannot be undone.', ['name' => $name]) }}
+                        @if ($this->editingRecipeCount > 0)
+                        {{ trans_choice('It will disappear from :count recipe.|It will disappear from :count recipes.', $this->editingRecipeCount) }}
+                        @endif
+                    </p>
+                    <button type="button" wire:click="$set('confirmingDelete', false)" class="font-manrope text-[14.5px] font-bold text-ink px-2 py-2">{{ __('No') }}</button>
+                    <button type="button" wire:click="delete" class="rounded-[14px] bg-terracotta px-4 py-2.5 font-manrope text-[14.5px] font-bold text-white">{{ __('Delete') }}</button>
+                </div>
+                @else
+                <div class="flex items-center justify-between gap-3">
+                    @if ($editingId)
+                    <button type="button" wire:click="$set('confirmingDelete', true)" class="inline-flex items-center gap-1.5 font-manrope text-[14.5px] font-bold text-terracotta-dark">
+                        <flux:icon.trash class="size-4" />
+                        {{ __('Delete') }}
+                    </button>
+                    @else
+                    <span></span>
+                    @endif
+                    <button
+                        type="submit"
+                        @disabled(trim($name) === '')
+                        class="rounded-[14px] bg-terracotta px-5 py-3 font-manrope text-[15px] font-bold text-white disabled:opacity-40">
+                        {{ $editingId ? __('Save') : __('Add ingredient') }}
+                    </button>
+                </div>
+                @endif
+            </div>
+        </form>
     </flux:modal>
 </div>
