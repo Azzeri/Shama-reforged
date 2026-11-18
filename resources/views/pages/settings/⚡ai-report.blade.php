@@ -4,10 +4,10 @@ use App\Actions\MealPlan\BuildMealPlanReport;
 use App\Actions\MealPlan\ImportMealPlan;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
-use Livewire\Attributes\Title;
+use Livewire\Attributes\Computed;
 use Livewire\Component;
 
-new #[Title('AI meal plan')] class extends Component {
+new class extends Component {
     public string $historyFrom = '';
 
     public string $historyTo = '';
@@ -26,6 +26,11 @@ new #[Title('AI meal plan')] class extends Component {
 
     public ?array $importResult = null;
 
+    public function render()
+    {
+        return $this->view()->title(__('AI meal plan'));
+    }
+
     public function mount(): void
     {
         $this->historyFrom = now()->subDays(28)->toDateString();
@@ -33,7 +38,42 @@ new #[Title('AI meal plan')] class extends Component {
         $this->planFrom = now()->addDay()->toDateString();
     }
 
-    public function generate(BuildMealPlanReport $build): void
+    #[Computed]
+    public function historyLabel(): string
+    {
+        return $this->rangeLabel($this->historyFrom, $this->historyTo);
+    }
+
+    #[Computed]
+    public function planLabel(): string
+    {
+        $from = Carbon::parse($this->planFrom ?: now()->addDay());
+
+        return $this->rangeLabel($from, $from->copy()->addDays(max(1, $this->planDays) - 1));
+    }
+
+    private function rangeLabel($from, $to): string
+    {
+        $locale = app()->getLocale();
+        $from = Carbon::parse($from)->locale($locale);
+        $to = Carbon::parse($to)->locale($locale);
+
+        if ($from->isSameDay($to)) {
+            return $to->isoFormat('D MMMM');
+        }
+
+        return $from->isSameMonth($to)
+            ? $from->format('j') . ' – ' . $to->isoFormat('D MMMM')
+            : $from->isoFormat('D MMMM') . ' – ' . $to->isoFormat('D MMMM');
+    }
+
+    public function changePlanDays(int $delta): void
+    {
+        $this->planDays = max(1, min(31, $this->planDays + $delta));
+    }
+
+    /** Builds the report; returned so the page can copy it to the clipboard. */
+    public function generate(BuildMealPlanReport $build): string
     {
         $this->validate([
             'historyFrom' => ['required', 'date'],
@@ -52,6 +92,8 @@ new #[Title('AI meal plan')] class extends Component {
             $this->ingredientsToUse,
             $this->extraWishes,
         );
+
+        return $this->report;
     }
 
     public function import(ImportMealPlan $import): void
@@ -81,65 +123,155 @@ new #[Title('AI meal plan')] class extends Component {
 }; ?>
 
 <section class="w-full">
-    @include('partials.settings-heading')
+    <x-pages::settings.layout :heading="__('AI meal plan')" :subheading="__('Generate a report for an AI assistant, then paste its answer back here.')">
+        <div class="space-y-4">
+            {{-- 1. Report --}}
+            <div
+                x-data="{
+                    copied: false,
+                    failed: false,
+                    busy: false,
+                    async generate() {
+                        this.copied = false;
+                        this.failed = false;
+                        this.busy = true;
+                        const report = $wire.generate().then((text) => {
+                            if (! text) throw new Error('validation');
+                            return text;
+                        });
+                        try {
+                            // iOS only allows clipboard writes inside the tap
+                            // itself, so hand it a promise of the text.
+                            if (window.ClipboardItem && navigator.clipboard?.write) {
+                                await navigator.clipboard.write([new ClipboardItem({
+                                    'text/plain': report.then((text) => new Blob([text], { type: 'text/plain' })),
+                                })]);
+                            } else {
+                                await navigator.clipboard.writeText(await report);
+                            }
+                            this.copied = true;
+                        } catch (e) {
+                            this.failed = await report.then(() => true, () => false);
+                        }
+                        this.busy = false;
+                    },
+                }"
+                class="rounded-[22px] border border-ink/10 bg-white p-4 space-y-4">
+                <div class="flex items-center gap-2.5">
+                    <span class="flex items-center justify-center size-7 rounded-full bg-ink font-manrope text-[14px] font-bold text-white">1</span>
+                    <h2 class="font-manrope text-[17px] font-bold text-ink">{{ __('Report for the AI') }}</h2>
+                </div>
 
-    <x-pages::settings.layout :heading="__('AI meal plan')" :subheading="__('Generate a report for an AI assistant, then import the plan it suggests.')">
-        <form wire:submit="generate" class="space-y-4">
-            <div class="grid grid-cols-2 gap-3">
-                <flux:input type="date" wire:model="historyFrom" :label="__('History from')" />
-                <flux:input type="date" wire:model="historyTo" :label="__('History to')" />
-                <flux:input type="date" wire:model="planFrom" :label="__('Plan from')" />
-                <flux:input type="number" min="1" max="31" wire:model="planDays" :label="__('Days to plan')" />
-            </div>
+                <div class="rounded-2xl border border-ink/8 bg-cream divide-y divide-ink/8" x-data="{ editHistory: false, editPlan: false }">
+                    <div class="px-3.5 py-3">
+                        <button type="button" x-on:click="editHistory = ! editHistory" class="w-full flex items-center gap-3 text-left">
+                            <span class="flex-1">
+                                <span class="block font-manrope text-[13px] text-ink/55">{{ __('Based on the history') }}</span>
+                                <span class="block font-manrope text-[16px] font-semibold text-ink">{{ $this->historyLabel }}</span>
+                            </span>
+                            <flux:icon.calendar class="size-5 text-ink/50" />
+                        </button>
+                        <div x-show="editHistory" x-collapse class="grid grid-cols-2 gap-2 pt-3">
+                            <input type="date" wire:model.live="historyFrom" aria-label="{{ __('History from') }}" class="w-full rounded-xl border border-ink/12 bg-white px-2.5 py-2 font-manrope text-base text-ink" />
+                            <input type="date" wire:model.live="historyTo" aria-label="{{ __('History to') }}" class="w-full rounded-xl border border-ink/12 bg-white px-2.5 py-2 font-manrope text-base text-ink" />
+                        </div>
+                        <x-ui.field-error name="historyTo" />
+                    </div>
 
-            <flux:textarea wire:model="ingredientsToUse" rows="2" :label="__('Ingredients to use (optional)')" :placeholder="__('e.g. zucchini, feta, half a chicken breast')" />
-            <flux:textarea wire:model="extraWishes" rows="2" :label="__('Other wishes (optional)')" :placeholder="__('e.g. fish twice, quick dinners on weekdays')" />
+                    <div class="px-3.5 py-3">
+                        <div class="flex items-center gap-3">
+                            <button type="button" x-on:click="editPlan = ! editPlan" class="flex-1 text-left">
+                                <span class="block font-manrope text-[13px] text-ink/55">{{ __('Plan') }}</span>
+                                <span class="block font-manrope text-[16px] font-semibold text-ink">{{ $this->planLabel }}</span>
+                            </button>
+                            <div class="flex items-center gap-1 rounded-full border border-ink/12 bg-white px-1.5 py-1">
+                                <button type="button" wire:click="changePlanDays(-1)" class="size-8 font-manrope text-lg text-ink/70" aria-label="{{ __('Fewer days') }}">−</button>
+                                <span class="min-w-[52px] text-center font-manrope text-[15px] font-bold text-ink">{{ trans_choice(':count day|:count days', $planDays) }}</span>
+                                <button type="button" wire:click="changePlanDays(1)" class="size-8 font-manrope text-lg text-terracotta-dark" aria-label="{{ __('More days') }}">+</button>
+                            </div>
+                        </div>
+                        <div x-show="editPlan" x-collapse class="pt-3">
+                            <input type="date" wire:model.live="planFrom" aria-label="{{ __('Plan from') }}" class="w-full rounded-xl border border-ink/12 bg-white px-2.5 py-2 font-manrope text-base text-ink" />
+                        </div>
+                    </div>
+                </div>
 
-            <flux:button type="submit" variant="primary" class="w-full">{{ __('Generate report') }}</flux:button>
-        </form>
+                <div>
+                    <x-ui.eyebrow optional class="normal-case! tracking-normal! text-[14px]! font-semibold! text-ink! mb-1.5!">{{ __('Ingredients to use') }}</x-ui.eyebrow>
+                    <x-ui.textarea wire:model="ingredientsToUse" rows="2" placeholder="{{ __('e.g. zucchini, feta, half a chicken breast') }}" />
+                </div>
 
-        @if ($report !== '')
-        <div class="mt-6 space-y-2" x-data="{ copied: false }">
-            <div class="flex items-center justify-between">
-                <flux:heading size="sm">{{ __('Report') }}</flux:heading>
-                <flux:button
-                    size="sm"
-                    icon="clipboard"
-                    x-on:click="navigator.clipboard.writeText($refs.report.value).then(() => { copied = true; setTimeout(() => copied = false, 2000) })">
-                    <span x-text="copied ? '{{ __('Copied!') }}' : '{{ __('Copy') }}'">{{ __('Copy') }}</span>
-                </flux:button>
-            </div>
-            <textarea x-ref="report" readonly rows="12" class="w-full rounded-xl border border-ink/15 bg-white p-3 font-mono text-xs text-ink">{{ $report }}</textarea>
-        </div>
-        @endif
+                <div>
+                    <x-ui.eyebrow optional class="normal-case! tracking-normal! text-[14px]! font-semibold! text-ink! mb-1.5!">{{ __('Other wishes') }}</x-ui.eyebrow>
+                    <x-ui.textarea wire:model="extraWishes" rows="2" placeholder="{{ __('e.g. fish twice, quick dinners on weekdays') }}" />
+                </div>
 
-        <form wire:submit="import" class="mt-8 space-y-3">
-            <flux:heading size="sm">{{ __('Import plan') }}</flux:heading>
-            <flux:text>{{ __('Paste the AI answer (or just its JSON). Only empty meals are filled, nothing is overwritten.') }}</flux:text>
-            <flux:textarea wire:model="importJson" rows="5" class="font-mono" />
-            <flux:error name="importJson" />
-            <flux:button type="submit" class="w-full">{{ __('Import') }}</flux:button>
+                <button
+                    type="button"
+                    x-on:click="generate()"
+                    x-bind:disabled="busy"
+                    class="w-full rounded-[16px] bg-terracotta py-4 font-manrope text-[16px] font-bold text-white disabled:opacity-60">
+                    <span x-show="! busy">{{ __('Generate and copy report') }}</span>
+                    <span x-show="busy" x-cloak>{{ __('Generating…') }}</span>
+                </button>
 
-            @if ($importResult)
-            <div class="rounded-xl bg-sand p-3 font-manrope text-sm text-ink space-y-1">
-                <div>{{ __('Added: :count meals', ['count' => count($importResult['created'])]) }}</div>
-                @if ($importResult['skipped'])
-                <div class="text-ink/60">{{ __('Skipped (already planned): :list', ['list' => implode(', ', $importResult['skipped'])]) }}</div>
+                <p x-show="copied" x-cloak class="flex items-center gap-1.5 font-manrope text-[14px] font-semibold text-forest">
+                    <flux:icon.check-circle class="size-4" />
+                    {{ __('Report copied — paste it into your AI assistant.') }}
+                </p>
+
+                @if ($report !== '')
+                <div x-show="failed" x-cloak class="space-y-2">
+                    <p class="font-manrope text-[13.5px] text-ink/60">{{ __('Could not copy automatically — select and copy the report below.') }}</p>
+                    <textarea readonly rows="8" x-on:focus="$el.select()" class="w-full rounded-xl border border-ink/12 bg-cream p-3 font-mono text-xs text-ink">{{ $report }}</textarea>
+                </div>
                 @endif
             </div>
-            @endif
-        </form>
 
-        <div class="mt-8 space-y-1">
-            <flux:heading size="sm">{{ __('API') }}</flux:heading>
-            <flux:text>
-                {{ __('An AI agent can send the same JSON to') }}
-                <code class="text-xs">POST {{ url('/api/meal-plan') }}</code>
-                {{ __('with the header') }} <code class="text-xs">Authorization: Bearer &lt;MEAL_PLAN_API_TOKEN&gt;</code>.
-                @if (blank(config('services.meal_plan_api.token')))
-                <span class="text-terracotta-dark">{{ __('The API is disabled — MEAL_PLAN_API_TOKEN is not set.') }}</span>
+            {{-- 2. Import --}}
+            <form wire:submit="import" class="rounded-[22px] border border-ink/10 bg-white p-4 space-y-3">
+                <div class="flex items-center gap-2.5">
+                    <span class="flex items-center justify-center size-7 rounded-full bg-sand font-manrope text-[14px] font-bold text-ink/70">2</span>
+                    <h2 class="font-manrope text-[17px] font-bold text-ink">{{ __('Import plan') }}</h2>
+                </div>
+
+                <x-ui.textarea wire:model.live.debounce.300ms="importJson" rows="4" placeholder="{{ __('Paste the AI answer or just the JSON') }}" />
+                <x-ui.field-error name="importJson" />
+                <p class="font-manrope text-[13px] text-ink/55">{{ __('We only fill empty meals — nothing gets overwritten.') }}</p>
+
+                <button
+                    type="submit"
+                    @disabled(trim($importJson) === '')
+                    class="w-full rounded-[16px] border border-ink/12 bg-white py-3.5 font-manrope text-[15.5px] font-bold text-ink disabled:text-ink/35">
+                    {{ __('Import plan') }}
+                </button>
+
+                @if ($importResult)
+                <div class="rounded-xl bg-sand p-3 font-manrope text-sm text-ink space-y-1">
+                    <div>{{ __('Added: :count meals', ['count' => count($importResult['created'])]) }}</div>
+                    @if ($importResult['skipped'])
+                    <div class="text-ink/60">{{ __('Skipped (already planned): :list', ['list' => implode(', ', $importResult['skipped'])]) }}</div>
+                    @endif
+                </div>
                 @endif
-            </flux:text>
+            </form>
+
+            {{-- API --}}
+            <div x-data="{ open: false }" class="px-1">
+                <button type="button" x-on:click="open = ! open" class="inline-flex items-center gap-1.5 font-manrope text-[14px] font-semibold text-ink/60">
+                    <flux:icon.code-bracket class="size-4" />
+                    {{ __('Import via API') }}
+                    <flux:icon.chevron-down class="size-3.5 transition-transform" x-bind:class="open && 'rotate-180'" />
+                </button>
+                <div x-show="open" x-collapse class="pt-2 font-manrope text-[13.5px] leading-relaxed text-ink/60">
+                    {{ __('An AI agent can send the same JSON to') }}
+                    <code class="text-xs text-ink">POST {{ url('/api/meal-plan') }}</code>
+                    {{ __('with the header') }} <code class="text-xs text-ink">Authorization: Bearer &lt;MEAL_PLAN_API_TOKEN&gt;</code>.
+                    @if (blank(config('services.meal_plan_api.token')))
+                    <span class="block mt-1 text-terracotta-dark">{{ __('The API is disabled — MEAL_PLAN_API_TOKEN is not set.') }}</span>
+                    @endif
+                </div>
+            </div>
         </div>
     </x-pages::settings.layout>
 </section>

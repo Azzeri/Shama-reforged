@@ -18,7 +18,7 @@
         @endif
 
         @persist('toast')
-            <flux:toast.group position="top end">
+            <flux:toast.group position="bottom center">
                 <flux:toast />
             </flux:toast.group>
         @endpersist

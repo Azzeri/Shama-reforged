@@ -8,10 +8,14 @@ use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 use Livewire\Attributes\Computed;
-use Livewire\Attributes\Title;
 use Livewire\Component;
 
-new #[Title('Profile settings')] class extends Component {
+new class extends Component {
+    public function render()
+    {
+        return $this->view()->title(__('Account'));
+    }
+
     use ProfileValidationRules;
 
     public string $name = '';
@@ -70,65 +74,77 @@ new #[Title('Profile settings')] class extends Component {
     {
         return Auth::user() instanceof MustVerifyEmail && ! Auth::user()->hasVerifiedEmail();
     }
-
-    #[Computed]
-    public function showDeleteUser(): bool
-    {
-        return ! Auth::user() instanceof MustVerifyEmail
-            || (Auth::user() instanceof MustVerifyEmail && Auth::user()->hasVerifiedEmail());
-    }
     /* @end-chisel-email-verification */
 }; ?>
 
-<section class="w-full">
-    @include('partials.settings-heading')
+<section class="w-full space-y-5">
+    <h1 class="font-fraunces text-[34px] font-semibold leading-none text-ink">{{ __('Account') }}</h1>
 
-    <flux:heading class="sr-only">{{ __('Profile settings') }}</flux:heading>
-
-    <x-pages::settings.layout :heading="__('Profile')" :subheading="__('Update your name and email address')">
-        <form wire:submit="updateProfileInformation" class="my-6 w-full space-y-6">
-            <flux:input wire:model="name" :label="__('Name')" type="text" required autofocus autocomplete="name" />
+    <div>
+        <x-ui.eyebrow>{{ __('Profile') }}</x-ui.eyebrow>
+        <form wire:submit="updateProfileInformation" class="rounded-[18px] border border-ink/10 bg-white p-4 space-y-3.5">
+            <div>
+                <label for="profile-name" class="block mb-1.5 font-manrope text-[14px] font-semibold text-ink">{{ __('First name') }}</label>
+                <x-ui.text-input id="profile-name" wire:model="name" class="w-full bg-cream" required autocomplete="name" />
+                <x-ui.field-error name="name" />
+            </div>
 
             <div>
-                <flux:input wire:model="email" :label="__('Email')" type="email" required autocomplete="email" />
+                <label for="profile-email" class="block mb-1.5 font-manrope text-[14px] font-semibold text-ink">{{ __('Email') }}</label>
+                <x-ui.text-input id="profile-email" type="email" wire:model="email" class="w-full bg-cream" required autocomplete="email" />
+                <x-ui.field-error name="email" />
 
                 {{-- @chisel-email-verification --}}
                 @if ($this->hasUnverifiedEmail)
-                    <div>
-                        <flux:text class="mt-4">
-                            {{ __('Your email address is unverified.') }}
+                <p class="mt-2 font-manrope text-[13px] text-ink/60">
+                    {{ __('Your email address is unverified.') }}
+                    <button type="button" class="font-bold text-terracotta-dark" wire:click.prevent="resendVerificationNotification">
+                        {{ __('Click here to re-send the verification email.') }}
+                    </button>
+                </p>
 
-                            <flux:link class="text-sm cursor-pointer" wire:click.prevent="resendVerificationNotification">
-                                {{ __('Click here to re-send the verification email.') }}
-                            </flux:link>
-                        </flux:text>
-
-                        @if (session('status') === 'verification-link-sent')
-                            <flux:text class="mt-2 font-medium !dark:text-green-400 !text-green-600">
-                                {{ __('A new verification link has been sent to your email address.') }}
-                            </flux:text>
-                        @endif
-                    </div>
+                @if (session('status') === 'verification-link-sent')
+                <p class="mt-1 font-manrope text-[13px] font-semibold text-forest">
+                    {{ __('A new verification link has been sent to your email address.') }}
+                </p>
+                @endif
                 @endif
                 {{-- @end-chisel-email-verification --}}
             </div>
 
-            <div class="flex items-center gap-4">
-                <div class="flex items-center justify-end">
-                    <flux:button variant="primary" type="submit" class="w-full" data-test="update-profile-button">
-                        {{ __('Save') }}
-                    </flux:button>
-                </div>
-
-            </div>
+            <button type="submit" data-test="update-profile-button" class="rounded-[14px] bg-terracotta px-5 py-3 font-manrope text-[15px] font-bold text-white">
+                {{ __('Save') }}
+            </button>
         </form>
+    </div>
 
-        {{-- @chisel-email-verification --}}
-        @if ($this->showDeleteUser)
-        {{-- @end-chisel-email-verification --}}
-            <livewire:pages::settings.delete-user-form />
-        {{-- @chisel-email-verification --}}
-        @endif
-        {{-- @end-chisel-email-verification --}}
-    </x-pages::settings.layout>
+    <div>
+        <x-ui.eyebrow>{{ __('Settings') }}</x-ui.eyebrow>
+        <div class="rounded-[18px] border border-ink/10 bg-white divide-y divide-ink/8 overflow-hidden">
+            <a href="{{ route('security.edit') }}" wire:navigate class="flex items-center gap-3.5 px-4 py-3.5">
+                <flux:icon.lock-closed class="size-5 shrink-0 text-ink/70" />
+                <span class="flex-1 min-w-0">
+                    <span class="block font-manrope text-[16px] font-medium text-ink">{{ __('Security') }}</span>
+                    <span class="block font-manrope text-[13px] text-ink/50">{{ __('Password and sign-in') }}</span>
+                </span>
+                <flux:icon.chevron-right class="size-4 shrink-0 text-ink/35" />
+            </a>
+            <a href="{{ route('ai-report.edit') }}" wire:navigate class="flex items-center gap-3.5 px-4 py-3.5">
+                <flux:icon.sparkles class="size-5 shrink-0 text-ink/70" />
+                <span class="flex-1 min-w-0">
+                    <span class="block font-manrope text-[16px] font-medium text-ink">{{ __('AI meal plan') }}</span>
+                    <span class="block font-manrope text-[13px] text-ink/50">{{ __('Report for an AI assistant and plan import') }}</span>
+                </span>
+                <flux:icon.chevron-right class="size-4 shrink-0 text-ink/35" />
+            </a>
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button type="submit" data-test="logout-button" class="w-full flex items-center gap-3.5 px-4 py-3.5 text-left">
+                    <flux:icon.arrow-right-start-on-rectangle class="size-5 shrink-0 text-ink/70" />
+                    <span class="font-manrope text-[16px] font-medium text-ink">{{ __('Log out') }}</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
 </section>

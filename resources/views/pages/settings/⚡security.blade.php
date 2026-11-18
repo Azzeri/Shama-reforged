@@ -7,7 +7,6 @@ use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Actions\DisableTwoFactorAuthentication;
 use Laravel\Fortify\Features;
 use Laravel\Fortify\Fortify;
-use Livewire\Attributes\Title;
 use Livewire\Component;
 /* @chisel-passkeys */
 use Laravel\Passkeys\Actions\DeletePasskey;
@@ -17,7 +16,12 @@ use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 /* @end-chisel-2fa */
 
-new #[Title('Security settings')] class extends Component {
+new class extends Component {
+    public function render()
+    {
+        return $this->view()->title(__('Security'));
+    }
+
     use PasswordValidationRules;
 
     public string $current_password = '';
@@ -183,12 +187,13 @@ new #[Title('Security settings')] class extends Component {
 }; ?>
 
 <section class="w-full">
-    @include('partials.settings-heading')
-
     <flux:heading class="sr-only">{{ __('Security settings') }}</flux:heading>
 
-    <x-pages::settings.layout :heading="__('Update password')" :subheading="__('Ensure your account is using a long, random password to stay secure')">
-        <form method="POST" wire:submit="updatePassword" class="mt-6 space-y-6">
+    <x-pages::settings.layout :heading="__('Security')" :subheading="__('Password and sign-in')">
+        <flux:heading>{{ __('Update password') }}</flux:heading>
+        <flux:subheading>{{ __('Ensure your account is using a long, random password to stay secure') }}</flux:subheading>
+
+        <form method="POST" wire:submit="updatePassword" class="mt-4 space-y-5 rounded-[18px] border border-ink/10 bg-white p-4">
             <flux:input
                 wire:model="current_password"
                 :label="__('Current password')"

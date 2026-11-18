@@ -1,10 +1,10 @@
 @php
 $items = [
-    ['route' => 'recipes.index', 'paths' => ['/recipes'], 'icon' => 'book-open', 'label' => __('Przepisy')],
+    ['route' => 'recipes.index', 'paths' => ['/recipes'], 'icon' => 'book-open', 'label' => __('Recipes')],
     ['route' => 'meals.index', 'paths' => ['/meals'], 'icon' => 'calendar-days', 'label' => __('Plan')],
-    ['route' => 'shopping-list.index', 'paths' => ['/shopping-list'], 'icon' => 'shopping-cart', 'label' => __('Zakupy')],
-    ['route' => 'ingredients.index', 'paths' => ['/ingredients'], 'icon' => 'archive-box', 'label' => __('Składniki')],
-    ['route' => 'profile.edit', 'paths' => ['/settings'], 'icon' => 'user-circle', 'label' => auth()->user()->name],
+    ['route' => 'shopping-list.index', 'paths' => ['/shopping-list'], 'icon' => 'shopping-cart', 'label' => __('Shopping')],
+    ['route' => 'ingredients.index', 'paths' => ['/ingredients'], 'icon' => 'archive-box', 'label' => __('Ingredients')],
+    ['route' => 'profile.edit', 'paths' => ['/settings'], 'icon' => 'user-circle', 'label' => __('Account')],
 ];
 
 $currentPath = '/' . ltrim(request()->path(), '/');

@@ -135,7 +135,16 @@ dialog[data-flux-flyout] {
     overscroll-behavior: contain;
 }
 
-/* Toasts: keep them below the status bar / notch. */
+/*
+ * Toasts sit at the bottom, just above the bottom nav (5rem incl. the
+ * home indicator), so they never cover the back/edit buttons at the top.
+ * They are purely informational and auto-hide, so taps pass through them.
+ */
 ui-toast-group {
-    padding-top: env(safe-area-inset-top);
+    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+    pointer-events: none;
+}
+
+ui-toast-group * {
+    pointer-events: none !important;
 }
