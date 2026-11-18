@@ -5,6 +5,62 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 }
 
 /*
+ * Some Firefox extensions (password managers etc.) inject DOM nodes the page
+ * isn't allowed to touch — any property access throws "Permission denied".
+ * Livewire walks the whole DOM when navigating away, hits such a node and the
+ * navigation dies. Before each navigation, find those nodes and drop them
+ * (the extension re-injects them on the next page if it needs them).
+ */
+const isInaccessible = (node) => {
+    try {
+        void node.nodeType;
+
+        return false;
+    } catch {
+        return true;
+    }
+};
+
+const removeInaccessibleNodes = (root) => {
+    const stack = [root];
+
+    while (stack.length) {
+        const parent = stack.pop();
+        let child;
+
+        try {
+            child = parent.firstChild;
+        } catch {
+            continue;
+        }
+
+        while (child) {
+            let next = null;
+
+            try {
+                next = child.nextSibling;
+            } catch {
+                // Can't even read the sibling pointer: stop scanning this level.
+            }
+
+            if (isInaccessible(child)) {
+                try {
+                    parent.removeChild(child);
+                } catch {
+                    // Not removable either — nothing more we can do.
+                }
+            } else if (child.nodeType === 1) {
+                stack.push(child);
+            }
+
+            child = next;
+        }
+    }
+};
+
+document.addEventListener('livewire:navigate', () => removeInaccessibleNodes(document.documentElement));
+
+/*
  * In-app navigation stack (iOS-style "Back").
  *
  * We keep our own stack of screens in sessionStorage, each entry remembering
