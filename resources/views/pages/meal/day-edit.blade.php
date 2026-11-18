@@ -10,7 +10,6 @@ use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
-use Flux\Flux;
 
 /*
  * Day editor. Every change (adding/removing a recipe, editing a note) is
@@ -285,8 +284,6 @@ new #[Layout('layouts::app')] class extends Component {
         }
 
         $this->closeActionSheet();
-
-        Flux::toast(variant: 'success', text: __('Recipe added to the selected day.'));
     }
 
     /**

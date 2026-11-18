@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\LoyaltyCard;
-use Flux\Flux;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -116,8 +115,6 @@ new class extends Component {
             LoyaltyCard::query()->create([...$attributes, 'position' => (int) LoyaltyCard::query()->max('position') + 1]);
         }
 
-        Flux::toast(variant: 'success', text: $this->editingId ? __('Card saved.') : __('Card added.'));
-
         $this->resetForm();
         unset($this->cards, $this->openCard);
         $this->dispatch('modal-close', name: 'card-modal');
@@ -131,8 +128,6 @@ new class extends Component {
         if ($this->openCardId === $this->editingId) {
             $this->openCardId = null;
         }
-
-        Flux::toast(variant: 'success', text: __('Card deleted.'));
 
         $this->resetForm();
         unset($this->cards, $this->openCard);

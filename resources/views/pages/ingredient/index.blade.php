@@ -2,7 +2,6 @@
 
 use App\Models\Ingredient;
 use App\Support\ShoppingList\Quantity;
-use Flux\Flux;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -163,8 +162,6 @@ new #[Layout('layouts::app')] class extends Component {
             ? Ingredient::query()->findOrFail($this->editingId)->update($attributes)
             : Ingredient::query()->create($attributes);
 
-        Flux::toast(variant: 'success', text: $this->editingId ? __('Ingredient updated.') : __('Ingredient added.'));
-
         $this->resetForm();
         unset($this->ingredients, $this->filters);
         $this->dispatch('modal-close', name: 'ingredient-modal');
@@ -173,8 +170,6 @@ new #[Layout('layouts::app')] class extends Component {
     public function delete(): void
     {
         Ingredient::query()->whereKey($this->editingId)->delete();
-
-        Flux::toast(variant: 'success', text: __('Ingredient deleted.'));
 
         $this->resetForm();
         unset($this->ingredients, $this->filters);

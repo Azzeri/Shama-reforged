@@ -17,12 +17,6 @@
         @endpersist
         @endif
 
-        @persist('toast')
-            <flux:toast.group position="bottom center">
-                <flux:toast />
-            </flux:toast.group>
-        @endpersist
-
         @fluxScripts
     </body>
 </html>

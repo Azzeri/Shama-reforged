@@ -10,7 +10,6 @@ use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
-use Flux\Flux;
 
 new #[Layout('layouts::app')] class extends Component {
     #[Url(as: 'week')]
@@ -170,16 +169,9 @@ new #[Layout('layouts::app')] class extends Component {
             return;
         }
 
-        $result = app(GenerateShoppingList::class)($dates);
+        app(GenerateShoppingList::class)($dates);
 
         $this->selectedDaysForShoppingList = [];
-
-        Flux::toast(
-            variant: 'success',
-            text: $result['added'] > 0
-                ? __(':count items added to shopping list.', ['count' => $result['added']])
-                : __('No new items to add.'),
-        );
 
         $this->redirectRoute('shopping-list.index', navigate: true);
     }

@@ -136,20 +136,6 @@ dialog[data-flux-flyout] {
 }
 
 /*
- * Toasts sit at the bottom, just above the bottom nav (5rem incl. the
- * home indicator), so they never cover the back/edit buttons at the top.
- * They are purely informational and auto-hide, so taps pass through them.
- */
-ui-toast-group {
-    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
-    pointer-events: none;
-}
-
-ui-toast-group * {
-    pointer-events: none !important;
-}
-
-/*
  * Livewire's navigation progress bar sits at top: 0, which in the iOS
  * home-screen app is hidden under the status bar. Move it below the notch
  * and make it a bit thicker so a slow page switch is visible.

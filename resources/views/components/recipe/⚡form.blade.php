@@ -11,7 +11,6 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use App\Models\RecipeIngredientAssignment;
-use Flux\Flux;
 
 new class extends Component {
     public ?Recipe $recipe = null;
@@ -123,8 +122,6 @@ new class extends Component {
     {
         $this->recipe?->delete();
 
-        Flux::toast(variant: 'success', text: __('Recipe deleted.'));
-
         return $this->redirect(route('recipes.index'), navigate: true);
     }
 
@@ -137,7 +134,7 @@ new class extends Component {
         DB::transaction(function () {
             $recipe = $this->recipe ?? new Recipe();
             $recipe->name = $this->recipeName;
-            $recipe->link = trim($this->recipeUrl ?: null);
+            $recipe->link = trim($this->recipeUrl) ?: null;
             $recipe->content = $this->recipeContent ?: null;
 
             foreach (Recipe::NUTRITION_PROFILES as $profile) {
@@ -173,8 +170,6 @@ new class extends Component {
 
             $this->recipe = $recipe;
         });
-
-        Flux::toast(variant: 'success', text: $isNewRecipe ? __('Recipe added.') : __('Recipe updated.'));
 
         return $this->redirect(route('recipes.show', $this->recipe), navigate: true);
     }

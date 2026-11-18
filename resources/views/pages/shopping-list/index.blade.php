@@ -12,7 +12,6 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
-use Flux\Flux;
 
 new #[Layout('layouts::app')] class extends Component {
     /** Bought rows older than this are deleted on visit. */
@@ -194,8 +193,6 @@ new #[Layout('layouts::app')] class extends Component {
 
         $this->refreshList();
         $this->dispatch('modal-close', name: 'item-modal');
-
-        Flux::toast(variant: 'success', text: __('Moved to the day before.'));
     }
 
     public function openGroup(array $ids): void
@@ -239,8 +236,6 @@ new #[Layout('layouts::app')] class extends Component {
         $this->openIds = [];
         $this->refreshList();
         $this->dispatch('modal-close', name: 'item-modal');
-
-        Flux::toast(variant: 'success', text: __('Item updated.'));
     }
 
     /** Edits one row's quantity inside a merged group. */
@@ -295,24 +290,18 @@ new #[Layout('layouts::app')] class extends Component {
         $this->resetNewItemForm();
         $this->refreshList();
         $this->dispatch('modal-close', name: 'add-item-modal');
-
-        Flux::toast(variant: 'success', text: __('Item added.'));
     }
 
     public function clearBought(): void
     {
         ShoppingList::main()->items()->where(ShoppingListItem::IS_CHECKED_COLUMN, true)->delete();
         $this->refreshList();
-
-        Flux::toast(variant: 'success', text: __('Bought items cleared.'));
     }
 
     public function clearAll(): void
     {
         ShoppingList::main()->items()->delete();
         $this->refreshList();
-
-        Flux::toast(variant: 'success', text: __('List cleared.'));
     }
 };
 ?>
