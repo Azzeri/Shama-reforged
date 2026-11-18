@@ -528,7 +528,8 @@ if (window.Alpine) {
  *
  * Measuring: open any page with ?perf=1 (turn off with ?perf=0). A small
  * badge then shows, for every page switch:
- *   net    — time until the server's response arrived (network + Cloudflare + server)
+ *   net    — time until the server's response arrived (network + Cloudflare + server),
+ *            with "app" = time Laravel itself spent (Server-Timing header)
  *   render — swapping the page and starting Alpine/Livewire on the phone
  */
 (() => {
@@ -593,7 +594,14 @@ if (window.Alpine) {
             const net = fetchedAt ? Math.round(fetchedAt - startedAt) : null;
             const render = fetchedAt ? Math.round(end - fetchedAt) : null;
 
-            showBadge(`${window.location.pathname}\nnet ${net ?? '?'} ms · render ${render ?? '?'} ms · total ${Math.round(end - startedAt)} ms`);
+            // Server time from the Server-Timing header of the page request.
+            const entry = performance.getEntriesByType('resource')
+                .filter((e) => e.initiatorType === 'fetch' && new URL(e.name).pathname === window.location.pathname)
+                .pop();
+            const app = entry?.serverTiming?.find((t) => t.name === 'app')?.duration;
+            const server = app !== undefined ? ` (app ${Math.round(app)} ms)` : '';
+
+            showBadge(`${window.location.pathname}\nnet ${net ?? '?'} ms${server} · render ${render ?? '?'} ms · total ${Math.round(end - startedAt)} ms`);
         }
 
         startedAt = null;
