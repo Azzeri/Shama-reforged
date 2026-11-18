@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
  * are rebuilt from the current plan (so regenerating after changing the plan
  * updates the list instead of doubling it), while anything already bought
  * stays and isn't added again. Manually added items are never touched.
+ * Ingredients marked "skip on the shopping list" (salt, water...) are left out.
  */
 class GenerateShoppingList
 {
@@ -63,6 +64,10 @@ class GenerateShoppingList
             foreach ($meals as $meal) {
                 foreach ($meal->recipes as $recipe) {
                     foreach ($recipe->ingredients as $ingredient) {
+                        if ($ingredient->skip_shopping) {
+                            continue;
+                        }
+
                         if ($bought->has("{$meal->id}:{$recipe->id}:{$ingredient->id}")) {
                             $kept++;
 

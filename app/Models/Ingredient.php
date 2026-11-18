@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Str;
 
-#[Fillable(['name', 'purchase_timing', 'category', 'unit_weights'])]
+#[Fillable(['name', 'purchase_timing', 'skip_shopping', 'category', 'unit_weights'])]
 class Ingredient extends Model
 {
     use HasFactory;
@@ -21,6 +21,9 @@ class Ingredient extends Model
     public const CATEGORY_COLUMN = 'category';
 
     public const UNIT_WEIGHTS_COLUMN = 'unit_weights';
+
+    /** Always at home (salt, water...) — never generated onto the shopping list. */
+    public const SKIP_SHOPPING_COLUMN = 'skip_shopping';
 
     /**
      * Units that can have a gram equivalent set per ingredient (e.g. 1 pcs
@@ -112,6 +115,7 @@ class Ingredient extends Model
     {
         return [
             self::UNIT_WEIGHTS_COLUMN => 'array',
+            self::SKIP_SHOPPING_COLUMN => 'boolean',
         ];
     }
 

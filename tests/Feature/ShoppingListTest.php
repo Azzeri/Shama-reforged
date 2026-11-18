@@ -172,6 +172,17 @@ test('ingredients without an amount still land on the list', function () {
     expect(ShoppingListItem::query()->first()->displayQuantity())->toBe('do smaku');
 });
 
+test('ingredients marked as skipped on the shopping list are not generated', function () {
+    $salt = slIngredient('Sól', extra: ['skip_shopping' => true]);
+    $egg = slIngredient('Jajko');
+    slMeal(SL_THU, 'breakfast', slRecipe('Jajecznica', [[$salt, 1, 'g'], [$egg, 3, 'pcs']]));
+
+    $result = app(GenerateShoppingList::class)([SL_THU]);
+
+    expect($result['added'])->toBe(1)
+        ->and(ShoppingListItem::query()->pluck('name')->all())->toBe(['Jajko']);
+});
+
 // --- Building the list: summing & merging ----------------------------------
 
 test('"can buy for the whole week" ingredients are summed across all days into the weekly section', function () {
@@ -277,6 +288,19 @@ test('manual items without an ingredient are never merged, and without a date go
 
     expect($list['weekly']['count'])->toBe(2)
         ->and(slDay($list, SL_THU)['count'])->toBe(1);
+});
+
+test('rows generated before an ingredient was marked as skipped disappear, manual ones stay', function () {
+    $water = slIngredient('Woda', extra: ['skip_shopping' => true]);
+    $meal = slMeal(SL_THU, 'dinner');
+    slItem(['name' => 'Woda', 'ingredient_id' => $water->id, 'amount' => 500, 'unit' => 'ml', 'needed_on' => SL_THU, 'meal_id' => $meal->id]);
+    slItem(['name' => 'Woda', 'ingredient_id' => $water->id, 'amount' => 6, 'unit' => 'l', 'needed_on' => null]);
+
+    $list = slBuild();
+
+    expect($list['days'])->toBeEmpty()
+        ->and($list['weekly']['count'])->toBe(1)
+        ->and(slRows($list['weekly']['categories']))->toBe(['Woda' => '6 l']);
 });
 
 test('a day reports how many of its products are covered by the weekly section', function () {

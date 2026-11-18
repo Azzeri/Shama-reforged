@@ -38,6 +38,10 @@ class ShoppingListBuilder
     {
         $today = Carbon::parse($today)->startOfDay();
 
+        // Rows generated before an ingredient was marked "skip on the shopping
+        // list" disappear right away; manually added ones stay (added on purpose).
+        $items = $items->reject(fn (ShoppingListItem $item) => $item->meal_id && $item->ingredient?->skip_shopping);
+
         $unchecked = $items->where(ShoppingListItem::IS_CHECKED_COLUMN, false);
 
         $weeklyItems = $unchecked->filter(fn (ShoppingListItem $item) => $this->isWeekly($item));

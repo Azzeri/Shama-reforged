@@ -59,7 +59,7 @@ new #[Layout('layouts::app')] class extends Component {
     public function items(): Collection
     {
         return ShoppingList::main()->items()
-            ->with(['recipe:id,name', 'ingredient:id,name,purchase_timing,category,unit_weights'])
+            ->with(['recipe:id,name', 'ingredient:id,name,purchase_timing,skip_shopping,category,unit_weights'])
             ->get();
     }
 
@@ -96,7 +96,7 @@ new #[Layout('layouts::app')] class extends Component {
         }
 
         $items = ShoppingListItem::query()
-            ->with(['recipe:id,name', 'ingredient:id,name,purchase_timing,category,unit_weights', 'meal:id,date,type'])
+            ->with(['recipe:id,name', 'ingredient:id,name,purchase_timing,skip_shopping,category,unit_weights', 'meal:id,date,type'])
             ->whereIn('id', $this->openIds)
             ->orderBy(ShoppingListItem::NEEDED_ON_COLUMN)
             ->get();

@@ -17,6 +17,8 @@ new #[Layout('layouts::app')] class extends Component {
 
     public const FILTER_ADVANCE = 'advance';
 
+    public const FILTER_SKIPPED = 'skipped';
+
     #[Url(as: 'q')]
     public string $search = '';
 
@@ -31,6 +33,8 @@ new #[Layout('layouts::app')] class extends Component {
     public string $purchaseTiming = Ingredient::PURCHASE_TIMING_FRESH;
 
     public string $category = Ingredient::CATEGORY_UNCATEGORIZED;
+
+    public bool $skipShopping = false;
 
     /** unit => grams per 1 unit, as typed */
     public array $unitWeights = [];
@@ -50,6 +54,7 @@ new #[Layout('layouts::app')] class extends Component {
         return Ingredient::query()
             ->when($search !== '', fn ($query) => $query->where(Ingredient::NAME_COLUMN, 'like', "%{$search}%"))
             ->when($this->filter === self::FILTER_ADVANCE, fn ($query) => $query->where(Ingredient::PURCHASE_TIMING_COLUMN, Ingredient::PURCHASE_TIMING_ADVANCE))
+            ->when($this->filter === self::FILTER_SKIPPED, fn ($query) => $query->where(Ingredient::SKIP_SHOPPING_COLUMN, true))
             ->when(in_array($this->filter, Ingredient::CATEGORIES, true), fn ($query) => $query->where(Ingredient::CATEGORY_COLUMN, $this->filter))
             ->orderBy(Ingredient::NAME_COLUMN)
             ->get();
@@ -64,6 +69,9 @@ new #[Layout('layouts::app')] class extends Component {
         return [
             self::FILTER_ALL => __('All'),
             self::FILTER_ADVANCE => __('For the whole week'),
+            ...(Ingredient::query()->where(Ingredient::SKIP_SHOPPING_COLUMN, true)->exists()
+                ? [self::FILTER_SKIPPED => __('Not on the shopping list')]
+                : []),
             ...collect(Ingredient::CATEGORIES)
                 ->filter(fn (string $category) => in_array($category, $used, true))
                 ->mapWithKeys(fn (string $category) => [$category => Ingredient::categoryLabel($category)])
@@ -103,6 +111,7 @@ new #[Layout('layouts::app')] class extends Component {
         $this->category = in_array($ingredient->category, Ingredient::CATEGORIES, true)
             ? $ingredient->category
             : Ingredient::CATEGORY_UNCATEGORIZED;
+        $this->skipShopping = (bool) $ingredient->skip_shopping;
         $this->unitWeights = collect(Ingredient::WEIGHABLE_UNITS)
             ->mapWithKeys(fn (string $unit) => [$unit => isset($ingredient->unit_weights[$unit]) ? Quantity::number((float) $ingredient->unit_weights[$unit]) : ''])
             ->all();
@@ -112,7 +121,7 @@ new #[Layout('layouts::app')] class extends Component {
 
     private function resetForm(): void
     {
-        $this->reset('editingId', 'name', 'purchaseTiming', 'category', 'confirmingDelete');
+        $this->reset('editingId', 'name', 'purchaseTiming', 'category', 'skipShopping', 'confirmingDelete');
         $this->unitWeights = array_fill_keys(Ingredient::WEIGHABLE_UNITS, '');
         unset($this->editingRecipeCount);
         $this->resetErrorBag();
@@ -146,6 +155,7 @@ new #[Layout('layouts::app')] class extends Component {
             Ingredient::NAME_COLUMN => $this->name,
             Ingredient::PURCHASE_TIMING_COLUMN => $this->purchaseTiming,
             Ingredient::CATEGORY_COLUMN => $this->category,
+            Ingredient::SKIP_SHOPPING_COLUMN => $this->skipShopping,
             Ingredient::UNIT_WEIGHTS_COLUMN => $unitWeights ?: null,
         ];
 
@@ -222,7 +232,9 @@ new #[Layout('layouts::app')] class extends Component {
                     <span class="block font-manrope text-[16px] font-medium text-ink truncate">{{ $ingredient->name }}</span>
                     <span class="mt-0.5 flex flex-wrap items-center gap-1.5">
                         <span class="font-manrope text-[12.5px] text-ink/50">{{ Ingredient::categoryLabel($ingredient->category) }}</span>
-                        @if ($ingredient->purchase_timing === Ingredient::PURCHASE_TIMING_ADVANCE)
+                        @if ($ingredient->skip_shopping)
+                        <span class="rounded-md bg-ink/8 px-1.5 py-px font-manrope text-[11.5px] font-semibold text-ink/55">{{ __('not on the list') }}</span>
+                        @elseif ($ingredient->purchase_timing === Ingredient::PURCHASE_TIMING_ADVANCE)
                         <span class="rounded-md bg-sage/18 px-1.5 py-px font-manrope text-[11.5px] font-semibold text-forest">{{ __('for the whole week') }}</span>
                         @endif
                     </span>
@@ -281,6 +293,21 @@ new #[Layout('layouts::app')] class extends Component {
                     @endforeach
                 </select>
             </div>
+
+            <label class="flex items-center gap-3 rounded-2xl border border-ink/10 bg-cream px-3.5 py-3 cursor-pointer">
+                <span class="flex-1">
+                    <span class="block font-manrope text-[15px] font-semibold text-ink">{{ __('Skip on the shopping list') }}</span>
+                    <span class="block font-manrope text-[12.5px] text-ink/55">{{ __('Always at home, e.g. salt or water — never added to the list.') }}</span>
+                </span>
+                <button
+                    type="button"
+                    role="switch"
+                    aria-checked="{{ $skipShopping ? 'true' : 'false' }}"
+                    wire:click="$toggle('skipShopping')"
+                    @class(['relative h-6 w-11 shrink-0 rounded-full transition-colors', 'bg-forest' => $skipShopping, 'bg-ink/20' => ! $skipShopping])>
+                    <span @class(['absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow transition-transform', 'translate-x-5' => $skipShopping])></span>
+                </button>
+            </label>
 
             <div x-data="{ open: {{ collect($unitWeights)->filter(fn ($v) => $v !== '')->isNotEmpty() || ! $editingId ? 'true' : 'false' }} }" class="border-t border-ink/8 pt-4">
                 <button type="button" x-on:click="open = ! open" class="w-full flex items-center justify-between">
