@@ -86,7 +86,7 @@ new class extends Component {
             ->groupBy(Tag::CATEGORY_COLUMN);
 
         if ($grouped->has(Tag::MEAL_TYPE)) {
-            $order = array_flip(Meal::orderedTypeLabels());
+            $order = array_flip(Meal::orderedTagNames());
             $grouped[Tag::MEAL_TYPE] = $grouped[Tag::MEAL_TYPE]
                 ->sortBy(fn (Tag $tag) => $order[$tag->name] ?? PHP_INT_MAX)
                 ->values();
@@ -117,6 +117,15 @@ new class extends Component {
     {
         unset($this->recipeIngredients[$index]);
         $this->recipeIngredients = array_values($this->recipeIngredients);
+    }
+
+    public function delete()
+    {
+        $this->recipe?->delete();
+
+        Flux::toast(variant: 'success', text: __('Recipe deleted.'));
+
+        return $this->redirect(route('recipes.index'), navigate: true);
     }
 
     public function save()
@@ -172,193 +181,176 @@ new class extends Component {
 };
 ?>
 
-<div class="space-y-5">
-    <form class="space-y-5" wire:submit="save">
+<div>
+    <form id="recipe-form" class="space-y-5" wire:submit="save">
         <div>
-            <x-ui.eyebrow>{{ __('Recipe Name') }}</x-ui.eyebrow>
-            <x-ui.text-input wire:model="recipeName" placeholder="{{ __('Recipe Name') }}" class="w-full" required />
+            <x-ui.eyebrow>{{ __('Recipe name') }}</x-ui.eyebrow>
+            <x-ui.text-input wire:model="recipeName" class="w-full" required />
             <x-ui.field-error name="recipeName" />
         </div>
 
         <x-recipe.tag-pill-group
             :tags="$this->tagsByCategory->get(Tag::MEAL_TYPE, [])"
-            label="{{ __('Meal type') }}"
+            label="{{ __('Meal') }}"
             color="gold"
             wire:model="recipeTags" />
 
         <x-recipe.tag-pill-group
             :tags="$this->tagsByCategory->get(Tag::DIET_TYPE, [])"
-            label="{{ __('Diet type') }}"
+            label="{{ __('Main ingredient') }}"
             color="sage"
             wire:model="recipeTags" />
 
         <div>
             <x-ui.eyebrow>{{ __('Ingredients') }}</x-ui.eyebrow>
-            <p class="font-manrope text-xs text-ink/50 mb-2.5">
-                {{ __('Choose from the list of existing ingredients or add a new one on the Ingredients tab.') }}
-                {{ __('Amount and unit are optional and used to total the shopping list.') }}
-            </p>
 
-            <div class="space-y-2.5">
-                @foreach ($recipeIngredients as $index => $item)
-                <div
-                    wire:key="ingredient-row-{{ $index }}"
-                    x-data="{ open: true }"
-                    class="bg-white border border-ink/5 rounded-2xl px-4 py-3.5 shadow-[0_1px_2px_rgba(43,33,24,0.06),0_4px_10px_rgba(43,33,24,0.05)]">
-                    <div class="flex items-center gap-2.5">
-                        <input
-                            type="text"
-                            wire:model="recipeIngredients.{{ $index }}.name"
-                            list="ingredients-autocomplete-list"
-                            placeholder="{{ __('Ingredient name') }}"
-                            class="flex-1 min-w-0 bg-transparent font-fraunces text-[15px] font-semibold text-ink placeholder:font-manrope placeholder:text-sm placeholder:font-normal placeholder:text-ink/30 focus:outline-none" />
-
-                        <button type="button" @click="open = !open" class="shrink-0 text-ink/35 p-1">
-                            <flux:icon.chevron-down class="size-4 transition-transform" x-bind:class="{ 'rotate-180': open }" />
-                        </button>
-                    </div>
-                    <x-ui.field-error name="recipeIngredients.{{ $index }}.name" />
-
-                    <div x-show="open" x-collapse class="flex items-end gap-2.5 mt-3">
-                        <div class="w-20 shrink-0">
-                            <span class="block font-manrope text-[10px] font-bold uppercase tracking-wide text-ink/40 mb-1 truncate">
-                                {{ \App\Models\Recipe::nutritionProfileLabel('me') }}
-                            </span>
-                            <input
-                                type="number"
-                                step="any"
-                                min="0"
-                                wire:model="recipeIngredients.{{ $index }}.amount_me"
-                                placeholder="0"
-                                class="w-full bg-sand/60 rounded-xl px-3 py-2.5 font-manrope text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
-                        </div>
-
-                        <div class="w-20 shrink-0">
-                            <span class="block font-manrope text-[10px] font-bold uppercase tracking-wide text-ink/40 mb-1 truncate">
-                                {{ \App\Models\Recipe::nutritionProfileLabel('wife') }}
-                            </span>
-                            <input
-                                type="number"
-                                step="any"
-                                min="0"
-                                wire:model="recipeIngredients.{{ $index }}.amount_wife"
-                                placeholder="0"
-                                class="w-full bg-sand/60 rounded-xl px-3 py-2.5 font-manrope text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
-                        </div>
-
-                        <select
-                            wire:model="recipeIngredients.{{ $index }}.unit"
-                            class="shrink-0 bg-sand/60 rounded-xl px-3 py-2.5 font-manrope text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
-                            @foreach (RecipeIngredientAssignment::UNITS as $unit)
-                            <option value="{{ $unit }}">{{ $unit }}</option>
-                            @endforeach
-                        </select>
-
-                        <div class="flex-1"></div>
-
-                        <button
-                            type="button"
-                            wire:click="removeIngredient({{ $index }})"
-                            class="shrink-0 text-ink/25 hover:text-terracotta-dark p-1.5">
-                            <flux:icon.trash class="size-4" />
-                        </button>
-                    </div>
-                    <x-ui.field-error name="recipeIngredients.{{ $index }}.amount_me" />
-                    <x-ui.field-error name="recipeIngredients.{{ $index }}.amount_wife" />
+            <div class="rounded-[18px] border border-ink/10 bg-white">
+                @if ($recipeIngredients)
+                <div class="grid grid-cols-[1fr_1fr_1fr] gap-2 px-4 pt-3 font-manrope text-[12.5px] font-semibold text-ink/55">
+                    <span>{{ Recipe::nutritionProfileLabel('me') }}</span>
+                    <span>{{ Recipe::nutritionProfileLabel('wife') }}</span>
+                    <span>{{ __('Unit') }}</span>
                 </div>
-                @endforeach
+                @endif
 
-                <datalist id="ingredients-autocomplete-list">
-                    @foreach ($this->allIngredients as $ingredientName)
-                    <option value="{{ $ingredientName }}"></option>
+                <div class="divide-y divide-ink/8">
+                    @foreach ($recipeIngredients as $index => $item)
+                    <div wire:key="ingredient-row-{{ $index }}" class="px-4 py-3 space-y-2">
+                        <div class="flex items-center gap-2">
+                            <input
+                                type="text"
+                                wire:model="recipeIngredients.{{ $index }}.name"
+                                list="ingredients-autocomplete-list"
+                                placeholder="{{ __('Ingredient name') }}"
+                                class="flex-1 min-w-0 bg-transparent font-manrope text-[16px] font-semibold text-ink placeholder:font-normal placeholder:text-ink/35 focus:outline-none" />
+                            <button type="button" wire:click="removeIngredient({{ $index }})" class="shrink-0 p-1 text-ink/40 hover:text-terracotta-dark" aria-label="{{ __('Remove') }}">
+                                <flux:icon.x-mark class="size-4" />
+                            </button>
+                        </div>
+                        <x-ui.field-error name="recipeIngredients.{{ $index }}.name" />
+
+                        <div class="grid grid-cols-[1fr_1fr_1fr] gap-2">
+                            @foreach (['me', 'wife'] as $profile)
+                            <input
+                                type="number"
+                                step="any"
+                                min="0"
+                                inputmode="decimal"
+                                wire:model="recipeIngredients.{{ $index }}.amount_{{ $profile }}"
+                                aria-label="{{ Recipe::nutritionProfileLabel($profile) }}"
+                                class="w-full min-w-0 rounded-xl border border-ink/12 bg-cream px-3 py-2.5 font-manrope text-base text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
+                            @endforeach
+                            <select
+                                wire:model="recipeIngredients.{{ $index }}.unit"
+                                aria-label="{{ __('Unit') }}"
+                                class="w-full min-w-0 rounded-xl border border-ink/12 bg-cream px-2.5 py-2.5 font-manrope text-base text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
+                                @foreach (RecipeIngredientAssignment::UNITS as $unit)
+                                <option value="{{ $unit }}">{{ \App\Support\ShoppingList\Quantity::unitLabel($unit) }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <x-ui.field-error name="recipeIngredients.{{ $index }}.amount_me" />
+                        <x-ui.field-error name="recipeIngredients.{{ $index }}.amount_wife" />
+                    </div>
                     @endforeach
-                </datalist>
+                </div>
 
                 <button
                     type="button"
                     wire:click="addIngredient"
-                    class="flex items-center gap-2 text-terracotta font-manrope text-[13.5px] font-bold py-1.5">
-                    + {{ __('Add ingredient') }}
+                    @class(['w-full flex items-center gap-1.5 px-4 py-3.5 font-manrope text-[15px] font-bold text-terracotta-dark', 'border-t border-ink/8' => $recipeIngredients])>
+                    <flux:icon.plus class="size-4" />
+                    {{ __('Add ingredient') }}
                 </button>
             </div>
+
+            <datalist id="ingredients-autocomplete-list">
+                @foreach ($this->allIngredients as $ingredientName)
+                <option value="{{ $ingredientName }}"></option>
+                @endforeach
+            </datalist>
+
+            <p class="mt-2 font-manrope text-[12.5px] text-ink/50">
+                {{ __('Amounts go to the shopping list. A new name creates a new ingredient — you can set its aisle on the Ingredients tab.') }}
+            </p>
         </div>
 
         <div>
             <x-ui.eyebrow optional>{{ __('Nutrition per serving') }}</x-ui.eyebrow>
-            <p class="font-manrope text-xs text-ink/50 mb-2.5">
-                {{ __('Optional. Enter values per single serving, separately for each of you.') }}
-            </p>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                @foreach (\App\Models\Recipe::NUTRITION_PROFILES as $profile)
-                <div class="space-y-2">
-                    <span class="font-manrope text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink/50">
-                        {{ \App\Models\Recipe::nutritionProfileLabel($profile) }}
-                    </span>
-
-                    <div class="grid grid-cols-2 gap-2.5">
-                        <div>
-                            <x-ui.text-input
-                                type="number"
-                                step="1"
-                                min="0"
-                                wire:model="recipeNutrition.{{ $profile }}.calories"
-                                placeholder="{{ __('kcal') }}"
-                                class="w-full" />
-                            <x-ui.field-error name="recipeNutrition.{{ $profile }}.calories" />
-                        </div>
-                        <div>
-                            <x-ui.text-input
-                                type="number"
-                                step="0.1"
-                                min="0"
-                                wire:model="recipeNutrition.{{ $profile }}.protein"
-                                placeholder="{{ __('protein (g)') }}"
-                                class="w-full" />
-                            <x-ui.field-error name="recipeNutrition.{{ $profile }}.protein" />
-                        </div>
-                        <div>
-                            <x-ui.text-input
-                                type="number"
-                                step="0.1"
-                                min="0"
-                                wire:model="recipeNutrition.{{ $profile }}.fat"
-                                placeholder="{{ __('fat (g)') }}"
-                                class="w-full" />
-                            <x-ui.field-error name="recipeNutrition.{{ $profile }}.fat" />
-                        </div>
-                        <div>
-                            <x-ui.text-input
-                                type="number"
-                                step="0.1"
-                                min="0"
-                                wire:model="recipeNutrition.{{ $profile }}.carbs"
-                                placeholder="{{ __('carbs (g)') }}"
-                                class="w-full" />
-                            <x-ui.field-error name="recipeNutrition.{{ $profile }}.carbs" />
-                        </div>
-                    </div>
+            <div class="rounded-[18px] border border-ink/10 bg-white px-4 py-3">
+                <div class="grid grid-cols-[72px_1fr_1fr_1fr_1fr] gap-2 font-manrope text-[12.5px] font-semibold text-ink/55">
+                    <span></span>
+                    <span>kcal</span>
+                    <span>{{ __('protein g') }}</span>
+                    <span>{{ __('carbs g') }}</span>
+                    <span>{{ __('fat g') }}</span>
                 </div>
+
+                @foreach (Recipe::NUTRITION_PROFILES as $profile)
+                <div class="mt-2 grid grid-cols-[72px_1fr_1fr_1fr_1fr] items-center gap-2">
+                    <span class="font-manrope text-[14.5px] font-bold text-ink truncate">{{ Recipe::nutritionProfileLabel($profile) }}</span>
+                    @foreach (['calories', 'protein', 'carbs', 'fat'] as $macro)
+                    <input
+                        type="number"
+                        step="{{ $macro === 'calories' ? '1' : '0.1' }}"
+                        min="0"
+                        inputmode="decimal"
+                        wire:model="recipeNutrition.{{ $profile }}.{{ $macro }}"
+                        aria-label="{{ Recipe::nutritionProfileLabel($profile) }} {{ $macro }}"
+                        class="w-full min-w-0 rounded-xl border border-ink/12 bg-cream px-2 py-2.5 font-manrope text-base text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
+                    @endforeach
+                </div>
+                @foreach (['calories', 'protein', 'carbs', 'fat'] as $macro)
+                <x-ui.field-error name="recipeNutrition.{{ $profile }}.{{ $macro }}" />
+                @endforeach
                 @endforeach
             </div>
         </div>
 
         <div>
-            <x-ui.eyebrow optional>{{ __('Recipe Content') }}</x-ui.eyebrow>
-            <x-ui.textarea wire:model="recipeContent" rows="4" placeholder="{{ __('Recipe Content') }}" />
+            <x-ui.eyebrow optional>{{ __('Preparation') }}</x-ui.eyebrow>
+            <x-ui.textarea wire:model="recipeContent" rows="5" placeholder="{{ __('One step per line') }}" />
             <x-ui.field-error name="recipeContent" />
         </div>
 
         <div>
-            <x-ui.eyebrow optional>{{ __('Recipe URL') }}</x-ui.eyebrow>
+            <x-ui.eyebrow optional>{{ __('Source') }}</x-ui.eyebrow>
             <x-ui.text-input wire:model="recipeUrl" type="url" placeholder="https://..." class="w-full" />
             <x-ui.field-error name="recipeUrl" />
         </div>
 
-        <button
-            type="submit"
-            class="w-full bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-2xl py-4 font-manrope text-[15px] font-extrabold shadow-[0_10px_22px_rgba(193,68,45,0.35)]">
-            {{ __('Save') }}
-        </button>
+        @if ($recipe)
+        <flux:modal.trigger name="delete-recipe-modal">
+            <button type="button" class="w-full inline-flex items-center justify-center gap-1.5 rounded-[14px] border border-terracotta/50 py-2.5 font-manrope text-[14.5px] font-bold text-terracotta-dark">
+                <flux:icon.trash class="size-4" />
+                {{ __('Delete recipe') }}
+            </button>
+        </flux:modal.trigger>
+        @endif
+
+        <div class="sticky bottom-0 -mx-4 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] bg-gradient-to-t from-cream from-70% to-cream/0">
+            <button
+                type="submit"
+                wire:loading.attr="disabled"
+                class="w-full rounded-[16px] bg-terracotta py-4 font-manrope text-[16px] font-bold text-white shadow-[0_10px_22px_rgba(193,68,45,0.3)] disabled:opacity-60">
+                {{ $recipe ? __('Save changes') : __('Add recipe') }}
+            </button>
+        </div>
     </form>
+
+    @if ($recipe)
+    <flux:modal name="delete-recipe-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
+        <div class="space-y-5">
+            <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Delete recipe?') }}</h3>
+            <p class="font-manrope text-sm text-ink/60">{{ __('The recipe will also disappear from planned meals. This cannot be undone.') }}</p>
+            <div class="flex gap-2 justify-end">
+                <flux:modal.close>
+                    <button type="button" class="font-manrope text-sm font-extrabold text-ink/60 px-4 py-2.5">{{ __('Cancel') }}</button>
+                </flux:modal.close>
+                <button type="button" wire:click="delete" class="bg-terracotta text-white rounded-2xl px-5 py-2.5 font-manrope text-sm font-extrabold">{{ __('Delete recipe') }}</button>
+            </div>
+        </div>
+    </flux:modal>
+    @endif
 </div>

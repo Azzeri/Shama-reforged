@@ -5,7 +5,7 @@
     <div class="flex flex-wrap gap-2">
         @foreach ($tags as $tag)
         <x-ui.pill-checkbox value="{{ $tag->id }}" :color="$color" {{ $attributes }}>
-            {{ $tag->name }}
+            {{ $tag->label() }}
         </x-ui.pill-checkbox>
         @endforeach
     </div>

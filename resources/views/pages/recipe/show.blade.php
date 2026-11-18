@@ -1,10 +1,10 @@
 <?php
 
 use App\Models\Recipe;
-use Livewire\Component;
-use Livewire\Attributes\Layout;
+use App\Support\ShoppingList\Quantity;
 use Livewire\Attributes\Computed;
-use Flux\Flux;
+use Livewire\Attributes\Layout;
+use Livewire\Component;
 
 new #[Layout('layouts::app')] class extends Component {
     public Recipe $recipe;
@@ -13,8 +13,7 @@ new #[Layout('layouts::app')] class extends Component {
 
     public function render()
     {
-        return $this->view()
-            ->title($this->recipe->name);
+        return $this->view()->title($this->recipe->name);
     }
 
     #[Computed]
@@ -29,56 +28,137 @@ new #[Layout('layouts::app')] class extends Component {
         return route('recipes.index');
     }
 
-    public function delete(): void
+    /** Profiles (me / wife) that have at least one ingredient amount. */
+    #[Computed]
+    public function amountProfiles(): array
     {
-        $this->recipe->delete();
+        return array_values(array_filter(
+            Recipe::NUTRITION_PROFILES,
+            fn (string $profile) => $this->recipe->ingredients->contains(fn ($i) => $i->pivot->{"amount_{$profile}"} !== null),
+        ));
+    }
 
-        Flux::toast(variant: 'success', text: __('Recipe deleted.'));
+    /** Preparation text split into steps (one per non-empty line, numbering stripped). */
+    #[Computed]
+    public function steps(): array
+    {
+        return collect(preg_split('/\R/u', (string) $this->recipe->content))
+            ->map(fn (string $line) => trim(preg_replace('/^\s*\d+[.)]\s*/u', '', $line)))
+            ->filter(fn (string $line) => $line !== '')
+            ->values()
+            ->all();
+    }
 
-        $this->redirectRoute('recipes.index', navigate: true);
+    /** Unit code => display label, for the JS that rescales amounts. */
+    #[Computed]
+    public function unitLabels(): array
+    {
+        return collect(\App\Models\RecipeIngredientAssignment::UNITS)
+            ->mapWithKeys(fn (string $unit) => [$unit => Quantity::unitLabel($unit)])
+            ->all();
     }
 };
 ?>
 
+@php
+    $profiles = $this->amountProfiles;
+    $nutritionProfiles = collect(Recipe::NUTRITION_PROFILES)->filter(fn ($p) => $recipe->hasNutritionFor($p));
+@endphp
+
 <div>
-    <div class="space-y-5">
+    <div class="space-y-4">
         @if ($showBackButton)
-        <x-ui.back-button href="{{ $this->backUrl }}" />
+        <div class="flex items-center justify-between gap-3">
+            <x-ui.back-button href="{{ $this->backUrl }}" :label="__('Recipes')" />
+
+            <a href="{{ route('recipes.edit', $recipe) }}" wire:navigate class="inline-flex items-center gap-1.5 rounded-full border border-ink/10 bg-white px-4 py-2.5 font-manrope text-[15px] font-bold text-ink">
+                <flux:icon.pencil class="size-4" />
+                {{ __('Edit') }}
+            </a>
+        </div>
         @endif
 
         <div>
-            <h1 class="font-fraunces text-[30px] font-semibold leading-tight text-ink mb-0.5">{{ $this->recipe->name }}</h1>
-
-            @if (filled($recipe->link))
-            <a
-                href="{{ $recipe->link }}"
-                target="_blank"
-                class="inline-flex items-center gap-1 font-manrope text-[13px] font-bold text-forest hover:text-ink">
-                {{ __('Otwórz źródło przepisu') }} →
-            </a>
+            <h1 class="font-fraunces text-[28px] font-semibold leading-tight text-ink">{{ $recipe->name }}</h1>
+            @if ($recipe->tags->isNotEmpty())
+            <div class="mt-2 flex flex-wrap gap-1.5">
+                @foreach ($recipe->tags->sortBy(fn ($tag) => $tag->isMealType() ? 0 : 1) as $tag)
+                <x-recipe.tag-badge :tag="$tag" />
+                @endforeach
+            </div>
             @endif
         </div>
 
-        <div class="flex items-center gap-2.5">
-            <a
-                href="{{ route('recipes.edit', $this->recipe) }}"
-                wire:navigate
-                class="flex-1 inline-flex items-center justify-center gap-1.5 bg-ink text-cream rounded-2xl py-[11px] font-manrope text-[13.5px] font-extrabold">
-                <flux:icon.pencil-square class="size-4" />
-                {{ __('Edytuj') }}
-            </a>
+        @if ($recipe->ingredients->isNotEmpty())
+        <section
+            x-data="{
+                portions: { me: 1, wife: 1 },
+                units: @js($this->unitLabels),
+                amount(value, unit, profile) {
+                    const total = value * this.portions[profile];
+                    const number = parseFloat(total.toFixed(total < 10 ? 1 : 0)).toString().replace('.', ',');
+                    return `${number} ${this.units[unit] ?? unit ?? ''}`.trim();
+                },
+                grams(perPortion, profile) {
+                    if (perPortion === null) return '';
+                    const grams = perPortion * this.portions[profile];
+                    return grams >= 1000
+                        ? `≈ ${parseFloat((grams / 1000).toFixed(2)).toString().replace('.', ',')} kg`
+                        : `≈ ${Math.round(grams)} g`;
+                },
+            }"
+            class="rounded-[22px] border border-ink/10 bg-white overflow-hidden">
+            <div class="flex items-end gap-3 px-4 pt-4 pb-2">
+                <span class="flex-1 font-manrope text-[12px] font-extrabold uppercase tracking-[0.1em] text-ink/55">{{ __('Ingredients') }}</span>
+                @foreach ($profiles as $profile)
+                <span class="w-[76px] text-right font-manrope text-[13px] font-semibold text-ink/60">{{ Recipe::nutritionProfileLabel($profile) }}</span>
+                @endforeach
+            </div>
 
-            <flux:modal.trigger name="delete-recipe-modal">
-                <button
-                    type="button"
-                    class="inline-flex items-center gap-1.5 border-[1.5px] border-terracotta text-terracotta-dark rounded-2xl px-4 py-[11px] font-manrope text-[13.5px] font-extrabold">
-                    <flux:icon.trash class="size-4" />
-                    {{ __('Usuń') }}
-                </button>
-            </flux:modal.trigger>
-        </div>
+            @if ($profiles)
+            <div class="flex items-center gap-3 px-4 pb-3">
+                <span class="flex-1 font-manrope text-[14px] text-ink/55">{{ __('Portions') }}</span>
+                @foreach ($profiles as $profile)
+                <div class="w-[76px] flex items-center justify-end gap-2">
+                    <button type="button" x-on:click="portions.{{ $profile }} = Math.max(1, portions.{{ $profile }} - 1)" class="px-1 font-manrope text-lg leading-none text-ink/60" aria-label="{{ __('Fewer portions') }}">−</button>
+                    <span class="font-manrope text-[16px] font-bold text-ink" x-text="portions.{{ $profile }}">1</span>
+                    <button type="button" x-on:click="portions.{{ $profile }}++" class="px-1 font-manrope text-lg leading-none text-terracotta-dark" aria-label="{{ __('More portions') }}">+</button>
+                </div>
+                @endforeach
+            </div>
+            @endif
 
-        <div
+            <div class="divide-y divide-ink/8 border-t border-ink/8">
+                @foreach ($recipe->ingredients as $ingredient)
+                @php $pivot = $ingredient->pivot; @endphp
+                <div class="flex items-center gap-3 px-4 py-3">
+                    <span class="flex-1 min-w-0 font-manrope text-[15.5px] text-ink">{{ $ingredient->name }}</span>
+
+                    @if ($profiles)
+                    @foreach ($profiles as $profile)
+                    @php $value = $pivot->{"amount_{$profile}"}; @endphp
+                    <div class="w-[76px] text-right">
+                        @if ($value !== null)
+                        <div class="font-manrope text-[15px] text-ink" x-text="amount({{ $value }}, @js($pivot->unit), '{{ $profile }}')">{{ Quantity::format($value, $pivot->unit) }}</div>
+                        @if (($grams = $ingredient->gramsFor($pivot->unit, $value)) !== null)
+                        <div class="font-manrope text-[11.5px] text-ink/45" x-text="grams({{ $grams }}, '{{ $profile }}')"></div>
+                        @endif
+                        @else
+                        <span class="text-ink/30">–</span>
+                        @endif
+                    </div>
+                    @endforeach
+                    @elseif ($pivot->quantity)
+                    <span class="font-manrope text-[15px] text-ink">{{ $pivot->quantity }}</span>
+                    @endif
+                </div>
+                @endforeach
+            </div>
+        </section>
+        @endif
+
+        @if ($this->steps || filled($recipe->link))
+        <section
             x-data="{
                 awake: false,
                 supported: typeof navigator !== 'undefined' && 'wakeLock' in navigator,
@@ -102,13 +182,10 @@ new #[Layout('layouts::app')] class extends Component {
                 toggle() {
                     this.awake ? this.release() : this.acquire();
                 },
-                onVisible() {
-                    if (this.awake && ! this.lock && document.visibilityState === 'visible') {
-                        this.acquire();
-                    }
-                },
                 init() {
-                    this.visibilityHandler = () => this.onVisible();
+                    this.visibilityHandler = () => {
+                        if (this.awake && ! this.lock && document.visibilityState === 'visible') this.acquire();
+                    };
                     document.addEventListener('visibilitychange', this.visibilityHandler);
                 },
                 // Leaving the recipe (wire:navigate keeps the same document)
@@ -118,174 +195,69 @@ new #[Layout('layouts::app')] class extends Component {
                     this.release();
                 },
             }"
-            x-show="supported">
-            <button
-                type="button"
-                @click="toggle()"
-                class="w-full inline-flex items-center justify-center gap-1.5 rounded-2xl px-4 py-[11px] font-manrope text-[13.5px] font-extrabold border-[1.5px] transition-colors"
-                :class="awake ? 'bg-gold/15 border-gold text-gold-dark' : 'border-ink/15 text-ink/50'">
-                <flux:icon.sun class="size-4" variant="solid" x-show="awake" x-cloak />
-                <flux:icon.moon class="size-4" x-show="! awake" />
-                <span x-text="awake ? '{{ __('Screen will stay on') }}' : '{{ __('Keep screen on') }}'">{{ __('Keep screen on') }}</span>
-            </button>
-        </div>
+            class="rounded-[22px] border border-ink/10 bg-white px-4 py-4">
+            <div class="flex items-center justify-between gap-3">
+                <span class="font-manrope text-[12px] font-extrabold uppercase tracking-[0.1em] text-ink/55">{{ __('Preparation') }}</span>
 
-        <div class="flex flex-wrap gap-2">
-            @foreach ($recipe->tags as $tag)
-            <x-recipe.tag-badge :tag="$tag" />
-            @endforeach
-        </div>
-
-        @php
-            $hasMeAmounts = $recipe->ingredients->contains(fn ($i) => $i->pivot->amount_me !== null);
-            $hasWifeAmounts = $recipe->ingredients->contains(fn ($i) => $i->pivot->amount_wife !== null);
-        @endphp
-
-        <div
-            x-data="{
-                portionsMe: 1,
-                portionsWife: 1,
-                formatAmount(value) {
-                    return parseFloat(value.toFixed(2)).toString();
-                },
-                grams(perPortion, portions) {
-                    if (perPortion === null) return '';
-                    const grams = perPortion * portions;
-                    return grams >= 1000
-                        ? ` ≈ ${parseFloat((grams / 1000).toFixed(2))} kg`
-                        : ` ≈ ${Math.round(grams)} g`;
-                },
-            }">
-            <div class="flex items-center justify-between mb-2.5">
-                <x-ui.eyebrow>{{ __('Składniki') }}</x-ui.eyebrow>
-                @if ($hasMeAmounts || $hasWifeAmounts)
-                <span class="font-manrope text-[11px] font-semibold text-ink/40">{{ __('ilości na porcje') }}</span>
-                @endif
+                <label x-show="supported" class="inline-flex items-center gap-2.5 cursor-pointer">
+                    <span class="font-manrope text-[13.5px] text-ink/60">{{ __('Keep screen on') }}</span>
+                    <button
+                        type="button"
+                        role="switch"
+                        x-on:click="toggle()"
+                        x-bind:aria-checked="awake"
+                        class="relative h-6 w-11 shrink-0 rounded-full transition-colors"
+                        x-bind:class="awake ? 'bg-forest' : 'bg-ink/20'">
+                        <span class="absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow transition-transform" x-bind:class="awake && 'translate-x-5'"></span>
+                    </button>
+                </label>
             </div>
 
-            @if ($hasMeAmounts || $hasWifeAmounts)
-            <div class="bg-white border border-ink/10 rounded-2xl mb-3.5 overflow-hidden">
-                @if ($hasMeAmounts)
-                <div class="flex items-center justify-between px-4 py-3">
-                    <div class="flex items-center gap-2.5">
-                        <span class="flex items-center justify-center size-8 rounded-full bg-terracotta/15 text-terracotta-dark font-manrope text-sm font-extrabold shrink-0">
-                            {{ mb_substr(\App\Models\Recipe::nutritionProfileLabel('me'), 0, 1) }}
-                        </span>
-                        <span class="font-manrope text-[14.5px] font-semibold text-ink">{{ \App\Models\Recipe::nutritionProfileLabel('me') }}</span>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <button
-                            type="button"
-                            @click="portionsMe = Math.max(1, portionsMe - 1)"
-                            class="flex items-center justify-center size-7 rounded-full bg-sand text-ink font-manrope font-bold leading-none">−</button>
-                        <span class="font-manrope text-[15px] font-extrabold text-ink w-4 text-center" x-text="portionsMe">1</span>
-                        <button
-                            type="button"
-                            @click="portionsMe = portionsMe + 1"
-                            class="flex items-center justify-center size-7 rounded-full bg-sand text-ink font-manrope font-bold leading-none">+</button>
-                    </div>
-                </div>
-                @endif
-
-                @if ($hasMeAmounts && $hasWifeAmounts)
-                <div class="border-t border-dashed border-ink/15"></div>
-                @endif
-
-                @if ($hasWifeAmounts)
-                <div class="flex items-center justify-between px-4 py-3">
-                    <div class="flex items-center gap-2.5">
-                        <span class="flex items-center justify-center size-8 rounded-full bg-sage/15 text-forest font-manrope text-sm font-extrabold shrink-0">
-                            {{ mb_substr(\App\Models\Recipe::nutritionProfileLabel('wife'), 0, 1) }}
-                        </span>
-                        <span class="font-manrope text-[14.5px] font-semibold text-ink">{{ \App\Models\Recipe::nutritionProfileLabel('wife') }}</span>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <button
-                            type="button"
-                            @click="portionsWife = Math.max(1, portionsWife - 1)"
-                            class="flex items-center justify-center size-7 rounded-full bg-sand text-ink font-manrope font-bold leading-none">−</button>
-                        <span class="font-manrope text-[15px] font-extrabold text-ink w-4 text-center" x-text="portionsWife">1</span>
-                        <button
-                            type="button"
-                            @click="portionsWife = portionsWife + 1"
-                            class="flex items-center justify-center size-7 rounded-full bg-sand text-ink font-manrope font-bold leading-none">+</button>
-                    </div>
-                </div>
-                @endif
-            </div>
+            @if ($this->steps)
+            <ol class="mt-3 list-decimal pl-5 space-y-3 font-fraunces italic text-[16.5px] leading-relaxed text-ink marker:font-semibold">
+                @foreach ($this->steps as $step)
+                <li class="pl-1">{{ $step }}</li>
+                @endforeach
+            </ol>
             @endif
 
-            <div class="bg-white border border-ink/10 rounded-2xl px-4">
-                @foreach ($recipe->ingredients as $index => $ingredient)
-                @php $pivot = $ingredient->pivot; @endphp
-                <div @class(['flex items-center justify-between gap-2 py-[11px]', 'border-t border-dashed border-ink/25' => $index > 0])>
-                    <span class="font-manrope text-[14.5px] font-semibold text-ink">
-                        {{ $ingredient->name }}
-                    </span>
+            @if (filled($recipe->link))
+            <a href="{{ $recipe->link }}" target="_blank" rel="noopener" class="mt-4 inline-flex items-center gap-1 font-manrope text-[14.5px] font-bold text-terracotta-dark">
+                {{ __('Recipe source') }}
+                <flux:icon.arrow-up-right class="size-3.5" />
+            </a>
+            @endif
+        </section>
+        @endif
 
-                    @if ($pivot && ($pivot->amount_me !== null || $pivot->amount_wife !== null))
-                    <div class="flex items-center gap-1.5">
-                        @if ($pivot->amount_me !== null)
-                        <span
-                            class="font-manrope text-[11px] font-extrabold text-terracotta-dark bg-sand px-2.5 py-1 rounded-full whitespace-nowrap"
-                            x-text="`${formatAmount({{ $pivot->amount_me }} * portionsMe)} {{ $pivot->unit }}${grams({{ $ingredient->gramsFor($pivot->unit, $pivot->amount_me) ?? 'null' }}, portionsMe)}`">{{ $pivot->displayQuantityFor('me') }}{{ $ingredient->approxWeightLabel($pivot->unit, $pivot->amount_me) }}</span>
-                        @endif
-                        @if ($pivot->amount_wife !== null)
-                        <span
-                            class="font-manrope text-[11px] font-extrabold text-ink/60 bg-ink/8 px-2.5 py-1 rounded-full whitespace-nowrap"
-                            x-text="`${formatAmount({{ $pivot->amount_wife }} * portionsWife)} {{ $pivot->unit }}${grams({{ $ingredient->gramsFor($pivot->unit, $pivot->amount_wife) ?? 'null' }}, portionsWife)}`">{{ $pivot->displayQuantityFor('wife') }}{{ $ingredient->approxWeightLabel($pivot->unit, $pivot->amount_wife) }}</span>
-                        @endif
-                    </div>
-                    @elseif ($pivot?->quantity)
-                    <span class="font-manrope text-[13px] font-extrabold text-terracotta-dark bg-sand px-2.5 py-1 rounded-full whitespace-nowrap">
-                        {{ $pivot->quantity }}
-                    </span>
-                    @endif
-                </div>
-                @endforeach
+        @if ($nutritionProfiles->isNotEmpty())
+        <section class="rounded-[22px] border border-ink/10 bg-white px-4 py-4">
+            <div class="font-manrope text-[12px] font-extrabold uppercase tracking-[0.1em] text-ink/55">{{ __('Nutrition per serving') }}</div>
 
-                @if (filled($this->recipe->content))
-                <div class="font-fraunces italic text-[15px] leading-relaxed text-ink/60 py-4 border-t border-dashed border-ink/25 whitespace-pre-line">
-                    {{ $this->recipe->content }}
-                </div>
-                @endif
-            </div>
-        </div>
-
-        @if ($recipe->hasAnyNutrition())
-        <div>
-            <x-ui.eyebrow>{{ __('Wartości odżywcze na porcję') }}</x-ui.eyebrow>
-            <x-recipe.nutrition :recipe="$recipe" />
-        </div>
+            <table class="mt-2 w-full font-manrope">
+                <thead>
+                    <tr class="text-[12.5px] text-ink/50">
+                        <th></th>
+                        <th class="py-1 text-right font-normal">kcal</th>
+                        <th class="py-1 text-right font-normal">{{ __('protein') }}</th>
+                        <th class="py-1 text-right font-normal">{{ __('carbs') }}</th>
+                        <th class="py-1 text-right font-normal">{{ __('fat') }}</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-ink/8">
+                    @foreach ($nutritionProfiles as $profile)
+                    @php $n = $recipe->nutritionFor($profile); @endphp
+                    <tr class="text-[15px] text-ink">
+                        <td class="py-2.5 font-bold">{{ Recipe::nutritionProfileLabel($profile) }}</td>
+                        <td class="py-2.5 text-right font-fraunces text-[19px] font-bold">{{ $n['calories'] ?? '–' }}</td>
+                        <td class="py-2.5 text-right">{{ $n['protein'] !== null ? round($n['protein']) . ' g' : '–' }}</td>
+                        <td class="py-2.5 text-right">{{ $n['carbs'] !== null ? round($n['carbs']) . ' g' : '–' }}</td>
+                        <td class="py-2.5 text-right">{{ $n['fat'] !== null ? round($n['fat']) . ' g' : '–' }}</td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </section>
         @endif
     </div>
-
-    <flux:modal name="delete-recipe-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
-        <div class="space-y-6">
-            <div class="flex items-start justify-between gap-2">
-                <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Usunąć przepis?') }}</h3>
-                <flux:modal.close>
-                    <button type="button" class="text-ink/25 hover:text-ink/50 p-1.5 text-lg leading-none">✕</button>
-                </flux:modal.close>
-            </div>
-            <p class="font-manrope text-sm text-ink/60 -mt-4">
-                {{ __('Tej operacji nie można cofnąć.') }}
-            </p>
-
-            <div class="flex gap-2 justify-end">
-                <flux:modal.close>
-                    <button type="button" class="font-manrope text-sm font-extrabold text-ink/60 hover:text-ink px-4 py-2.5">
-                        {{ __('Anuluj') }}
-                    </button>
-                </flux:modal.close>
-
-                <button
-                    type="button"
-                    wire:click="delete"
-                    class="bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-2xl px-5 py-2.5 font-manrope text-sm font-extrabold">
-                    {{ __('Usuń przepis') }}
-                </button>
-            </div>
-        </div>
-    </flux:modal>
 </div>

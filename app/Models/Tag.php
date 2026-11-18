@@ -24,6 +24,12 @@ class Tag extends Model
             ->withTimestamps();
     }
 
+    /** Display name — tag names are stored in English and translated here. */
+    public function label(): string
+    {
+        return __($this->name);
+    }
+
     public function isMealType(): bool
     {
         return $this->category === self::MEAL_TYPE;

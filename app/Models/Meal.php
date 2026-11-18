@@ -33,13 +33,22 @@ class Meal extends Model
     }
 
     /**
-     * Type labels in the canonical meal-of-the-day order (matches TYPES).
-     * Used to sort anything keyed by label instead of by type — e.g. the
-     * "meal type" tag pills, whose names are free text set by the user.
+     * Name of the "meal type" tag matching a meal type, as stored in the
+     * tags table (English, e.g. "Breakfast"). Not translated — use
+     * typeLabel() for display.
      */
-    public static function orderedTypeLabels(): array
+    public static function tagName(string $type): string
     {
-        return array_map(fn (string $type) => self::typeLabel($type), self::TYPES);
+        return ucfirst($type);
+    }
+
+    /**
+     * Meal-type tag names in the canonical meal-of-the-day order (matches
+     * TYPES), for sorting the "meal type" tag pills.
+     */
+    public static function orderedTagNames(): array
+    {
+        return array_map(fn (string $type) => self::tagName($type), self::TYPES);
     }
 
     protected function casts(): array

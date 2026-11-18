@@ -6,6 +6,6 @@ $colorClasses = $tag->isMealType()
     : 'bg-sage/18 text-forest';
 @endphp
 
-<span {{ $attributes->merge(['class' => "inline-flex items-center rounded-full px-2.5 py-1 font-manrope text-[11px] font-bold $colorClasses"]) }}>
-    {{ $tag->name }}
+<span {{ $attributes->merge(['class' => "inline-flex items-center rounded-md px-2 py-0.5 font-manrope text-[12px] font-semibold $colorClasses"]) }}>
+    {{ $tag->label() }}
 </span>
