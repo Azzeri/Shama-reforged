@@ -162,3 +162,9 @@ ui-toast-group * {
 #nprogress .peg {
     display: none !important;
 }
+
+/* Immediate feedback while the next page is loading (set from app.js). */
+html.is-navigating [data-flux-main] {
+    opacity: 0.55;
+    transition: opacity 150ms ease;
+}

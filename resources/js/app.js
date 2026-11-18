@@ -520,3 +520,82 @@ if (window.Alpine) {
 } else {
     document.addEventListener('alpine:init', () => registerCardScanner(window.Alpine));
 }
+
+/*
+ * Page switches: dim the current page right away (after a short grace
+ * period, so fast switches don't flicker) so a tap always gets visible
+ * feedback, and optionally measure where the time goes.
+ *
+ * Measuring: open any page with ?perf=1 (turn off with ?perf=0). A small
+ * badge then shows, for every page switch:
+ *   net    — time until the server's response arrived (network + Cloudflare + server)
+ *   render — swapping the page and starting Alpine/Livewire on the phone
+ */
+(() => {
+    let startedAt = null;
+    let dimTimer = null;
+
+    try {
+        const flag = new URLSearchParams(window.location.search).get('perf');
+
+        if (flag !== null) {
+            localStorage.setItem('perf', flag === '1' ? '1' : '');
+        }
+    } catch {
+        // storage unavailable — measuring just stays off
+    }
+
+    const measuring = () => {
+        try {
+            return localStorage.getItem('perf') === '1';
+        } catch {
+            return false;
+        }
+    };
+
+    const showBadge = (text) => {
+        let badge = document.getElementById('perf-badge');
+
+        if (! badge) {
+            badge = document.createElement('div');
+            badge.id = 'perf-badge';
+            badge.style.cssText = 'position:fixed;left:8px;top:calc(env(safe-area-inset-top) + 8px);z-index:200;'
+                + 'background:rgba(43,33,24,.85);color:#fff;font:12px/1.4 ui-monospace,monospace;padding:4px 8px;'
+                + 'border-radius:8px;pointer-events:none;white-space:pre';
+            document.body.appendChild(badge);
+        }
+
+        badge.textContent = text;
+    };
+
+    let fetchedAt = null;
+
+    document.addEventListener('livewire:navigate', (event) => {
+        startedAt = performance.now();
+        fetchedAt = null;
+
+        if (! event.detail?.cached) {
+            dimTimer = setTimeout(() => document.documentElement.classList.add('is-navigating'), 120);
+        }
+    });
+
+    // Fired once the new page's HTML has arrived, right before the swap.
+    document.addEventListener('livewire:navigating', () => {
+        fetchedAt = performance.now();
+    });
+
+    document.addEventListener('livewire:navigated', () => {
+        clearTimeout(dimTimer);
+        document.documentElement.classList.remove('is-navigating');
+
+        if (startedAt !== null && measuring()) {
+            const end = performance.now();
+            const net = fetchedAt ? Math.round(fetchedAt - startedAt) : null;
+            const render = fetchedAt ? Math.round(end - fetchedAt) : null;
+
+            showBadge(`${window.location.pathname}\nnet ${net ?? '?'} ms · render ${render ?? '?'} ms · total ${Math.round(end - startedAt)} ms`);
+        }
+
+        startedAt = null;
+    });
+})();
