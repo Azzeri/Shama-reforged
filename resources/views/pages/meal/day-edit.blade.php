@@ -12,20 +12,37 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
 use Flux\Flux;
 
+/*
+ * Day editor. Every change (adding/removing a recipe, editing a note) is
+ * persisted immediately — there is no Save button.
+ */
 new #[Layout('layouts::app')] class extends Component {
+    /**
+     * Meal types shown only when they already have content or were added
+     * by hand — not part of the default list.
+     */
+    public const OPTIONAL_TYPES = ['dessert'];
+
     public string $date;
 
+    /** @var array<string, array{recipeIds: list<int>, note: string}> */
     public array $meals = [];
 
-    public ?string $pickingType = null;
+    /** Optional meal types the user has opened for this day. */
+    public array $shownOptionalTypes = [];
 
-    public ?int $pickingRecipeIndex = null;
+    public ?string $editingNoteType = null;
+
+    public ?string $pickingType = null;
 
     public string $recipeSearch = '';
 
     public ?int $previewingRecipeId = null;
 
-    public ?string $repeatingKey = null;
+    /** "type:recipeId" of the recipe whose action sheet is open. */
+    public ?string $actionKey = null;
+
+    public bool $showRepeatForm = false;
 
     public string $repeatDayOffset = '';
 
@@ -33,19 +50,11 @@ new #[Layout('layouts::app')] class extends Component {
 
     public function mount(string $date): void
     {
-        $this->date = $date;
-
-        $draft = session($this->draftSessionKey());
-
-        if (is_array($draft) && empty(array_diff(Meal::TYPES, array_keys($draft)))) {
-            $this->meals = $draft;
-
-            return;
-        }
+        $this->date = Carbon::parse($date)->toDateString();
 
         $existingByType = Meal::query()
             ->with('recipes:id')
-            ->whereDate(Meal::DATE_COLUMN, $this->day->toDateString())
+            ->whereDate(Meal::DATE_COLUMN, $this->date)
             ->orderBy('id')
             ->get()
             ->groupBy(Meal::TYPE_COLUMN);
@@ -53,50 +62,23 @@ new #[Layout('layouts::app')] class extends Component {
         $this->meals = collect(Meal::TYPES)
             ->mapWithKeys(function (string $type) use ($existingByType) {
                 $mealsOfType = $existingByType->get($type, collect());
-                $primary = $mealsOfType->first();
-
-                $recipeIds = $mealsOfType
-                    ->flatMap(fn (Meal $meal) => $meal->recipes->pluck('id'))
-                    ->unique()
-                    ->map(fn ($id) => (string) $id)
-                    ->values()
-                    ->all();
 
                 return [$type => [
-                    'id' => $primary?->id,
-                    'extraIds' => $mealsOfType->skip(1)->pluck('id')->all(),
-                    'recipeIds' => $recipeIds ?: [''],
-                    'note' => $primary?->note ?? '',
+                    'recipeIds' => $mealsOfType
+                        ->flatMap(fn (Meal $meal) => $meal->recipes->pluck('id'))
+                        ->unique()
+                        ->values()
+                        ->all(),
+                    'note' => $mealsOfType->first()?->note ?? '',
                 ]];
             })
             ->all();
     }
 
-    /**
-     * Unsaved edits are drafted into the session so that navigating away to
-     * view a recipe (a real page, not an overlay) and back doesn't lose them.
-     */
-    private function draftSessionKey(): string
-    {
-        return "day-edit-draft.{$this->date}";
-    }
-
-    private function saveDraft(): void
-    {
-        session([$this->draftSessionKey() => $this->meals]);
-    }
-
-    public function updated(string $name): void
-    {
-        if (str_starts_with($name, 'meals')) {
-            $this->saveDraft();
-        }
-    }
-
     public function render()
     {
         return $this->view()
-            ->title(__('Edit day') . ': ' . $this->day->locale('en')->isoFormat('dddd, D MMMM'));
+            ->title($this->day->locale('en')->isoFormat('dddd, D MMMM'));
     }
 
     #[Computed]
@@ -105,33 +87,48 @@ new #[Layout('layouts::app')] class extends Component {
         return Carbon::parse($this->date)->startOfDay();
     }
 
+    #[Computed]
+    public function weekDays(): Collection
+    {
+        $weekStart = $this->day->copy()->startOfWeek();
+
+        return collect(range(0, 6))->map(fn (int $offset) => $weekStart->copy()->addDays($offset));
+    }
+
+    #[Computed]
+    public function visibleTypes(): array
+    {
+        return array_values(array_filter(Meal::TYPES, fn (string $type) => ! in_array($type, self::OPTIONAL_TYPES, true)
+            || in_array($type, $this->shownOptionalTypes, true)
+            || ! empty($this->meals[$type]['recipeIds'])
+            || trim($this->meals[$type]['note']) !== ''));
+    }
+
+    #[Computed]
+    public function hiddenOptionalTypes(): array
+    {
+        return array_values(array_diff(self::OPTIONAL_TYPES, $this->visibleTypes));
+    }
+
     /**
-     * Day options for the "repeat this recipe" panel, offset (0-6) from the
-     * start of the week the currently-edited day falls in — so "repeat to
-     * Wednesday" always means Wednesday of this same week, regardless of
-     * which day is currently being edited.
+     * Day options for the "repeat this recipe" form, offset (0-6) from the
+     * start of the week the edited day falls in.
      */
     #[Computed]
     public function weekDayOptions(): Collection
     {
-        $weekStart = $this->day->copy()->startOfWeek();
-
-        return collect(range(0, 6))->map(fn (int $offset) => [
+        return $this->weekDays->map(fn (CarbonInterface $day, int $offset) => [
             'offset' => $offset,
-            'label' => $weekStart->copy()->addDays($offset)->locale('en')->isoFormat('dddd, D MMM'),
+            'label' => $day->copy()->locale('en')->isoFormat('dddd, D MMM'),
         ]);
-    }
-
-    #[Computed]
-    public function recipeOptions(): Collection
-    {
-        return Recipe::query()->orderBy('name')->get();
     }
 
     #[Computed]
     public function recipesById(): Collection
     {
-        return $this->recipeOptions->keyBy('id');
+        $ids = collect($this->meals)->flatMap(fn (array $row) => $row['recipeIds'])->unique()->values();
+
+        return Recipe::query()->whereKey($ids)->get()->keyBy('id');
     }
 
     #[Computed]
@@ -145,38 +142,89 @@ new #[Layout('layouts::app')] class extends Component {
 
         return Recipe::query()
             ->when($this->recipeSearch, fn ($query) => $query->where('name', 'like', '%' . $this->recipeSearch . '%'))
-            ->when($type, function ($query) use ($type) {
-                $query->whereHas('tags', function ($tagQuery) use ($type) {
-                    $tagQuery->where('category', Tag::MEAL_TYPE)
-                        ->where('name', Meal::typeLabel($type));
-                });
+            ->whereHas('tags', function ($tagQuery) use ($type) {
+                $tagQuery->where('category', Tag::MEAL_TYPE)
+                    ->where('name', Meal::typeLabel($type));
             })
             ->orderBy('name')
             ->get(['id', 'name']);
     }
 
-    public function openRecipePicker(string $type, int $recipeIndex): void
+    #[Computed]
+    public function actionRecipe(): ?Recipe
+    {
+        if ($this->actionKey === null) {
+            return null;
+        }
+
+        [, $recipeId] = explode(':', $this->actionKey);
+
+        return $this->recipesById->get((int) $recipeId);
+    }
+
+    public function showOptionalType(string $type): void
+    {
+        if (in_array($type, self::OPTIONAL_TYPES, true)) {
+            $this->shownOptionalTypes[] = $type;
+        }
+    }
+
+    public function openRecipePicker(string $type): void
     {
         $this->pickingType = $type;
-        $this->pickingRecipeIndex = $recipeIndex;
         $this->recipeSearch = '';
     }
 
     public function closeRecipePicker(): void
     {
         $this->pickingType = null;
-        $this->pickingRecipeIndex = null;
         $this->recipeSearch = '';
     }
 
     public function selectRecipeForPicker(int $recipeId): void
     {
-        if ($this->pickingType !== null && $this->pickingRecipeIndex !== null) {
-            $this->meals[$this->pickingType]['recipeIds'][$this->pickingRecipeIndex] = (string) $recipeId;
+        $type = $this->pickingType;
+
+        if ($type !== null && Recipe::query()->whereKey($recipeId)->exists()
+            && ! in_array($recipeId, $this->meals[$type]['recipeIds'], true)) {
+            $this->meals[$type]['recipeIds'][] = $recipeId;
+            $this->persist($type);
+            unset($this->recipesById);
         }
 
         $this->closeRecipePicker();
-        $this->saveDraft();
+    }
+
+    public function removeRecipe(string $type, int $recipeId): void
+    {
+        $this->meals[$type]['recipeIds'] = array_values(array_filter(
+            $this->meals[$type]['recipeIds'],
+            fn (int $id) => $id !== $recipeId,
+        ));
+
+        $this->persist($type);
+        $this->closeActionSheet();
+    }
+
+    public function startEditingNote(string $type): void
+    {
+        $this->editingNoteType = $type;
+    }
+
+    public function saveNote(string $type): void
+    {
+        $this->validate(["meals.$type.note" => ['nullable', 'string', 'max:255']]);
+
+        $this->meals[$type]['note'] = trim($this->meals[$type]['note']);
+        $this->editingNoteType = null;
+        $this->persist($type);
+    }
+
+    public function clearNote(string $type): void
+    {
+        $this->meals[$type]['note'] = '';
+        $this->editingNoteType = null;
+        $this->persist($type);
     }
 
     public function showRecipePreview(int $recipeId): void
@@ -189,289 +237,255 @@ new #[Layout('layouts::app')] class extends Component {
         $this->previewingRecipeId = null;
     }
 
-    public function addRecipeRow(string $type): void
+    public function openActionSheet(string $type, int $recipeId): void
     {
-        $this->meals[$type]['recipeIds'][] = '';
-        $this->saveDraft();
-    }
-
-    public function removeRecipeRow(string $type, int $recipeIndex): void
-    {
-        unset($this->meals[$type]['recipeIds'][$recipeIndex]);
-        $this->meals[$type]['recipeIds'] = array_values($this->meals[$type]['recipeIds']) ?: [''];
-        $this->saveDraft();
-    }
-
-    public function openRepeatPanel(string $type, int $recipeIndex): void
-    {
-        $this->repeatingKey = "{$type}:{$recipeIndex}";
+        $this->actionKey = "{$type}:{$recipeId}";
+        $this->showRepeatForm = false;
         $this->repeatDayOffset = '';
         $this->repeatMealType = '';
         $this->resetErrorBag();
     }
 
-    public function closeRepeatPanel(): void
+    public function closeActionSheet(): void
     {
-        $this->repeatingKey = null;
+        $this->actionKey = null;
+        $this->showRepeatForm = false;
+        unset($this->actionRecipe);
     }
 
     /**
-     * Attaches the recipe to another (day, meal type) slot, independent of
-     * the current day's draft/save flow, so shared ingredients merge on the
-     * shopping list once both days are generated (matched by ingredient +
-     * unit, not by any explicit link between the two Meal rows).
+     * Attaches the recipe to another (day, meal type) slot, so shared
+     * ingredients merge on the shopping list once both days are generated.
      */
-    public function repeatRecipe(string $type, int $recipeIndex): void
+    public function repeatRecipe(): void
     {
         $this->validate([
             'repeatDayOffset' => ['required', Rule::in(range(0, 6))],
             'repeatMealType' => ['required', Rule::in(Meal::TYPES)],
         ]);
 
-        $recipeId = (int) ($this->meals[$type]['recipeIds'][$recipeIndex] ?? 0);
+        $recipe = $this->actionRecipe;
 
-        $targetDate = $this->day->copy()->startOfWeek()->addDays((int) $this->repeatDayOffset);
+        if (! $recipe) {
+            return;
+        }
+
+        $targetDate = $this->weekDays[(int) $this->repeatDayOffset];
 
         $targetMeal = Meal::query()
             ->whereDate(Meal::DATE_COLUMN, $targetDate->toDateString())
             ->where(Meal::TYPE_COLUMN, $this->repeatMealType)
-            ->first();
+            ->first()
+            ?? Meal::create(['date' => $targetDate->copy()->setTime(12, 0), 'type' => $this->repeatMealType]);
 
-        if (! $targetMeal) {
-            $targetMeal = Meal::create([
-                'date' => $targetDate->copy()->setTime(12, 0),
-                'type' => $this->repeatMealType,
-            ]);
+        $targetMeal->recipes()->syncWithoutDetaching([$recipe->id]);
+
+        if ($targetDate->isSameDay($this->day) && ! in_array($recipe->id, $this->meals[$this->repeatMealType]['recipeIds'], true)) {
+            $this->meals[$this->repeatMealType]['recipeIds'][] = $recipe->id;
         }
 
-        $targetMeal->recipes()->syncWithoutDetaching([$recipeId]);
-
-        $this->closeRepeatPanel();
+        $this->closeActionSheet();
 
         Flux::toast(variant: 'success', text: __('Recipe added to the selected day.'));
     }
 
-    public function cancel(): void
+    /**
+     * Writes one meal type of this day to the database: a single Meal row
+     * per (day, type), deleted when it has neither recipes nor a note.
+     */
+    private function persist(string $type): void
     {
-        session()->forget($this->draftSessionKey());
+        $row = $this->meals[$type];
+        $note = trim($row['note']);
 
-        $this->redirectRoute('meals.day', $this->date, navigate: true);
-    }
+        $existing = Meal::query()
+            ->whereDate(Meal::DATE_COLUMN, $this->date)
+            ->where(Meal::TYPE_COLUMN, $type)
+            ->orderBy('id')
+            ->get();
 
-    public function save(): void
-    {
-        foreach ($this->meals as $type => $row) {
-            $this->meals[$type]['recipeIds'] = array_values(array_filter(
-                $row['recipeIds'],
-                fn ($recipeId) => $recipeId !== '',
-            ));
+        $meal = $existing->shift();
+
+        if ($existing->isNotEmpty()) {
+            Meal::query()->whereKey($existing->pluck('id'))->delete();
         }
 
-        $this->validate([
-            'meals.*.note' => ['nullable', 'string', 'max:255'],
-            'meals.*.recipeIds' => ['array'],
-            'meals.*.recipeIds.*' => ['integer', 'exists:recipes,id'],
-        ]);
+        if (empty($row['recipeIds']) && $note === '') {
+            $meal?->delete();
 
-        foreach ($this->meals as $type => $row) {
-            if (count($row['recipeIds']) !== count(array_unique($row['recipeIds']))) {
-                $this->addError("meals.$type.recipeIds", __('This meal already has that recipe added.'));
-            }
-        }
-
-        if ($this->getErrorBag()->isNotEmpty()) {
             return;
         }
 
-        $day = $this->day;
-
-        foreach ($this->meals as $type => $row) {
-            $hasContent = ! empty($row['recipeIds']) || trim($row['note']) !== '';
-
-            if (! $hasContent) {
-                if ($row['id']) {
-                    Meal::query()->whereKey($row['id'])->delete();
-                }
-
-                if (! empty($row['extraIds'])) {
-                    Meal::query()->whereKey($row['extraIds'])->delete();
-                }
-
-                continue;
-            }
-
-            $meal = $row['id']
-                ? Meal::query()->findOrFail($row['id'])
-                : new Meal(['date' => $day->copy()->setTime(12, 0), 'type' => $type]);
-
-            $meal->type = $type;
-            $meal->note = trim($row['note']) !== '' ? trim($row['note']) : null;
-            $meal->save();
-            $meal->recipes()->sync($row['recipeIds']);
-
-            if (! empty($row['extraIds'])) {
-                Meal::query()->whereKey($row['extraIds'])->delete();
-            }
-        }
-
-        session()->forget($this->draftSessionKey());
-
-        Flux::toast(variant: 'success', text: __('Day saved.'));
-
-        $this->redirectRoute('meals.day', $day->toDateString(), navigate: true);
+        $meal ??= new Meal(['date' => $this->day->copy()->setTime(12, 0), 'type' => $type]);
+        $meal->note = $note !== '' ? $note : null;
+        $meal->save();
+        $meal->recipes()->sync($row['recipeIds']);
     }
 };
 ?>
 
 <div>
-    <div class="space-y-5">
-        <x-ui.back-button wire:click="cancel" />
+    <div class="space-y-4">
+        <x-ui.back-button href="{{ route('meals.index') }}" :label="__('Week')" />
 
-        <h1 class="font-fraunces text-2xl font-semibold text-ink">{{ __('Edit day') }}: {{ $this->day->locale('en')->isoFormat('dddd, D MMMM') }}</h1>
+        <h1 class="font-fraunces text-[28px] leading-tight font-semibold text-ink">{{ $this->day->locale('en')->isoFormat('dddd, D MMMM') }}</h1>
 
-        <form wire:submit="save" class="space-y-4">
-            @foreach (\App\Models\Meal::TYPES as $type)
-            @php $row = $meals[$type]; @endphp
-            <div wire:key="meal-type-{{ $type }}" class="bg-white rounded-[18px] p-4 border border-ink/10 space-y-3">
-                <x-ui.eyebrow>{{ Meal::typeLabel($type) }}</x-ui.eyebrow>
+        <x-meal.week-strip :day="$this->day" route="meals.day.edit" />
 
-                <div>
-                    <div class="space-y-2.5">
-                        @foreach ($row['recipeIds'] as $recipeIndex => $recipeId)
-                        <div wire:key="meal-{{ $type }}-recipe-{{ $recipeIndex }}">
-                            @if ($recipeId && $this->recipesById->has((int) $recipeId))
-                            @php $selectedRecipe = $this->recipesById[(int) $recipeId]; @endphp
-                            <div class="rounded-xl border border-ink/10 overflow-hidden">
-                                <a
-                                    href="{{ route('recipes.show', $selectedRecipe) }}?back={{ urlencode(route('meals.day.edit', $date, false)) }}"
-                                    wire:navigate
-                                    class="block px-3.5 py-2.5 hover:bg-sand/40 transition-colors">
-                                    <div class="font-manrope text-sm font-bold text-ink mb-1.5">{{ $selectedRecipe->name }}</div>
-                                    <x-recipe.nutrition :recipe="$selectedRecipe" compact />
-                                </a>
-                                <div class="flex border-t border-ink/10">
-                                    <button
-                                        type="button"
-                                        wire:click="openRecipePicker('{{ $type }}', {{ $recipeIndex }})"
-                                        class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 font-manrope text-[12.5px] font-bold text-terracotta-dark hover:bg-sand/40 border-e border-ink/10">
-                                        <flux:icon.arrows-right-left class="size-3.5" />
-                                        {{ __('Swap') }}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        wire:click="removeRecipeRow('{{ $type }}', {{ $recipeIndex }})"
-                                        class="w-12 flex items-center justify-center text-terracotta-dark hover:bg-sand/40">
-                                        <flux:icon.trash class="size-4" />
-                                    </button>
-                                </div>
-                            </div>
+        <div class="bg-white rounded-[22px] border border-ink/10 divide-y divide-ink/8">
+            @foreach ($this->visibleTypes as $type)
+            @php
+                $row = $meals[$type];
+                $hasNote = trim($row['note']) !== '';
+                $isEditingNote = $editingNoteType === $type;
+            @endphp
+            <div wire:key="meal-type-{{ $type }}" class="px-4 py-4 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="font-manrope text-[12px] font-extrabold uppercase tracking-[0.12em] text-ink/60">{{ Meal::typeLabel($type) }}</span>
 
-                            <button
-                                type="button"
-                                wire:click="openRepeatPanel('{{ $type }}', {{ $recipeIndex }})"
-                                class="flex items-center gap-1.5 mt-2 font-manrope text-[12.5px] font-bold text-forest">
-                                <flux:icon.arrow-path class="size-3.5" />
-                                {{ __('Repeat on another day') }}
-                            </button>
+                    @if (! $hasNote && ! $isEditingNote)
+                    <button type="button" wire:click="startEditingNote('{{ $type }}')" class="inline-flex items-center gap-1.5 font-manrope text-[14px] text-ink/60">
+                        <flux:icon.pencil class="size-4" />
+                        {{ __('Note') }}
+                    </button>
+                    @endif
+                </div>
 
-                            @if ($repeatingKey === "{$type}:{$recipeIndex}")
-                            <div class="mt-2 rounded-xl border border-ink/10 bg-sand/40 p-3.5 space-y-3">
-                                <x-ui.eyebrow>{{ __('Repeat this recipe') }}</x-ui.eyebrow>
-
-                                <div class="grid grid-cols-2 gap-2.5">
-                                    <select
-                                        wire:model="repeatDayOffset"
-                                        class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-base sm:text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
-                                        <option value="">{{ __('Day') }}</option>
-                                        @foreach ($this->weekDayOptions as $option)
-                                        <option value="{{ $option['offset'] }}">{{ $option['label'] }}</option>
-                                        @endforeach
-                                    </select>
-
-                                    <select
-                                        wire:model="repeatMealType"
-                                        class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-base sm:text-sm text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
-                                        <option value="">{{ __('Meal type') }}</option>
-                                        @foreach (\App\Models\Meal::TYPES as $optionType)
-                                        <option value="{{ $optionType }}">{{ Meal::typeLabel($optionType) }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-
-                                <x-ui.field-error name="repeatDayOffset" />
-                                <x-ui.field-error name="repeatMealType" />
-
-                                <p class="font-manrope text-xs text-ink/50">{{ __('Ingredients will sum up on the shopping list.') }}</p>
-
-                                <div class="flex items-center justify-end gap-3">
-                                    <button type="button" wire:click="closeRepeatPanel" class="font-manrope text-sm font-extrabold text-forest px-3 py-2">
-                                        {{ __('Cancel') }}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        wire:click="repeatRecipe('{{ $type }}', {{ $recipeIndex }})"
-                                        class="bg-forest hover:bg-forest/90 transition-colors text-white rounded-xl px-4 py-2 font-manrope text-sm font-extrabold">
-                                        {{ __('Add') }}
-                                    </button>
-                                </div>
-                            </div>
-                            @endif
-                            @else
-                            <div class="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    wire:click="openRecipePicker('{{ $type }}', {{ $recipeIndex }})"
-                                    class="flex-1 flex items-center justify-between gap-2 border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-base sm:text-sm text-left text-ink/35">
-                                    <span class="truncate">{{ __('Select recipe') }}</span>
-                                    <flux:icon.chevron-down class="size-4 text-ink/40 shrink-0" />
-                                </button>
-
-                                <button
-                                    type="button"
-                                    wire:click="removeRecipeRow('{{ $type }}', {{ $recipeIndex }})"
-                                    class="shrink-0 w-10 h-11 flex items-center justify-center rounded-xl bg-terracotta text-white">
-                                    <flux:icon.trash class="size-4" />
-                                </button>
-                            </div>
-                            @endif
-                        </div>
-                        @endforeach
+                <div class="flex flex-wrap gap-2">
+                    @foreach ($row['recipeIds'] as $recipeId)
+                    @if ($recipe = $this->recipesById->get($recipeId))
+                    <div wire:key="meal-{{ $type }}-recipe-{{ $recipeId }}" class="inline-flex items-center rounded-full bg-sand max-w-full">
+                        <button
+                            type="button"
+                            x-data="{ timer: null }"
+                            x-on:touchstart.passive="timer = setTimeout(() => { timer = null; $wire.openActionSheet('{{ $type }}', {{ $recipeId }}) }, 450)"
+                            x-on:touchmove.passive="clearTimeout(timer)"
+                            x-on:touchend="clearTimeout(timer)"
+                            x-on:mousedown="timer = setTimeout(() => { timer = null; $wire.openActionSheet('{{ $type }}', {{ $recipeId }}) }, 450)"
+                            x-on:mouseup="clearTimeout(timer)"
+                            x-on:mouseleave="clearTimeout(timer)"
+                            x-on:contextmenu.prevent
+                            class="pl-3.5 py-2 font-manrope text-[14.5px] font-semibold text-ink text-left truncate select-none [-webkit-touch-callout:none]">
+                            {{ $recipe->name }}
+                        </button>
+                        <button type="button" wire:click="removeRecipe('{{ $type }}', {{ $recipeId }})" class="px-2.5 py-2 text-ink/50" aria-label="{{ __('Remove') }}">
+                            <flux:icon.x-mark class="size-4" />
+                        </button>
                     </div>
-
-                    <x-ui.field-error name="meals.{{ $type }}.recipeIds" />
+                    @endif
+                    @endforeach
 
                     <button
                         type="button"
-                        wire:click="addRecipeRow('{{ $type }}')"
-                        class="flex items-center gap-2 text-terracotta font-manrope text-[13.5px] font-bold py-2">
-                        + {{ __('Add recipe') }}
+                        wire:click="openRecipePicker('{{ $type }}')"
+                        class="inline-flex items-center gap-1.5 rounded-full border border-dashed border-ink/25 px-3.5 py-2 font-manrope text-[14.5px] font-bold text-terracotta-dark">
+                        <flux:icon.plus class="size-4" />
+                        {{ empty($row['recipeIds']) ? __('Add recipe') : __('Add') }}
                     </button>
                 </div>
 
+                @if ($isEditingNote)
                 <div>
-                    <x-ui.eyebrow optional>{{ __('Notatka') }}</x-ui.eyebrow>
-                    <x-ui.text-input
+                    <input
+                        type="text"
                         wire:model="meals.{{ $type }}.note"
-                        placeholder="{{ __('np. Jemy na mieście') }}"
-                        class="w-full" />
-                    <p class="font-manrope text-xs text-ink/50 mt-1.5">
-                        {{ __('Użyj zamiast przepisu, gdy nie planujesz nic konkretnego — nie trafi na listę zakupów.') }}
-                    </p>
+                        wire:keydown.enter="saveNote('{{ $type }}')"
+                        wire:blur="saveNote('{{ $type }}')"
+                        x-init="$nextTick(() => $el.focus())"
+                        placeholder="{{ __('e.g. Eating out') }}"
+                        maxlength="255"
+                        class="w-full rounded-xl border border-ink/15 bg-cream px-3.5 py-2.5 font-manrope text-base text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
                     <x-ui.field-error name="meals.{{ $type }}.note" />
                 </div>
+                @elseif ($hasNote)
+                <div class="flex items-center gap-2.5 rounded-xl border border-ink/10 bg-cream px-3.5 py-2.5">
+                    <flux:icon.document class="size-4 text-ink/50 shrink-0" />
+                    <button type="button" wire:click="startEditingNote('{{ $type }}')" class="flex-1 text-left font-manrope text-[14.5px] text-ink truncate">
+                        {{ $row['note'] }}
+                    </button>
+                    <button type="button" wire:click="clearNote('{{ $type }}')" class="text-ink/50 shrink-0" aria-label="{{ __('Remove') }}">
+                        <flux:icon.x-mark class="size-4" />
+                    </button>
+                </div>
+                @endif
             </div>
             @endforeach
+        </div>
 
-            <div class="flex items-center justify-end gap-3">
-                <button type="button" wire:click="cancel" class="font-manrope text-sm font-extrabold text-forest px-4 py-3">
-                    {{ __('Cancel') }}
-                </button>
-                <button type="submit" class="bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-[14px] px-5 py-3 font-manrope text-sm font-extrabold">
-                    {{ __('Save day') }}
+        @if ($this->hiddenOptionalTypes)
+        <div class="flex flex-wrap gap-2">
+            @foreach ($this->hiddenOptionalTypes as $optionalType)
+            <button
+                type="button"
+                wire:click="showOptionalType('{{ $optionalType }}')"
+                class="inline-flex items-center gap-1.5 rounded-full border border-dashed border-ink/25 px-3.5 py-2 font-manrope text-[13.5px] font-bold text-ink/60">
+                <flux:icon.plus class="size-4" />
+                {{ Meal::typeLabel($optionalType) }}
+            </button>
+            @endforeach
+        </div>
+        @endif
+    </div>
+
+    @if ($actionKey && $this->actionRecipe)
+    @php [$actionType] = explode(':', $actionKey); @endphp
+    <div
+        class="fixed inset-0 z-[55] bg-[rgba(27,21,16,0.45)] flex items-end justify-center overscroll-contain"
+        wire:click.self="closeActionSheet">
+        <div class="w-full max-w-xl rounded-t-[24px] bg-cream max-h-[88dvh] overflow-y-auto overscroll-contain p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] space-y-4">
+            <div class="flex items-start justify-between gap-2">
+                <h3 class="font-fraunces text-xl font-semibold text-ink">{{ $this->actionRecipe->name }}</h3>
+                <button type="button" wire:click="closeActionSheet" class="text-ink/25 hover:text-ink/50 p-1.5 text-lg leading-none">✕</button>
+            </div>
+
+            <x-recipe.nutrition :recipe="$this->actionRecipe" compact />
+
+            @if ($showRepeatForm)
+            <div class="rounded-xl border border-ink/10 bg-white p-3.5 space-y-3">
+                <div class="grid grid-cols-2 gap-2.5">
+                    <select wire:model="repeatDayOffset" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-3 font-manrope text-base sm:text-sm text-ink">
+                        <option value="">{{ __('Day') }}</option>
+                        @foreach ($this->weekDayOptions as $option)
+                        <option value="{{ $option['offset'] }}">{{ $option['label'] }}</option>
+                        @endforeach
+                    </select>
+                    <select wire:model="repeatMealType" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-3 font-manrope text-base sm:text-sm text-ink">
+                        <option value="">{{ __('Meal type') }}</option>
+                        @foreach (Meal::TYPES as $optionType)
+                        <option value="{{ $optionType }}">{{ Meal::typeLabel($optionType) }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <x-ui.field-error name="repeatDayOffset" />
+                <x-ui.field-error name="repeatMealType" />
+                <button type="button" wire:click="repeatRecipe" class="w-full bg-forest text-white rounded-xl py-3 font-manrope text-sm font-extrabold">
+                    {{ __('Add') }}
                 </button>
             </div>
-        </form>
+            @endif
+
+            <div class="grid gap-2">
+                <a
+                    href="{{ route('recipes.show', $this->actionRecipe) }}?back={{ urlencode(route('meals.day.edit', $date, false)) }}"
+                    wire:navigate
+                    class="flex items-center justify-center gap-2 bg-white border border-ink/10 rounded-[14px] py-3 font-manrope text-sm font-extrabold text-ink">
+                    <flux:icon.book-open class="size-4" />
+                    {{ __('Open recipe') }}
+                </a>
+                @unless ($showRepeatForm)
+                <button type="button" wire:click="$set('showRepeatForm', true)" class="flex items-center justify-center gap-2 bg-white border border-ink/10 rounded-[14px] py-3 font-manrope text-sm font-extrabold text-forest">
+                    <flux:icon.arrow-path class="size-4" />
+                    {{ __('Repeat on another day') }}
+                </button>
+                @endunless
+                <button type="button" wire:click="removeRecipe('{{ $actionType }}', {{ $this->actionRecipe->id }})" class="flex items-center justify-center gap-2 py-3 font-manrope text-sm font-extrabold text-terracotta-dark">
+                    <flux:icon.trash class="size-4" />
+                    {{ __('Remove from meal') }}
+                </button>
+            </div>
+        </div>
     </div>
+    @endif
 
     @if ($pickingType !== null)
     <div
@@ -555,7 +569,7 @@ new #[Layout('layouts::app')] class extends Component {
                     class="text-ink/25 hover:text-ink/50 p-1.5 text-lg leading-none">✕</button>
             </div>
 
-            <livewire:pages::recipe.show :recipe="$this->recipesById[$previewingRecipeId]" :show-back-button="false" :key="'recipe-preview-'.$previewingRecipeId" />
+            <livewire:pages::recipe.show :recipe="Recipe::find($previewingRecipeId)" :show-back-button="false" :key="'recipe-preview-'.$previewingRecipeId" />
         </div>
     </div>
     @endif
