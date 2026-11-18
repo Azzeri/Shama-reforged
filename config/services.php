@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'meal_plan_api' => [
+        'token' => env('MEAL_PLAN_API_TOKEN'),
+    ],
+
 ];

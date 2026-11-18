@@ -3,6 +3,7 @@
         <flux:navlist aria-label="{{ __('Settings') }}">
             <flux:navlist.item :href="route('profile.edit')" wire:navigate>{{ __('Profile') }}</flux:navlist.item>
             <flux:navlist.item :href="route('security.edit')" wire:navigate>{{ __('Security') }}</flux:navlist.item>
+            <flux:navlist.item :href="route('ai-report.edit')" wire:navigate>{{ __('AI meal plan') }}</flux:navlist.item>
         </flux:navlist>
 
         <form method="POST" action="{{ route('logout') }}" class="mt-4">

@@ -4,7 +4,7 @@
         @include('partials.head')
     </head>
     @php
-        $showBottomNav = request()->routeIs(['recipes.index', 'meals.index', 'shopping-list.index', 'ingredients.index', 'profile.edit', 'security.edit']);
+        $showBottomNav = request()->routeIs(['recipes.index', 'meals.index', 'shopping-list.index', 'ingredients.index', 'profile.edit', 'security.edit', 'ai-report.edit']);
     @endphp
     <body class="min-h-dvh bg-cream antialiased pt-[env(safe-area-inset-top)] {{ $showBottomNav ? 'pb-[calc(6rem+env(safe-area-inset-bottom))]' : 'pb-8' }}">
         <div class="max-w-xl mx-auto">
