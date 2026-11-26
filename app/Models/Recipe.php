@@ -18,6 +18,12 @@ class Recipe extends Model
 {
     use HasFactory;
 
+    /** Same defaults as the DB columns, so a freshly created model knows them. */
+    protected $attributes = [
+        'servings' => 2,
+        'packable' => false,
+    ];
+
     public const NAME_COLUMN = 'name';
 
     public const RATING_HEALTHY = 'healthy';

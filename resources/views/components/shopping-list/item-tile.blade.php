@@ -66,7 +66,7 @@
                 <span class="shrink-0 rounded-full bg-gold-light px-1.5 py-px text-[11px] font-semibold text-gold-dark">{{ __('tomorrow') }}</span>
                 @endif
                 @if ($group['optional'] ?? false)
-                <span class="shrink-0 rounded-full border border-dashed border-faint px-1.5 text-[11px] font-medium text-muted">{{ __('optional') }}</span>
+                <span class="shrink-0 rounded-full border border-dashed border-faint px-1.5 text-[11px] font-medium text-muted">{{ __('optionally') }}</span>
                 @endif
             </div>
             @if ($group['subtitle'])

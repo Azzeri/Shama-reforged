@@ -21,6 +21,18 @@ new #[Layout('layouts::app')] class extends Component {
     #[Url(as: 'ingredients')]
     public array $ingredientIds = [];
 
+    /** healthy | medium | unhealthy */
+    #[Url(as: 'rating')]
+    public ?string $rating = null;
+
+    #[Url(as: 'packable')]
+    public bool $packable = false;
+
+    /** Filter panel (main ingredient, rating, packing) unfolded. */
+    public bool $filtersOpen = false;
+
+    public bool $archiveOpen = false;
+
     public string $ingredientSearch = '';
 
     /** The ingredient list in the filter sheet is only rendered once opened. */
@@ -36,7 +48,24 @@ new #[Layout('layouts::app')] class extends Component {
     {
         $search = trim($this->search);
 
-        return Recipe::query()
+        return $this->filtered(Recipe::query()->active())
+            ->with('tags')
+            ->orderBy('name')
+            ->get();
+    }
+
+    #[Computed]
+    public function archivedRecipes(): Collection
+    {
+        return Recipe::query()->archived()->with('tags')->orderBy('name')->get();
+    }
+
+    /** Search + all filters; also used by tests through the page. */
+    private function filtered($query)
+    {
+        $search = trim($this->search);
+
+        return $query
             ->when($search !== '', fn ($query) => $query->where(fn ($query) => $query
                 ->where('name', 'like', "%{$search}%")
                 ->orWhereHas('ingredients', fn ($q) => $q->where('ingredients.name', 'like', "%{$search}%"))))
@@ -51,9 +80,46 @@ new #[Layout('layouts::app')] class extends Component {
                     $query->whereHas('ingredients', fn ($q) => $q->whereKey((int) $ingredientId));
                 }
             })
-            ->with('tags')
-            ->orderBy('name')
-            ->get();
+            ->when(in_array($this->rating, Recipe::RATINGS, true), fn ($query) => $query->where('rating', $this->rating))
+            ->when($this->packable, fn ($query) => $query->where('packable', true));
+    }
+
+    #[Computed]
+    public function mealTags(): Collection
+    {
+        return $this->filterTags->filter(fn (Tag $tag) => $tag->isMealType())->values();
+    }
+
+    #[Computed]
+    public function dietTags(): Collection
+    {
+        return $this->filterTags->filter(fn (Tag $tag) => $tag->isDietType())->values();
+    }
+
+    /** Filters inside the panel (meal chips are always visible, so not counted). */
+    #[Computed]
+    public function panelFilterCount(): int
+    {
+        return $this->dietTags->whereIn('id', $this->tagIds)->count()
+            + ($this->rating ? 1 : 0)
+            + ($this->packable ? 1 : 0)
+            + count($this->ingredientIds);
+    }
+
+    public function hasFilters(): bool
+    {
+        return trim($this->search) !== '' || $this->tagIds || $this->ingredientIds || $this->rating || $this->packable;
+    }
+
+    public function setRating(string $rating): void
+    {
+        $this->rating = $this->rating === $rating || ! in_array($rating, Recipe::RATINGS, true) ? null : $rating;
+    }
+
+    public function restore(int $recipeId): void
+    {
+        Recipe::query()->whereKey($recipeId)->update(['archived_at' => null]);
+        unset($this->recipes, $this->archivedRecipes);
     }
 
     #[Computed]
@@ -106,105 +172,111 @@ new #[Layout('layouts::app')] class extends Component {
 
     public function clearFilters(): void
     {
-        $this->reset('search', 'tagIds', 'ingredientIds');
+        $this->reset('search', 'tagIds', 'ingredientIds', 'rating', 'packable');
     }
 };
 ?>
 
-<div>
-    <div class="space-y-4">
-        <div class="flex items-center justify-between gap-3">
-            <h1 class="font-fraunces text-[34px] font-semibold leading-none text-ink">{{ __('Recipes') }}</h1>
+@php
+    $recipes = $this->recipes;
+    $filtersActive = $this->hasFilters();
+@endphp
 
-            <a href="{{ route('recipes.create') }}" wire:navigate class="inline-flex items-center gap-1.5 rounded-full bg-terracotta px-4 py-2.5 font-inter text-[15px] font-semibold text-white shadow-[0_6px_14px_rgba(193,68,45,0.3)]">
-                <flux:icon.plus class="size-4" />
-                {{ __('New') }}
-            </a>
+<div class="space-y-3">
+    <x-ui.page-header :title="__('Recipes')">
+        <x-ui.pill :href="route('recipes.create')">{{ __('New') }}</x-ui.pill>
+    </x-ui.page-header>
+
+    <x-ui.search-input id="recipe-search" wire:model.live.debounce.250ms="search" :placeholder="__('Search recipe')" />
+
+    <div class="-mx-4 px-4 flex gap-2 overflow-x-auto no-scrollbar">
+        <button type="button" wire:click="$toggle('filtersOpen')" aria-expanded="{{ $filtersOpen ? 'true' : 'false' }}"
+            @class(['inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-[14px] font-semibold', 'bg-sand border-faint text-ink' => $filtersOpen || $this->panelFilterCount, 'bg-white border-field text-ink' => ! $filtersOpen && ! $this->panelFilterCount])>
+            <x-icon.filter class="size-4" />
+            {{ __('Filters') }}@if ($this->panelFilterCount) ({{ $this->panelFilterCount }})@endif
+        </button>
+        @foreach ($this->mealTags as $tag)
+        <x-ui.chip wire:key="meal-chip-{{ $tag->id }}" color="gold" :active="in_array($tag->id, $tagIds)" wire:click="toggleTag({{ $tag->id }})">{{ $tag->label() }}</x-ui.chip>
+        @endforeach
+    </div>
+
+    @if ($filtersOpen)
+    <div class="space-y-3 pt-1">
+        <div>
+            <x-ui.section-label class="mb-1.5">{{ __('Main ingredient') }}</x-ui.section-label>
+            <div class="flex flex-wrap gap-2">
+                @foreach ($this->dietTags as $tag)
+                <x-ui.chip wire:key="diet-chip-{{ $tag->id }}" color="sage" :active="in_array($tag->id, $tagIds)" wire:click="toggleTag({{ $tag->id }})">{{ $tag->label() }}</x-ui.chip>
+                @endforeach
+            </div>
         </div>
-
-        <div class="relative">
-            <flux:icon.magnifying-glass class="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted" />
-            <input
-                type="search"
-                wire:model.live.debounce.250ms="search"
-                placeholder="{{ __('Search for a recipe or ingredient') }}"
-                class="w-full rounded-2xl border border-line bg-white py-3 pl-10 pr-9 font-inter text-base text-ink placeholder:text-ink/40 focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
-            @if ($search !== '')
-            <button type="button" wire:click="$set('search', '')" class="absolute right-3 top-1/2 -translate-y-1/2 text-ink/35" aria-label="{{ __('Clear') }}">
-                <flux:icon.x-mark class="size-4" />
-            </button>
-            @endif
+        <div>
+            <x-ui.section-label class="mb-1.5">{{ __('Rating and packing') }}</x-ui.section-label>
+            <div class="flex flex-wrap gap-2">
+                @foreach (Recipe::RATINGS as $ratingOption)
+                <x-ui.chip wire:key="rating-chip-{{ $ratingOption }}" :active="$rating === $ratingOption" wire:click="setRating('{{ $ratingOption }}')">{{ Recipe::ratingLabel($ratingOption) }}</x-ui.chip>
+                @endforeach
+                <x-ui.chip :active="$packable" wire:click="$toggle('packable')">{{ __('for packing') }}</x-ui.chip>
+            </div>
         </div>
+        <div>
+            <x-ui.section-label class="mb-1.5">{{ __('Ingredients') }}</x-ui.section-label>
+            <div class="flex flex-wrap gap-2">
+                @foreach ($this->selectedIngredients as $ingredient)
+                <x-ui.chip wire:key="ingredient-chip-{{ $ingredient->id }}" active wire:click="toggleIngredient({{ $ingredient->id }})">
+                    {{ $ingredient->name }} <x-icon.x class="size-3.5" />
+                </x-ui.chip>
+                @endforeach
+                <button type="button" wire:click="openIngredientFilter" class="inline-flex h-9 items-center gap-1 rounded-full border border-dashed border-faint px-3.5 text-[14px] font-medium text-terracotta">
+                    <x-icon.plus class="size-4" />
+                    {{ __('Contains ingredient') }}
+                </button>
+            </div>
+        </div>
+    </div>
+    @endif
 
-        <div class="-mx-4 px-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <button type="button" wire:click="openIngredientFilter" @class([
-                    'shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 font-inter text-[14px] font-semibold',
-                    'bg-ink border-ink text-white' => $ingredientIds,
-                    'bg-white border-line text-ink' => ! $ingredientIds,
-                ])>
-                    <flux:icon.funnel class="size-4" />
-                    {{ __('Ingredient') }}@if ($ingredientIds) · {{ count($ingredientIds) }}@endif
-            </button>
+    @if ($filtersActive)
+    <div class="flex items-center justify-between pt-1">
+        <span class="text-[14px] text-muted">{{ trans_choice(':count recipe|:count recipes', $recipes->count()) }}</span>
+        <button type="button" wire:click="clearFilters" class="h-9 text-[14px] font-semibold text-terracotta">{{ __('Clear filters') }}</button>
+    </div>
+    @endif
 
-            @foreach ($this->filterTags as $tag)
-            @php $active = in_array($tag->id, $tagIds); @endphp
-            <button
-                type="button"
-                wire:key="filter-tag-{{ $tag->id }}"
-                wire:click="toggleTag({{ $tag->id }})"
-                @class([
-                    'shrink-0 rounded-full border px-3.5 py-2 font-inter text-[14px] font-semibold whitespace-nowrap',
-                    'bg-white border-line text-ink' => ! $active,
-                    'bg-gold border-gold text-white' => $active && $tag->isMealType(),
-                    'bg-forest border-forest text-white' => $active && ! $tag->isMealType(),
-                ])>
-                {{ $tag->label() }}
-            </button>
+    @if ($recipes->isEmpty())
+    <div class="rounded-[20px] border border-dashed border-field px-5 py-10 text-center text-[15px] text-muted">
+        {{ $filtersActive ? __('No recipes match the filters.') : __('No recipes yet.') }}
+    </div>
+    @else
+    <x-ui.card class="divide-y divide-divider">
+        @foreach ($recipes as $recipe)
+        <x-recipe.row :recipe="$recipe" wire:key="recipe-{{ $recipe->id }}" />
+        @endforeach
+    </x-ui.card>
+    @endif
+
+    @if ($this->archivedRecipes->isNotEmpty())
+    <div class="pt-1">
+        <button type="button" wire:click="$toggle('archiveOpen')" aria-expanded="{{ $archiveOpen ? 'true' : 'false' }}" class="inline-flex h-11 items-center gap-2 px-1 text-[15px] font-semibold text-ink-soft">
+            <x-icon.archive class="size-[18px]" />
+            {{ __('Archive') }} ({{ $this->archivedRecipes->count() }})
+            <x-icon.chevron-down class="size-4 transition-transform {{ $archiveOpen ? 'rotate-180' : '' }}" />
+        </button>
+
+        @if ($archiveOpen)
+        <div class="mt-1 rounded-[20px] border border-dashed border-faint bg-white/60 divide-y divide-divider overflow-hidden">
+            @foreach ($this->archivedRecipes as $archived)
+            <div wire:key="archived-{{ $archived->id }}" class="flex items-center gap-3 px-4 py-2.5 min-h-14">
+                <a href="{{ route('recipes.show', $archived) }}" wire:navigate class="flex-1 min-w-0 font-fraunces text-[16px] font-semibold text-ink-soft truncate">{{ $archived->name }}</a>
+                <button type="button" wire:click="restore({{ $archived->id }})" class="h-9 shrink-0 rounded-full border border-field bg-white px-3 text-[13px] font-semibold text-ink">{{ __('Restore') }}</button>
+            </div>
             @endforeach
-        </div>
-
-        @if ($tagIds || $ingredientIds || $search !== '')
-        <div class="flex items-center justify-between gap-3 font-inter text-[13.5px]">
-            <span class="text-muted truncate">
-                {{ trans_choice(':count recipe|:count recipes', $this->recipes->count()) }}
-                @if ($this->selectedIngredients->isNotEmpty())
-                · {{ $this->selectedIngredients->pluck('name')->implode(', ') }}
-                @endif
-            </span>
-            <button type="button" wire:click="clearFilters" class="shrink-0 font-semibold text-terracotta-dark">{{ __('Clear filters') }}</button>
-        </div>
-        @endif
-
-        @if ($this->recipes->isNotEmpty())
-        <div class="rounded-[22px] border border-line bg-white divide-y divide-divider overflow-hidden">
-            @foreach ($this->recipes as $recipe)
-            @php $kcal = Recipe::shortCalorieLine(collect(Recipe::NUTRITION_PROFILES)->mapWithKeys(fn ($p) => [$p => $recipe->caloriesFor($p)])->filter()->all()); @endphp
-            <a href="{{ route('recipes.show', $recipe) }}" wire:navigate.hover wire:key="recipe-{{ $recipe->id }}" class="flex items-center gap-3 px-4 py-3.5">
-                <div class="flex-1 min-w-0">
-                    <div class="font-fraunces text-[17px] font-semibold leading-snug text-ink">{{ $recipe->name }}</div>
-                    @if ($recipe->tags->isNotEmpty() || $kcal !== '')
-                    <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
-                        @foreach ($recipe->tags->sortBy(fn ($tag) => $tag->isMealType() ? 0 : 1) as $tag)
-                        <x-recipe.tag-badge :tag="$tag" />
-                        @endforeach
-                        @if ($kcal !== '')
-                        <span class="font-inter text-[12.5px] text-muted">{{ $kcal }}</span>
-                        @endif
-                    </div>
-                    @endif
-                </div>
-                <x-ui.chevron-right />
-            </a>
-            @endforeach
-        </div>
-        @else
-        <div class="rounded-[22px] border border-dashed border-field px-4 py-10 text-center font-inter text-[15px] text-muted">
-            {{ __('No recipes match these filters.') }}
         </div>
         @endif
     </div>
+    @endif
 
-    <flux:modal name="ingredient-filter-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
+    <flux:modal name="ingredient-filter-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-white! max-h-[88dvh] overflow-y-auto">
         <div class="space-y-4">
             <div class="flex items-start justify-between gap-2">
                 <div>
@@ -212,7 +284,7 @@ new #[Layout('layouts::app')] class extends Component {
                     <p class="font-inter text-[13px] text-muted">{{ __('Recipes containing all selected ingredients.') }}</p>
                 </div>
                 <flux:modal.close>
-                    <button type="button" class="text-ink/25 hover:text-muted p-1.5 text-lg leading-none">✕</button>
+                    <button type="button" class="-mr-2.5 flex size-11 items-center justify-center text-ink" aria-label="{{ __('Close') }}"><x-icon.x class="size-[18px]" /></button>
                 </flux:modal.close>
             </div>
 
@@ -220,7 +292,8 @@ new #[Layout('layouts::app')] class extends Component {
                 type="search"
                 wire:model.live.debounce.200ms="ingredientSearch"
                 placeholder="{{ __('Search ingredients') }}"
-                class="w-full rounded-2xl border border-line bg-white px-3.5 py-3 font-inter text-base text-ink placeholder:text-ink/40 focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
+                aria-label="{{ __('Search ingredients') }}"
+                class="w-full h-11 rounded-xl border border-field bg-field-bg px-3 text-base text-ink placeholder:text-muted focus:outline-none focus:border-ink focus:ring-1 focus:ring-ink" />
 
             <div class="rounded-2xl border border-line bg-white divide-y divide-divider max-h-[50dvh] overflow-y-auto">
                 @forelse ($ingredientFilterLoaded ? $this->ingredientOptions : [] as $ingredient)
@@ -228,10 +301,10 @@ new #[Layout('layouts::app')] class extends Component {
                 <button type="button" wire:key="ingredient-option-{{ $ingredient->id }}" wire:click="toggleIngredient({{ $ingredient->id }})" class="w-full flex items-center gap-3 px-4 py-3 text-left">
                     <span @class([
                         'flex items-center justify-center size-[22px] shrink-0 rounded-[7px] border-[1.5px]',
-                        'bg-forest border-forest' => $selected,
+                        'bg-sage border-sage' => $selected,
                         'border-field' => ! $selected,
                     ])>
-                        @if ($selected)<flux:icon.check variant="mini" class="size-3.5 text-white" />@endif
+                        @if ($selected)<x-icon.check class="size-3.5 text-white" />@endif
                     </span>
                     <span class="font-inter text-[15px] text-ink">{{ $ingredient->name }}</span>
                 </button>
@@ -241,7 +314,7 @@ new #[Layout('layouts::app')] class extends Component {
             </div>
 
             <flux:modal.close>
-                <button type="button" class="w-full rounded-[14px] bg-terracotta py-3.5 font-inter text-sm font-semibold text-white">
+                <button type="button" class="w-full h-12 rounded-[14px] bg-terracotta text-[15px] font-semibold text-white">
                     {{ trans_choice('Show :count recipe|Show :count recipes', $this->recipes->count()) }}
                 </button>
             </flux:modal.close>
