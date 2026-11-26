@@ -53,6 +53,9 @@
 
     /* Redesign palette (2026-11). */
     --color-cream: #F7F3EC;          /* app background */
+    --color-surface: #FFFFFF;        /* cards, sheets, fields */
+    --color-selected: #FBF6F0;       /* selected row (desktop lists) */
+    --color-prose: #3A332B;          /* recipe preparation text */
     --color-field-bg: #FBF8F3;       /* input inside a panel */
     --color-sand: #EFE7DB;           /* bars, segmented controls, chips */
     --color-line: #E9E2D7;           /* card border */
@@ -79,11 +82,44 @@
     --color-accent-foreground: var(--color-white);
 }
 
+/*
+ * Dark mode follows the phone's setting: an inline script in the <head>
+ * puts .dark on <html> before the first paint (Flux styles its own
+ * components from the same class). Same roles, darker values; contrast of
+ * text vs. background stays ≥ 4.5:1.
+ */
 @layer theme {
     .dark {
+        --color-cream: #161310;
+        --color-surface: #221E1A;
+        --color-selected: #2C2520;
+        --color-field-bg: #2A2520;
+        --color-sand: #2F2923;
+        --color-line: #39322B;
+        --color-divider: #2E2823;
+        --color-field: #4A4238;
+        --color-ink: #F2ECE3;
+        --color-ink-soft: #D8CFC3;
+        --color-prose: #E4DBCF;
+        --color-muted: #ABA195;
+        --color-faint: #6F665B;
+        --color-terracotta: #D45F45;
+        --color-terracotta-dark: #E27A62;
+        --color-today: #3B2620;
+        --color-today-ink: #F3AE99;
+        --color-today-border: #7D4535;
+        --color-sage: #6F946C;
+        --color-sage-light: #233026;
+        --color-forest: #A9CCA5;
+        --color-gold: #DDA94A;
+        --color-gold-light: #3A3020;
+        --color-gold-dark: #EBCB82;
+
         --color-accent: var(--color-terracotta);
         --color-accent-content: var(--color-terracotta-dark);
         --color-accent-foreground: var(--color-white);
+
+        color-scheme: dark;
     }
 }
 

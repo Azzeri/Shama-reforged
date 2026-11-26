@@ -247,7 +247,7 @@ new #[Layout('layouts::app')] class extends Component {
                     </button>
                 </div>
 
-                <button type="button" wire:click="goToToday" class="h-11 shrink-0 rounded-[14px] border border-field bg-white px-3.5 text-[14px] font-semibold text-ink">
+                <button type="button" wire:click="goToToday" class="h-11 shrink-0 rounded-[14px] border border-field bg-surface px-3.5 text-[14px] font-semibold text-ink">
                     {{ __('Today') }}
                 </button>
             </div>
@@ -293,7 +293,7 @@ new #[Layout('layouts::app')] class extends Component {
         <div
             wire:key="day-{{ $dateString }}"
             @class([
-                'bg-white rounded-[20px] border overflow-hidden',
+                'bg-surface rounded-[20px] border overflow-hidden',
                 'border-today-border' => $dayData['isToday'],
                 'border-line' => ! $dayData['isToday'],
                 'opacity-60' => $dayData['isPast'],
@@ -354,7 +354,7 @@ new #[Layout('layouts::app')] class extends Component {
     @if ($editingDay)
     {{-- Desktop side panel with the day editor (the phone opens the day editor page instead). --}}
     <div class="hidden lg:block" x-data x-on:keydown.escape.window="$wire.closeDay()">
-        <aside role="dialog" aria-modal="true" aria-label="{{ __('Day editor') }}" class="fixed inset-y-0 right-0 z-50 flex w-[400px] flex-col border-l border-line bg-white shadow-[-12px_0_40px_rgba(31,27,22,0.12)]">
+        <aside role="dialog" aria-modal="true" aria-label="{{ __('Day editor') }}" class="fixed inset-y-0 right-0 z-50 flex w-[400px] flex-col border-l border-line bg-surface shadow-[-12px_0_40px_rgba(31,27,22,0.12)]">
             <div class="flex-1 overflow-y-auto px-5 pt-6 pb-4">
                 <livewire:pages::meal.day-edit :date="$editingDay" :in-panel="true" :key="'day-panel-'.$editingDay" />
             </div>
@@ -363,7 +363,7 @@ new #[Layout('layouts::app')] class extends Component {
     </div>
     @endif
 
-    <flux:modal name="generate-shopping-list-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-white! max-h-[88dvh] overflow-y-auto">
+    <flux:modal name="generate-shopping-list-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-surface! max-h-[88dvh] overflow-y-auto">
         <div class="space-y-4">
             <div class="flex items-center justify-between gap-2">
                 <h2 class="font-fraunces text-[20px] font-semibold text-ink">{{ __('Generate shopping list') }}</h2>

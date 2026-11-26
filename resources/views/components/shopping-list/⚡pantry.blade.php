@@ -239,7 +239,7 @@ new class extends Component {
                         @class([
                             'h-9 w-[46px] rounded-lg text-[13px] font-medium transition-colors',
                             'text-muted' => ! $isOn,
-                            'bg-white text-ink shadow-[0_1px_2px_rgba(31,27,22,0.12)]' => $isOn && $status === PantryItem::STATUS_OK,
+                            'bg-surface text-ink shadow-[0_1px_2px_rgba(31,27,22,0.12)]' => $isOn && $status === PantryItem::STATUS_OK,
                             'bg-gold text-ink' => $isOn && $status === PantryItem::STATUS_LOW,
                             'bg-terracotta text-white' => $isOn && $status === PantryItem::STATUS_OUT,
                         ])>{{ PantryItem::statusLabel($status) }}</button>
@@ -302,7 +302,7 @@ new class extends Component {
                 @endif
                 <x-ui.search-input id="pantry-ingredient" wire:model.live.debounce.250ms="ingredientSearch" :placeholder="__('Search ingredient')" bg="field" />
                 @if ($this->ingredientResults->isNotEmpty())
-                <div class="mt-1 rounded-[14px] border border-line bg-white divide-y divide-divider overflow-hidden">
+                <div class="mt-1 rounded-[14px] border border-line bg-surface divide-y divide-divider overflow-hidden">
                     @foreach ($this->ingredientResults as $result)
                     <button type="button" wire:key="pantry-ingredient-{{ $result->id }}" wire:click="linkIngredient({{ $result->id }})" class="block w-full px-3 py-2 text-left hover:bg-field-bg">
                         <span class="block text-[15px] text-ink">{{ $result->name }}</span>

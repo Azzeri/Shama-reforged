@@ -190,7 +190,7 @@ new class extends Component {
         <flux:heading>{{ __('Update password') }}</flux:heading>
         <flux:subheading>{{ __('Ensure your account is using a long, random password to stay secure') }}</flux:subheading>
 
-        <form method="POST" wire:submit="updatePassword" class="mt-4 space-y-5 rounded-[18px] border border-line bg-white p-4">
+        <form method="POST" wire:submit="updatePassword" class="mt-4 space-y-5 rounded-[18px] border border-line bg-surface p-4">
             <flux:input
                 wire:model="current_password"
                 :label="__('Current password')"

@@ -4,7 +4,20 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-title" content="Shama" />
-<meta name="theme-color" content="#F7F3EC" />
+<meta name="theme-color" content="#F7F3EC" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#161310" media="(prefers-color-scheme: dark)" />
+<meta name="color-scheme" content="light dark" />
+
+{{-- Dark mode before the first paint (follows the phone's setting, live). --}}
+<script>
+    (() => {
+        const query = window.matchMedia('(prefers-color-scheme: dark)');
+        const apply = () => document.documentElement.classList.toggle('dark', query.matches);
+        apply();
+        query.addEventListener('change', apply);
+        document.addEventListener('livewire:navigated', apply);
+    })();
+</script>
 <meta name="format-detection" content="telephone=no" />
 
 <title>

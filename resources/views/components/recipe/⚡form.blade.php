@@ -355,7 +355,7 @@ new class extends Component {
 @php
     $isEdit = $recipe !== null;
     $label = 'block text-[11px] font-semibold uppercase tracking-[0.09em] text-muted mb-1.5';
-    $field = 'w-full border border-field bg-white rounded-xl px-3 text-base text-ink placeholder:text-muted focus:outline-none focus:border-ink focus:ring-1 focus:ring-ink';
+    $field = 'w-full border border-field bg-surface rounded-xl px-3 text-base text-ink placeholder:text-muted focus:outline-none focus:border-ink focus:ring-1 focus:ring-ink';
 @endphp
 
 <form id="recipe-form" wire:submit="save" class="space-y-5 pb-24 lg:pb-0 lg:grid lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start lg:gap-x-10 lg:gap-y-5 lg:space-y-0">
@@ -421,7 +421,7 @@ new class extends Component {
         </div>
     </fieldset>
 
-    <div class="rounded-2xl border border-line bg-white px-3.5 py-1.5">
+    <div class="rounded-2xl border border-line bg-surface px-3.5 py-1.5">
         <label class="flex items-center gap-3 min-h-11 cursor-pointer">
             <x-icon.bag class="size-[18px] text-ink-soft" />
             <span class="flex-1 min-w-0">
@@ -429,7 +429,7 @@ new class extends Component {
                 <span class="block text-[12.5px] text-muted">{{ __('Can be taken to work or on a trip') }}</span>
             </span>
             <input type="checkbox" role="switch" wire:model.live="packable" class="peer sr-only" />
-            <span class="relative h-7 w-12 shrink-0 rounded-full bg-field transition-colors peer-checked:bg-sage peer-focus-visible:ring-2 peer-focus-visible:ring-ink after:absolute after:left-0.5 after:top-0.5 after:size-6 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:after:translate-x-5"></span>
+            <span class="relative h-7 w-12 shrink-0 rounded-full bg-field transition-colors peer-checked:bg-sage peer-focus-visible:ring-2 peer-focus-visible:ring-ink after:absolute after:left-0.5 after:top-0.5 after:size-6 after:rounded-full after:bg-surface after:shadow after:transition-transform peer-checked:after:translate-x-5"></span>
         </label>
     </div>
 
@@ -454,7 +454,7 @@ new class extends Component {
             </button>
             <div x-show="confirming" x-cloak class="flex w-full items-center gap-2">
                 <span class="flex-1 text-[15px] font-semibold text-ink">{{ __('Delete “:name”?', ['name' => $recipe->name]) }}</span>
-                <button type="button" x-on:click="confirming = false" class="h-11 rounded-full border border-field bg-white px-4 text-[14px] font-semibold text-ink">{{ __('No') }}</button>
+                <button type="button" x-on:click="confirming = false" class="h-11 rounded-full border border-field bg-surface px-4 text-[14px] font-semibold text-ink">{{ __('No') }}</button>
                 <button type="button" wire:click="delete" class="h-11 rounded-full bg-terracotta px-4 text-[14px] font-semibold text-white">{{ __('Delete') }}</button>
             </div>
         </div>
@@ -467,7 +467,7 @@ new class extends Component {
     <div class="space-y-5">
     <div>
         <div class="{{ $label }}">{{ __('Ingredients') }} <span class="normal-case tracking-normal font-normal">· {{ __('for :servings', ['servings' => Recipe::servingsLabel($servings)]) }}</span></div>
-        <div class="rounded-[20px] border border-line bg-white divide-y divide-divider">
+        <div class="rounded-[20px] border border-line bg-surface divide-y divide-divider">
             @foreach ($recipeIngredients as $index => $item)
             <div wire:key="ingredient-row-{{ $index }}" class="px-3.5 py-3 space-y-2 lg:grid lg:grid-cols-[minmax(0,1fr)_76px_76px_auto_150px_40px] lg:items-center lg:gap-2 lg:space-y-0 lg:py-2.5">
                 <div class="flex items-center gap-2 lg:contents">
@@ -482,7 +482,7 @@ new class extends Component {
                             @unless ($isActive) wire:focus="focusRow({{ $index }})" @endunless
                             role="combobox" aria-autocomplete="list" aria-expanded="{{ $suggest ? 'true' : 'false' }}" aria-controls="ingredient-{{ $index }}-suggestions"
                             placeholder="{{ __('Ingredient name') }}"
-                            @class(['w-full h-10 text-[16px] font-medium text-ink placeholder:text-muted focus:outline-none', 'rounded-[10px] border border-ink bg-white px-2.5' => $isActive, 'bg-transparent' => ! $isActive]) />
+                            @class(['w-full h-10 text-[16px] font-medium text-ink placeholder:text-muted focus:outline-none', 'rounded-[10px] border border-ink bg-surface px-2.5' => $isActive, 'bg-transparent' => ! $isActive]) />
                         @if (! $isActive && $this->isNewIngredient($item))
                         <div class="flex items-center gap-2 text-[12px]">
                             <span class="rounded-full bg-gold-light px-1.5 py-px font-semibold text-gold-dark">{{ __('new ingredient') }}</span>
@@ -490,7 +490,7 @@ new class extends Component {
                         </div>
                         @endif
                         @if ($suggest)
-                        <div id="ingredient-{{ $index }}-suggestions" role="listbox" class="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-[14px] border border-line bg-white shadow-[0_12px_30px_rgba(31,27,22,0.14)]">
+                        <div id="ingredient-{{ $index }}-suggestions" role="listbox" class="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-[14px] border border-line bg-surface shadow-[0_12px_30px_rgba(31,27,22,0.14)]">
                             @if ($suggest['mode'] === 'exists')
                             <p class="px-3 pt-2.5 pb-1 text-[12px] font-semibold text-gold-dark">{{ __('This ingredient already exists — pick it from the list.') }}</p>
                             @elseif ($suggest['mode'] === 'similar')
@@ -527,7 +527,7 @@ new class extends Component {
                     </select>
                     <span class="flex-1 lg:hidden"></span>
                     <button type="button" wire:click="$toggle('recipeIngredients.{{ $index }}.optional')" aria-pressed="{{ $item['optional'] ? 'true' : 'false' }}"
-                        @class(['lg:order-4 h-10 rounded-full px-3 text-[13px] font-medium', 'bg-ink text-white' => $item['optional'], 'border border-dashed border-faint text-ink-soft' => ! $item['optional']])>
+                        @class(['lg:order-4 h-10 rounded-full px-3 text-[13px] font-medium', 'bg-ink text-surface' => $item['optional'], 'border border-dashed border-faint text-ink-soft' => ! $item['optional']])>
                         {{ __('optional ingredient') }}
                     </button>
                 </div>
@@ -585,7 +585,7 @@ new class extends Component {
             </button>
             <div x-show="confirming" x-cloak class="flex w-full items-center gap-2">
                 <span class="flex-1 text-[15px] font-semibold text-ink">{{ __('Delete “:name”?', ['name' => $recipe->name]) }}</span>
-                <button type="button" x-on:click="confirming = false" class="h-11 rounded-full border border-field bg-white px-4 text-[14px] font-semibold text-ink">{{ __('No') }}</button>
+                <button type="button" x-on:click="confirming = false" class="h-11 rounded-full border border-field bg-surface px-4 text-[14px] font-semibold text-ink">{{ __('No') }}</button>
                 <button type="button" wire:click="delete" class="h-11 rounded-full bg-terracotta px-4 text-[14px] font-semibold text-white">{{ __('Delete') }}</button>
             </div>
         </div>

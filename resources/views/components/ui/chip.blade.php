@@ -8,10 +8,10 @@
 $activeClasses = match ($color) {
     'gold' => 'bg-gold border-gold text-ink',
     'sage' => 'bg-sage border-sage text-white',
-    default => 'bg-ink border-ink text-white',
+    default => 'bg-ink border-ink text-surface',
 };
 $classes = 'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-[14px] font-medium whitespace-nowrap transition-colors '
-    . ($active ? $activeClasses : 'border-field bg-white text-ink');
+    . ($active ? $activeClasses : 'border-field bg-surface text-ink');
 @endphp
 
 @if ($href)

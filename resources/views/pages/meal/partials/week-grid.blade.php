@@ -6,7 +6,7 @@
 @php
     $types = $this->gridTypes;
 @endphp
-<div class="overflow-x-auto rounded-[20px] border border-line bg-white">
+<div class="overflow-x-auto rounded-[20px] border border-line bg-surface">
     <div class="grid min-w-[960px]" style="grid-template-columns: 96px repeat(7, minmax(120px, 1fr))">
         <div class="border-b border-line"></div>
         @foreach ($this->days as $dayData)

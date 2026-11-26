@@ -318,7 +318,7 @@ new #[Layout('layouts::app')] class extends Component {
 
     <div class="lg:hidden -mx-4 px-4 flex gap-2 overflow-x-auto no-scrollbar">
         <button type="button" wire:click="$toggle('filtersOpen')" aria-expanded="{{ $filtersOpen ? 'true' : 'false' }}"
-            @class(['inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-[14px] font-semibold', 'bg-sand border-faint text-ink' => $filtersOpen || $this->panelFilterCount, 'bg-white border-field text-ink' => ! $filtersOpen && ! $this->panelFilterCount])>
+            @class(['inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-[14px] font-semibold', 'bg-sand border-faint text-ink' => $filtersOpen || $this->panelFilterCount, 'bg-surface border-field text-ink' => ! $filtersOpen && ! $this->panelFilterCount])>
             <x-icon.filter class="size-4" />
             {{ __('Filters') }}@if ($this->panelFilterCount) ({{ $this->panelFilterCount }})@endif
         </button>
@@ -397,11 +397,11 @@ new #[Layout('layouts::app')] class extends Component {
         </button>
 
         @if ($archiveOpen)
-        <div class="mt-1 rounded-[20px] border border-dashed border-faint bg-white/60 divide-y divide-divider overflow-hidden">
+        <div class="mt-1 rounded-[20px] border border-dashed border-faint bg-surface/60 divide-y divide-divider overflow-hidden">
             @foreach ($this->archivedRecipes as $archived)
             <div wire:key="archived-{{ $archived->id }}" class="flex items-center gap-3 px-4 py-2.5 min-h-14">
                 <a href="{{ route('recipes.show', $archived) }}" wire:navigate class="flex-1 min-w-0 font-fraunces text-[16px] font-semibold text-ink-soft truncate">{{ $archived->name }}</a>
-                <button type="button" wire:click="restore({{ $archived->id }})" class="h-9 shrink-0 rounded-full border border-field bg-white px-3 text-[13px] font-semibold text-ink">{{ __('Restore') }}</button>
+                <button type="button" wire:click="restore({{ $archived->id }})" class="h-9 shrink-0 rounded-full border border-field bg-surface px-3 text-[13px] font-semibold text-ink">{{ __('Restore') }}</button>
             </div>
             @endforeach
         </div>
@@ -476,7 +476,7 @@ new #[Layout('layouts::app')] class extends Component {
     </x-ui.sheet>
     @endif
 
-    <flux:modal name="ingredient-filter-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-white! max-h-[88dvh] overflow-y-auto">
+    <flux:modal name="ingredient-filter-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-surface! max-h-[88dvh] overflow-y-auto">
         <div class="space-y-4">
             <div class="flex items-start justify-between gap-2">
                 <div>
@@ -495,7 +495,7 @@ new #[Layout('layouts::app')] class extends Component {
                 aria-label="{{ __('Search ingredients') }}"
                 class="w-full h-11 rounded-xl border border-field bg-field-bg px-3 text-base text-ink placeholder:text-muted focus:outline-none focus:border-ink focus:ring-1 focus:ring-ink" />
 
-            <div class="rounded-2xl border border-line bg-white divide-y divide-divider max-h-[50dvh] overflow-y-auto">
+            <div class="rounded-2xl border border-line bg-surface divide-y divide-divider max-h-[50dvh] overflow-y-auto">
                 @forelse ($ingredientFilterLoaded ? $this->ingredientOptions : [] as $ingredient)
                 @php $selected = in_array($ingredient->id, $ingredientIds); @endphp
                 <button type="button" wire:key="ingredient-option-{{ $ingredient->id }}" wire:click="toggleIngredient({{ $ingredient->id }})" class="w-full flex items-center gap-3 px-4 py-3 text-left">

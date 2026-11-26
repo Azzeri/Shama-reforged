@@ -44,7 +44,7 @@
         x-on:click="tapRow"
         :style="`transform: translateX(${dx}px)`"
         :class="dragging && 'transition-none'"
-        class="relative flex items-center gap-3 px-3.5 py-2.5 min-h-[52px] select-none cursor-pointer transition-transform {{ $bought ? 'bg-field-bg' : 'bg-white' }}">
+        class="relative flex items-center gap-3 px-3.5 py-2.5 min-h-[52px] select-none cursor-pointer transition-transform {{ $bought ? 'bg-field-bg' : 'bg-surface' }}">
         <button
             type="button"
             x-on:click.stop="toggle()"
@@ -52,7 +52,7 @@
             x-bind:aria-pressed="checked ? 'true' : 'false'"
             class="shrink-0 -m-2.5 p-2.5">
             <span class="size-[22px] rounded-[7px] border-[1.5px] flex items-center justify-center transition-colors"
-                :class="checked ? 'bg-sage border-sage' : 'border-field bg-white'">
+                :class="checked ? 'bg-sage border-sage' : 'border-field bg-surface'">
                 <x-icon.check class="size-3.5 text-white" x-show="checked" />
             </span>
         </button>

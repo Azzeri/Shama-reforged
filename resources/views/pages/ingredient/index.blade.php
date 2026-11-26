@@ -384,12 +384,12 @@ new #[Layout('layouts::app')] class extends Component {
     <div class="space-y-3 lg:max-w-[720px]">
         <p class="text-[14px] leading-normal text-muted">{{ __('Similar names make separate rows on the shopping list. Merge them so the amounts add up.') }}</p>
         @forelse ($this->duplicatePairs as [$keep, $drop])
-        <div wire:key="pair-{{ $keep->id }}-{{ $drop->id }}" class="flex items-center gap-3 rounded-[20px] border border-line bg-white px-4 py-3">
+        <div wire:key="pair-{{ $keep->id }}-{{ $drop->id }}" class="flex items-center gap-3 rounded-[20px] border border-line bg-surface px-4 py-3">
             <div class="flex-1 min-w-0">
                 <p class="text-[16px] text-ink">{{ $keep->name }} <span class="text-muted">{{ __('and') }}</span> {{ $drop->name }}</p>
                 <p class="text-[13px] text-muted">{{ $keep->name }}: {{ $this->recipeCountLabel($keep) }} · {{ $drop->name }}: {{ $this->recipeCountLabel($drop) }}</p>
             </div>
-            <button type="button" wire:click="openMerge({{ $drop->id }}, {{ $keep->id }})" class="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border border-field bg-white px-4 text-[14px] font-semibold text-ink">
+            <button type="button" wire:click="openMerge({{ $drop->id }}, {{ $keep->id }})" class="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border border-field bg-surface px-4 text-[14px] font-semibold text-ink">
                 <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v6a4 4 0 0 0 4 4h8"/><path d="m15 9 4 4-4 4"/><path d="M6 21v-4"/></svg>
                 {{ __('Merge') }}
             </button>
@@ -422,7 +422,7 @@ new #[Layout('layouts::app')] class extends Component {
     </x-ui.card>
 
     {{-- Desktop: a table; the selected row opens in the panel on the right. --}}
-    <div class="hidden lg:block rounded-[20px] border border-line bg-white overflow-hidden">
+    <div class="hidden lg:block rounded-[20px] border border-line bg-surface overflow-hidden">
         <table class="w-full text-left">
             <thead>
                 <tr class="border-b border-line text-[13px] font-semibold text-ink-soft">
@@ -435,7 +435,7 @@ new #[Layout('layouts::app')] class extends Component {
             <tbody class="divide-y divide-divider">
                 @foreach ($this->ingredients as $ingredient)
                 @php $isSelected = $panelOpen && $editingId === $ingredient->id; @endphp
-                <tr wire:key="ingredient-row-{{ $ingredient->id }}" wire:click="openEdit({{ $ingredient->id }})" @class(['cursor-pointer hover:bg-field-bg', 'relative bg-[#FBF6F0] [&>td:first-child]:shadow-[inset_3px_0_0_var(--color-terracotta)]' => $isSelected])>
+                <tr wire:key="ingredient-row-{{ $ingredient->id }}" wire:click="openEdit({{ $ingredient->id }})" @class(['cursor-pointer hover:bg-field-bg', 'relative bg-selected [&>td:first-child]:shadow-[inset_3px_0_0_var(--color-terracotta)]' => $isSelected])>
                     <td class="px-4 py-3 text-[15px] text-ink">
                         <button type="button" class="text-left" aria-label="{{ __('Edit') }}: {{ $ingredient->name }}">{{ $ingredient->name }}</button>
                     </td>
@@ -460,7 +460,7 @@ new #[Layout('layouts::app')] class extends Component {
 
     <div @class(['hidden', 'lg:block' => $panelOpen])>
         @if ($panelOpen)
-        <div class="sticky top-6 rounded-[20px] border border-line bg-white p-5" x-data x-on:keydown.escape.window="$wire.closePanel()">
+        <div class="sticky top-6 rounded-[20px] border border-line bg-surface p-5" x-data x-on:keydown.escape.window="$wire.closePanel()">
             @include('pages.ingredient.partials.form', ['prefix' => 'd-', 'desktop' => true])
         </div>
         @endif
@@ -506,7 +506,7 @@ new #[Layout('layouts::app')] class extends Component {
                     @foreach ([MergeIngredients::KEEP_TARGET => $target, MergeIngredients::KEEP_SOURCE => $source] as $keep => $option)
                     @php $on = $mergeKeep === $keep; @endphp
                     <button type="button" role="radio" aria-checked="{{ $on ? 'true' : 'false' }}" wire:click="$set('mergeKeep', '{{ $keep }}')"
-                        @class(['flex items-center gap-3 min-h-[60px] px-3 py-2 rounded-[14px] border-[1.5px] text-left', 'border-ink bg-field-bg' => $on, 'border-line bg-white' => ! $on])>
+                        @class(['flex items-center gap-3 min-h-[60px] px-3 py-2 rounded-[14px] border-[1.5px] text-left', 'border-ink bg-field-bg' => $on, 'border-line bg-surface' => ! $on])>
                         <span @class(['flex size-5 shrink-0 items-center justify-center rounded-full border-2', 'border-ink' => $on, 'border-faint' => ! $on])>
                             @if ($on)<span class="size-2.5 rounded-full bg-ink"></span>@endif
                         </span>
@@ -543,7 +543,7 @@ new #[Layout('layouts::app')] class extends Component {
     </x-ui.sheet>
     @endif
 
-    <flux:modal name="ingredient-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-white! max-h-[90dvh] overflow-y-auto">
+    <flux:modal name="ingredient-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-surface! max-h-[90dvh] overflow-y-auto">
         @include('pages.ingredient.partials.form', ['prefix' => 'm-', 'desktop' => false])
     </flux:modal>
 </div>

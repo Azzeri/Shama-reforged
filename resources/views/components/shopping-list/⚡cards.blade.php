@@ -190,12 +190,12 @@ new class extends Component {
             },
         }"
         x-on:keydown.escape.window="if (! window.isDesktop()) $wire.close()"
-        class="fixed inset-0 z-50 bg-cream flex flex-col px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] lg:static lg:z-auto lg:rounded-[20px] lg:border lg:border-line lg:bg-white lg:p-6">
+        class="fixed inset-0 z-50 bg-cream flex flex-col px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] lg:static lg:z-auto lg:rounded-[20px] lg:border lg:border-line lg:bg-surface lg:p-6">
         <div class="flex items-center justify-between lg:hidden">
             <button type="button" wire:click="close" class="p-2 -ml-2 text-ink" aria-label="{{ __('Close') }}">
                 <flux:icon.x-mark class="size-6" />
             </button>
-            <button type="button" wire:click="openEdit({{ $card->id }})" class="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-4 py-2.5 font-inter text-[15px] font-semibold text-ink">
+            <button type="button" wire:click="openEdit({{ $card->id }})" class="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-4 py-2.5 font-inter text-[15px] font-semibold text-ink">
                 <flux:icon.pencil class="size-4" />
                 {{ __('Edit') }}
             </button>
@@ -205,12 +205,13 @@ new class extends Component {
             <div class="flex items-center gap-2.5">
                 <span class="size-3.5 rounded-full" style="background-color: {{ $card->hex() }}"></span>
                 <h2 class="font-fraunces text-[28px] font-semibold text-ink lg:flex-1">{{ $card->store }}</h2>
-                <button type="button" wire:click="openEdit({{ $card->id }})" class="hidden lg:inline-flex h-10 items-center rounded-full border border-field bg-white px-4 text-[14px] font-semibold text-ink">{{ __('Edit') }}</button>
+                <button type="button" wire:click="openEdit({{ $card->id }})" class="hidden lg:inline-flex h-10 items-center rounded-full border border-field bg-surface px-4 text-[14px] font-semibold text-ink">{{ __('Edit') }}</button>
             </div>
 
-            <div class="w-full rounded-[22px] bg-white px-6 py-6 flex flex-col items-center gap-3 border border-line lg:border-0 lg:px-2 lg:py-2">
+            {{-- Always white: scanners at the checkout need dark bars on white, also in dark mode. --}}
+            <div class="w-full rounded-[22px] bg-[#fff] px-6 py-6 flex flex-col items-center gap-3 border border-line lg:px-4 lg:py-4">
                 <div x-ref="code" @class(['w-full', 'max-w-[230px] aspect-square [&_svg]:size-full' => $card->code_type === LoyaltyCard::CODE_QR])></div>
-                <div class="font-mono text-[20px] tracking-[0.12em] text-ink">{{ $card->groupedNumber() }}</div>
+                <div class="font-mono text-[20px] tracking-[0.12em] text-[#1F1B16]">{{ $card->groupedNumber() }}</div>
             </div>
 
             <p class="flex items-center gap-2 font-inter text-[13.5px] text-muted lg:hidden">
@@ -222,7 +223,7 @@ new class extends Component {
     @endif
 
     {{-- Add / edit sheet --}}
-    <flux:modal name="card-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-white! max-h-[92dvh] overflow-y-auto">
+    <flux:modal name="card-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-surface! max-h-[92dvh] overflow-y-auto">
         <form wire:submit="save" class="space-y-5" x-data="cardScanner">
             <div class="flex items-center justify-between gap-2">
                 <h3 class="font-fraunces text-[22px] font-semibold text-ink">{{ $editingId ? __('Edit card') : __('New card') }}</h3>
@@ -263,7 +264,7 @@ new class extends Component {
                 <x-ui.eyebrow>{{ __('Code type') }}</x-ui.eyebrow>
                 <div class="grid grid-cols-2 gap-1 rounded-2xl bg-sand p-1">
                     @foreach ([LoyaltyCard::CODE_BARCODE => __('Barcode'), LoyaltyCard::CODE_QR => __('QR code')] as $type => $label)
-                    <button type="button" wire:click="$set('codeType', '{{ $type }}')" @class(['rounded-xl py-2.5 font-inter text-[15px] font-semibold text-ink transition-colors', 'bg-white shadow-sm' => $codeType === $type])>
+                    <button type="button" wire:click="$set('codeType', '{{ $type }}')" @class(['rounded-xl py-2.5 font-inter text-[15px] font-semibold text-ink transition-colors', 'bg-surface shadow-sm' => $codeType === $type])>
                         {{ $label }}
                     </button>
                     @endforeach
@@ -321,7 +322,7 @@ new class extends Component {
                     <div class="pointer-events-none absolute inset-x-8 top-1/2 -translate-y-1/2 h-40 rounded-2xl border-2 border-white/80"></div>
                     <div class="absolute inset-x-0 bottom-0 p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-center space-y-3">
                         <p class="font-inter text-[14px] text-white/80">{{ __('Point the camera at the code on the card') }}</p>
-                        <button type="button" x-on:click="stop()" class="rounded-full bg-white px-6 py-3 font-inter text-[15px] font-semibold text-ink">{{ __('Cancel') }}</button>
+                        <button type="button" x-on:click="stop()" class="rounded-full bg-surface px-6 py-3 font-inter text-[15px] font-semibold text-ink">{{ __('Cancel') }}</button>
                     </div>
                 </div>
             </dialog>

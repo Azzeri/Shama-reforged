@@ -20,7 +20,7 @@
             <span class="flex-1 min-w-0 text-[15px] font-semibold text-ink">
                 {{ $name !== null ? __('Delete “:name”?', ['name' => $name]) : __('Delete?') }}
             </span>
-            <button type="button" x-on:click="confirming = false" class="h-11 rounded-full border border-field bg-white px-4 text-[14px] font-semibold text-ink">{{ __('No') }}</button>
+            <button type="button" x-on:click="confirming = false" class="h-11 rounded-full border border-field bg-surface px-4 text-[14px] font-semibold text-ink">{{ __('No') }}</button>
             <button type="button" wire:click="{{ $action }}" class="h-11 rounded-full bg-terracotta px-4 text-[14px] font-semibold text-white">{{ __('Delete') }}</button>
         </div>
     </template>

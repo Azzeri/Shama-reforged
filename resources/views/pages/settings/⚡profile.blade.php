@@ -82,7 +82,7 @@ new class extends Component {
 
     <div>
         <x-ui.section-label class="mb-1.5">{{ __('Profile') }}</x-ui.section-label>
-        <form wire:submit="updateProfileInformation" class="rounded-[20px] border border-line bg-white p-4 space-y-3.5 lg:p-5">
+        <form wire:submit="updateProfileInformation" class="rounded-[20px] border border-line bg-surface p-4 space-y-3.5 lg:p-5">
             <div class="space-y-3.5 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
             <div>
                 <label for="profile-name" class="block mb-1.5 text-[14px] font-medium text-ink">{{ __('First name') }}</label>

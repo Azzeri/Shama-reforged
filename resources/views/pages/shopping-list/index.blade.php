@@ -418,7 +418,7 @@ new #[Layout('layouts::app')] class extends Component {
                 </flux:modal.trigger>
 
                 <flux:dropdown position="bottom" align="end">
-                    <button type="button" class="flex items-center justify-center size-10 rounded-full border border-field bg-white text-ink" aria-label="{{ __('More') }}">
+                    <button type="button" class="flex items-center justify-center size-10 rounded-full border border-field bg-surface text-ink" aria-label="{{ __('More') }}">
                         <x-icon.dots class="size-5" />
                     </button>
                     <flux:menu>
@@ -487,7 +487,7 @@ new #[Layout('layouts::app')] class extends Component {
                 @if ($list['household']->isNotEmpty())
                 <div wire:key="upcoming-household" class="break-inside-avoid lg:mb-5">
                     <x-ui.section-label class="mb-1.5">{{ __('Household supplies') }}</x-ui.section-label>
-                    <div class="rounded-2xl border border-line overflow-hidden divide-y divide-divider bg-white">
+                    <div class="rounded-2xl border border-line overflow-hidden divide-y divide-divider bg-surface">
                         @foreach ($list['household'] as $row)
                         <div wire:key="household-{{ $row['key'] }}-{{ implode('-', $row['ids']) }}" x-data="{ checked: false }" class="flex items-center gap-3 px-3.5 py-2.5 min-h-[52px]">
                             <button
@@ -495,7 +495,7 @@ new #[Layout('layouts::app')] class extends Component {
                                 x-on:click="checked = true; setTimeout(() => $wire.restock({{ $row['pantryItemId'] }}, @js($row['ids'])), 250)"
                                 aria-label="{{ __('Bought') }}: {{ $row['name'] }}"
                                 class="shrink-0 -m-2.5 p-2.5">
-                                <span class="size-[22px] rounded-[7px] border-[1.5px] flex items-center justify-center transition-colors" :class="checked ? 'bg-sage border-sage' : 'border-field bg-white'">
+                                <span class="size-[22px] rounded-[7px] border-[1.5px] flex items-center justify-center transition-colors" :class="checked ? 'bg-sage border-sage' : 'border-field bg-surface'">
                                     <x-icon.check class="size-3.5 text-white" x-show="checked" />
                                 </span>
                             </button>
@@ -547,8 +547,8 @@ new #[Layout('layouts::app')] class extends Component {
                             @endif
                         </div>
                         <div class="grid grid-cols-2 gap-2">
-                            <button type="button" wire:click="buyAnyway(@js($group['ids']))" class="h-10 rounded-[12px] border border-field bg-white text-[14px] font-semibold text-ink">{{ __('I will buy it anyway') }}</button>
-                            <button type="button" wire:click="ranOut({{ $group['pantryItemId'] }})" class="h-10 rounded-[12px] border border-today-border bg-white text-[14px] font-semibold text-terracotta">{{ __('Ran out') }}</button>
+                            <button type="button" wire:click="buyAnyway(@js($group['ids']))" class="h-10 rounded-[12px] border border-field bg-surface text-[14px] font-semibold text-ink">{{ __('I will buy it anyway') }}</button>
+                            <button type="button" wire:click="ranOut({{ $group['pantryItemId'] }})" class="h-10 rounded-[12px] border border-today-border bg-surface text-[14px] font-semibold text-terracotta">{{ __('Ran out') }}</button>
                         </div>
                     </div>
                     @endforeach
@@ -590,7 +590,7 @@ new #[Layout('layouts::app')] class extends Component {
             </button>
 
             <div x-show="open" x-collapse class="mt-2 lg:max-w-[560px]">
-                <div class="rounded-2xl border border-line overflow-hidden divide-y divide-divider bg-white">
+                <div class="rounded-2xl border border-line overflow-hidden divide-y divide-divider bg-surface">
                     @foreach ($list['bought']['groups'] as $group)
                     <x-shopping-list.item-tile :group="$group" bought />
                     @endforeach
@@ -601,7 +601,7 @@ new #[Layout('layouts::app')] class extends Component {
         @endswitch
     </div>
 
-    <flux:modal name="add-item-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-white! max-h-[88dvh] overflow-y-auto">
+    <flux:modal name="add-item-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-surface! max-h-[88dvh] overflow-y-auto">
         <form wire:submit="addItem" class="space-y-4">
             <div class="flex items-center justify-between gap-2">
                 <h2 class="font-fraunces text-[20px] font-semibold text-ink">{{ __('Add item') }}</h2>
@@ -641,7 +641,7 @@ new #[Layout('layouts::app')] class extends Component {
         </form>
     </flux:modal>
 
-    <flux:modal name="item-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-white! max-h-[88dvh] overflow-y-auto">
+    <flux:modal name="item-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-surface! max-h-[88dvh] overflow-y-auto">
         @if ($group = $this->openGroupData)
         <div class="space-y-4">
             <div class="flex items-start justify-between gap-2">
@@ -691,7 +691,7 @@ new #[Layout('layouts::app')] class extends Component {
                 <x-ui.button type="submit">{{ __('Save') }}</x-ui.button>
             </form>
             @else
-            <div class="rounded-2xl border border-line bg-white divide-y divide-divider">
+            <div class="rounded-2xl border border-line bg-surface divide-y divide-divider">
                 @foreach ($group['items'] as $row)
                 <div wire:key="open-row-{{ $row->id }}" class="flex items-center gap-3 px-3.5 py-2">
                     <div class="flex-1 min-w-0">
@@ -717,7 +717,7 @@ new #[Layout('layouts::app')] class extends Component {
 
             <x-ui.delete-footer :name="$group['name']" action="deleteItems({{ \Illuminate\Support\Js::from($openIds) }})">
                 @if ($group['canMoveEarlier'])
-                <button type="button" wire:click="moveEarlier({{ \Illuminate\Support\Js::from($openIds) }})" class="h-11 rounded-full border border-field bg-white px-4 text-[14px] font-semibold text-ink">
+                <button type="button" wire:click="moveEarlier({{ \Illuminate\Support\Js::from($openIds) }})" class="h-11 rounded-full border border-field bg-surface px-4 text-[14px] font-semibold text-ink">
                     {{ __('Buy a day earlier') }}
                 </button>
                 @endif
@@ -726,13 +726,13 @@ new #[Layout('layouts::app')] class extends Component {
         @endif
     </flux:modal>
 
-    <flux:modal name="clear-list-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-white! max-h-[88dvh] overflow-y-auto">
+    <flux:modal name="clear-list-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-surface! max-h-[88dvh] overflow-y-auto">
         <div class="space-y-4">
             <h2 class="font-fraunces text-[20px] font-semibold text-ink">{{ __('Clear the whole list?') }}</h2>
             <p class="text-[14px] text-muted">{{ __('All items will be removed, including bought ones. This cannot be undone.') }}</p>
             <div class="flex gap-2 justify-end">
                 <flux:modal.close>
-                    <button type="button" class="h-11 rounded-full border border-field bg-white px-4 text-[14px] font-semibold text-ink">{{ __('No') }}</button>
+                    <button type="button" class="h-11 rounded-full border border-field bg-surface px-4 text-[14px] font-semibold text-ink">{{ __('No') }}</button>
                 </flux:modal.close>
                 <flux:modal.close>
                     <button type="button" wire:click="clearAll" class="h-11 rounded-full bg-terracotta px-4 text-[14px] font-semibold text-white">{{ __('Clear list') }}</button>

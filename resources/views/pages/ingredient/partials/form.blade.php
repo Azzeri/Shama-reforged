@@ -35,7 +35,7 @@
             @foreach (\App\Models\Ingredient::PURCHASE_TIMINGS as $timing)
             @php $on = $purchaseTiming === $timing; @endphp
             <button type="button" role="radio" aria-checked="{{ $on ? 'true' : 'false' }}" wire:click="$set('purchaseTiming', '{{ $timing }}')"
-                @class(['flex-1 min-w-0 rounded-[10px] px-2 py-1.5 min-h-11 text-[13px] leading-tight', 'bg-white text-ink font-semibold shadow-[0_1px_2px_rgba(31,27,22,0.12)]' => $on, 'text-muted font-medium' => ! $on])>
+                @class(['flex-1 min-w-0 rounded-[10px] px-2 py-1.5 min-h-11 text-[13px] leading-tight', 'bg-surface text-ink font-semibold shadow-[0_1px_2px_rgba(31,27,22,0.12)]' => $on, 'text-muted font-medium' => ! $on])>
                 {{ \App\Models\Ingredient::purchaseTimingLabel($timing) }}
             </button>
             @endforeach

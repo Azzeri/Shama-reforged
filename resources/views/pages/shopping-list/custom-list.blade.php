@@ -81,7 +81,7 @@ new #[Layout('layouts::app')] class extends Component {
             <h1 data-large-title class="font-fraunces text-[26px] font-semibold leading-tight text-ink truncate">{{ $customList->name }}</h1>
             <span class="shrink-0 text-[14px] text-muted">{{ __(':done of :total', ['done' => $done, 'total' => $items->count()]) }}</span>
             <button type="button" x-data x-on:click="window.shareOrCopy({ title: @js($customList->name), text: @js($customList->name . ":\n" . $items->where('is_checked', false)->map(fn ($i) => '• ' . $i->name)->implode("\n")) })"
-                class="ml-auto flex size-10 shrink-0 items-center justify-center rounded-full border border-field bg-white text-ink" aria-label="{{ __('Share') }}">
+                class="ml-auto flex size-10 shrink-0 items-center justify-center rounded-full border border-field bg-surface text-ink" aria-label="{{ __('Share') }}">
                 <x-icon.share class="size-[18px]" />
             </button>
         </div>
@@ -93,10 +93,10 @@ new #[Layout('layouts::app')] class extends Component {
         <div class="absolute inset-0 flex items-center justify-end bg-terracotta px-5 text-[14px] font-semibold text-white" aria-hidden="true">{{ __('Delete') }}</div>
         <div x-on:touchstart="touchstart" x-on:touchmove="touchmove" x-on:touchend="touchend" x-on:touchcancel="touchend"
             :style="`transform: translateX(${dx}px)`" :class="dragging ? '' : 'transition-transform duration-200'"
-            class="relative flex items-center gap-3 bg-white pl-3.5 pr-1.5 min-h-[52px]">
+            class="relative flex items-center gap-3 bg-surface pl-3.5 pr-1.5 min-h-[52px]">
             <button type="button" x-on:click="window.haptic?.()" wire:click="setChecked({{ $item->id }}, {{ $item->is_checked ? 'false' : 'true' }})"
                 aria-pressed="{{ $item->is_checked ? 'true' : 'false' }}" aria-label="{{ __('Bought') }}: {{ $item->name }}" class="shrink-0 -m-2 p-2">
-                <span @class(['size-[22px] rounded-[7px] border-[1.5px] flex items-center justify-center', 'bg-sage border-sage' => $item->is_checked, 'border-field bg-white' => ! $item->is_checked])>
+                <span @class(['size-[22px] rounded-[7px] border-[1.5px] flex items-center justify-center', 'bg-sage border-sage' => $item->is_checked, 'border-field bg-surface' => ! $item->is_checked])>
                     @if ($item->is_checked)<x-icon.check class="size-3.5 text-white" />@endif
                 </span>
             </button>
@@ -125,7 +125,7 @@ new #[Layout('layouts::app')] class extends Component {
         </button>
         <div x-show="confirming" x-cloak class="flex items-center gap-2">
             <span class="flex-1 text-[15px] font-semibold text-ink">{{ __('Delete “:name”?', ['name' => $customList->name]) }}</span>
-            <button type="button" x-on:click="confirming = false" class="h-11 rounded-full border border-field bg-white px-4 text-[14px] font-semibold text-ink">{{ __('No') }}</button>
+            <button type="button" x-on:click="confirming = false" class="h-11 rounded-full border border-field bg-surface px-4 text-[14px] font-semibold text-ink">{{ __('No') }}</button>
             <button type="button" wire:click="deleteList" class="h-11 rounded-full bg-terracotta px-4 text-[14px] font-semibold text-white">{{ __('Delete') }}</button>
         </div>
     </div>

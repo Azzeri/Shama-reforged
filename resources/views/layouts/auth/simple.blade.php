@@ -12,7 +12,7 @@
                     </span>
                     <span class="font-fraunces text-lg font-semibold text-ink">Shama</span>
                 </a>
-                <div class="bg-white border border-line rounded-[18px] p-6 shadow-[0_1px_2px_rgba(43,33,24,0.06),0_10px_24px_rgba(43,33,24,0.07)] flex flex-col gap-6">
+                <div class="bg-surface border border-line rounded-[18px] p-6 shadow-[0_1px_2px_rgba(43,33,24,0.06),0_10px_24px_rgba(43,33,24,0.07)] flex flex-col gap-6">
                     {{ $slot }}
                 </div>
             </div>

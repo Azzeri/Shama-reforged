@@ -4,7 +4,7 @@
 @php
 $classes = 'flex h-12 w-full items-center justify-center gap-2 rounded-[14px] px-4 text-[15px] font-semibold transition-colors disabled:opacity-45 disabled:cursor-not-allowed '
     . match ($variant) {
-        'outline' => 'border border-field bg-white text-ink',
+        'outline' => 'border border-field bg-surface text-ink',
         'ghost' => 'text-terracotta',
         'success' => 'bg-sage text-white',
         default => 'bg-terracotta text-white hover:bg-terracotta-dark',

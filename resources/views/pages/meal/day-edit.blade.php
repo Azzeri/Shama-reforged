@@ -534,7 +534,7 @@ new #[Layout('layouts::app')] class extends Component {
             </button>
             <livewire:pages::recipe.show :recipe="Recipe::find($previewRecipeId)" :show-back-button="false" :key="'picker-preview-'.$previewRecipeId" />
             @php $previewAdded = in_array($previewRecipeId, $this->recipeIdsOf($pickingType), true); @endphp
-            <div class="sticky bottom-0 -mx-4 border-t border-divider bg-white px-4 pt-3 pb-1">
+            <div class="sticky bottom-0 -mx-4 border-t border-divider bg-surface px-4 pt-3 pb-1">
                 <x-ui.button wire:click="chooseRecipe({{ $previewRecipeId }})" :disabled="$previewAdded">
                     {{ $previewAdded ? __('Already added') : __('Choose this recipe') }}
                 </x-ui.button>
@@ -598,7 +598,7 @@ new #[Layout('layouts::app')] class extends Component {
                 @foreach ($modes as $mode => [$label, $hint])
                 @php $on = $chosenMode === $mode; @endphp
                 <button type="button" role="radio" aria-checked="{{ $on ? 'true' : 'false' }}" wire:click="setMode('{{ $mode }}')"
-                    @class(['flex items-center gap-3 min-h-[60px] px-3 py-2 rounded-[14px] border-[1.5px] text-left', 'border-ink bg-field-bg' => $on, 'border-line bg-white' => ! $on])>
+                    @class(['flex items-center gap-3 min-h-[60px] px-3 py-2 rounded-[14px] border-[1.5px] text-left', 'border-ink bg-field-bg' => $on, 'border-line bg-surface' => ! $on])>
                     <span @class(['flex size-5 shrink-0 items-center justify-center rounded-full border-2', 'border-ink' => $on, 'border-faint' => ! $on])>
                         @if ($on)<span class="size-2.5 rounded-full bg-ink"></span>@endif
                     </span>
@@ -625,7 +625,7 @@ new #[Layout('layouts::app')] class extends Component {
                     @endphp
                     <button type="button" wire:key="leftover-{{ $value }}" wire:click="toggleLeftoverDate('{{ $value }}')" aria-pressed="{{ $on ? 'true' : 'false' }}" @disabled(! $can)
                         aria-label="{{ \Illuminate\Support\Str::ucfirst($option->copy()->locale(app()->getLocale())->isoFormat('dddd, D MMMM')) }}"
-                        @class(['flex size-[52px] flex-col items-center justify-center gap-px rounded-[14px] border', 'bg-ink border-ink text-white' => $on, 'bg-white border-field text-ink' => ! $on && $can, 'bg-white border-field text-faint' => ! $can])>
+                        @class(['flex size-[52px] flex-col items-center justify-center gap-px rounded-[14px] border', 'bg-ink border-ink text-surface' => $on, 'bg-surface border-field text-ink' => ! $on && $can, 'bg-surface border-field text-faint' => ! $can])>
                         <span class="text-[11px] font-medium">{{ \Illuminate\Support\Str::ucfirst($option->copy()->locale(app()->getLocale())->isoFormat('dd')) }}</span>
                         <span class="text-[15px] font-semibold">{{ $option->format('j') }}</span>
                     </button>

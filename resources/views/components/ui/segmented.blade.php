@@ -16,7 +16,7 @@
         @class([
             'flex-1 min-w-0 rounded-[10px] px-2 text-[14px] font-medium truncate transition-colors',
             $size === 'sm' ? 'h-9' : 'h-10',
-            'bg-white text-ink shadow-[0_1px_2px_rgba(31,27,22,0.12)] font-semibold' => (string) $value === (string) $optionValue,
+            'bg-surface text-ink shadow-[0_1px_2px_rgba(31,27,22,0.12)] font-semibold' => (string) $value === (string) $optionValue,
             'text-muted' => (string) $value !== (string) $optionValue,
         ])>{{ $label }}</button>
     @endforeach

@@ -187,9 +187,9 @@ new class extends Component {
                         this.busy = false;
                     },
                 }"
-                class="rounded-[20px] border border-line bg-white p-4 space-y-4">
+                class="rounded-[20px] border border-line bg-surface p-4 space-y-4">
                 <div class="flex items-center gap-2.5">
-                    <span class="flex items-center justify-center size-7 rounded-full bg-ink text-[14px] font-semibold text-white">1</span>
+                    <span class="flex items-center justify-center size-7 rounded-full bg-ink text-[14px] font-semibold text-surface">1</span>
                     <h2 class="text-[17px] font-semibold text-ink">{{ __('Report for the AI') }}</h2>
                 </div>
 
@@ -203,8 +203,8 @@ new class extends Component {
                             <x-icon.calendar class="size-5 text-ink-soft" />
                         </button>
                         <div x-show="editHistory" x-collapse class="grid grid-cols-2 gap-2 pt-2">
-                            <input type="date" wire:model.live="historyFrom" aria-label="{{ __('History from') }}" class="w-full h-11 rounded-xl border border-field bg-white px-2.5 text-base text-ink" />
-                            <input type="date" wire:model.live="historyTo" aria-label="{{ __('History to') }}" class="w-full h-11 rounded-xl border border-field bg-white px-2.5 text-base text-ink" />
+                            <input type="date" wire:model.live="historyFrom" aria-label="{{ __('History from') }}" class="w-full h-11 rounded-xl border border-field bg-surface px-2.5 text-base text-ink" />
+                            <input type="date" wire:model.live="historyTo" aria-label="{{ __('History to') }}" class="w-full h-11 rounded-xl border border-field bg-surface px-2.5 text-base text-ink" />
                         </div>
                         <x-ui.field-error name="historyTo" />
                     </div>
@@ -218,7 +218,7 @@ new class extends Component {
                             <x-ui.stepper :value="$planDays" :min="1" :max="31" :label="trans_choice(':count day|:count days', $planDays)" decrement="changePlanDays(-1)" increment="changePlanDays(1)" />
                         </div>
                         <div x-show="editPlan" x-collapse class="pt-2">
-                            <input type="date" wire:model.live="planFrom" aria-label="{{ __('Plan from') }}" class="w-full h-11 rounded-xl border border-field bg-white px-2.5 text-base text-ink" />
+                            <input type="date" wire:model.live="planFrom" aria-label="{{ __('Plan from') }}" class="w-full h-11 rounded-xl border border-field bg-surface px-2.5 text-base text-ink" />
                         </div>
                     </div>
                 </div>
@@ -280,7 +280,7 @@ new class extends Component {
 
             <div class="space-y-3">
             {{-- 2. Import --}}
-            <form wire:submit="import" class="rounded-[20px] border border-line bg-white p-4 space-y-3">
+            <form wire:submit="import" class="rounded-[20px] border border-line bg-surface p-4 space-y-3">
                 <div class="flex items-center gap-2.5">
                     <span class="flex items-center justify-center size-7 rounded-full bg-sand text-[14px] font-semibold text-ink-soft">2</span>
                     <h2 class="text-[17px] font-semibold text-ink">{{ __('Import plan') }}</h2>
@@ -292,7 +292,7 @@ new class extends Component {
                 <p class="text-[13px] text-muted">{{ __('We only fill empty meals — nothing gets overwritten.') }}</p>
 
                 <button type="submit" @disabled(trim($importJson) === '')
-                    class="w-full h-12 rounded-[14px] bg-terracotta text-[15px] font-semibold text-white disabled:bg-white disabled:border disabled:border-field disabled:text-muted">
+                    class="w-full h-12 rounded-[14px] bg-terracotta text-[15px] font-semibold text-white disabled:bg-surface disabled:border disabled:border-field disabled:text-muted">
                     {{ __('Import plan') }}
                 </button>
 

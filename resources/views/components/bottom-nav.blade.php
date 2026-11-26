@@ -26,7 +26,7 @@ $isActive = fn (array $paths) => collect($paths)->contains(fn ($p) => $currentPa
         },
     }"
     x-on:livewire:navigated.window="path = window.location.pathname"
-    class="lg:hidden fixed inset-x-0 bottom-0 z-40 bg-white border-t border-line select-none"
+    class="lg:hidden fixed inset-x-0 bottom-0 z-40 bg-surface border-t border-line select-none"
     style="padding-bottom: env(safe-area-inset-bottom)">
     <div class="max-w-xl mx-auto grid grid-cols-5 px-1 pt-1.5 pb-1">
         @foreach ($items as $item)

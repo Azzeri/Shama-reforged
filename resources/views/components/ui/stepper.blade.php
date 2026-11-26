@@ -1,7 +1,7 @@
 @props(['model' => null, 'value', 'min' => 1, 'max' => null, 'label', 'decrement' => null, 'increment' => null])
 
 {{-- "− 2 porcje +" stepper. Either Livewire ($model or explicit actions) or Alpine (attributes on the slot). --}}
-<div {{ $attributes->merge(['class' => 'inline-flex h-11 items-center rounded-full border border-field bg-white']) }}>
+<div {{ $attributes->merge(['class' => 'inline-flex h-11 items-center rounded-full border border-field bg-surface']) }}>
     <button type="button"
         @if ($decrement) wire:click="{{ $decrement }}" @elseif ($model) wire:click="$set('{{ $model }}', {{ max($min, $value - 1) }})" @endif
         @disabled($value <= $min)

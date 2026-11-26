@@ -4,7 +4,7 @@
 @php
 $classes = 'inline-flex h-10 items-center gap-1.5 rounded-full px-3.5 text-[14px] font-semibold whitespace-nowrap transition-colors '
     . ($variant === 'outline'
-        ? 'border-[1.5px] border-terracotta bg-white text-terracotta hover:bg-today/40'
+        ? 'border-[1.5px] border-terracotta bg-surface text-terracotta hover:bg-today/40'
         : 'bg-terracotta text-white hover:bg-terracotta-dark');
 @endphp
 

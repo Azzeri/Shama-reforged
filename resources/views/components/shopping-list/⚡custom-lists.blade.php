@@ -82,7 +82,7 @@ new class extends Component {
         $preview = $customList->items->where('is_checked', false)->pluck('name')->implode(', ');
     @endphp
     <a href="{{ route('shopping-list.custom', $customList) }}" wire:navigate wire:key="custom-list-{{ $customList->id }}" data-list-id="{{ $customList->id }}"
-        @class(['flex items-center gap-3 rounded-[20px] border bg-white px-4 py-3.5', 'border-line' => $selectedId !== $customList->id, 'border-line lg:border-terracotta lg:bg-[#FBF6F0]' => $selectedId === $customList->id])>
+        @class(['flex items-center gap-3 rounded-[20px] border bg-surface px-4 py-3.5', 'border-line' => $selectedId !== $customList->id, 'border-line lg:border-terracotta lg:bg-selected' => $selectedId === $customList->id])>
         <span class="flex-1 min-w-0 space-y-1">
             <span class="flex items-baseline gap-2">
                 <span class="font-fraunces text-[20px] font-semibold text-ink truncate">{{ $customList->name }}</span>

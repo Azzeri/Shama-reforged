@@ -63,10 +63,10 @@ new class extends Component {
 
 <section class="w-full lg:max-w-[720px]">
     <x-pages::settings.layout :heading="__('Section order')" :subheading="__('Arrange the sections the way you walk through the store. The shopping list shows them in this order.')">
-        <ol wire:sort="place" class="rounded-[20px] border border-line bg-white divide-y divide-divider overflow-hidden">
+        <ol wire:sort="place" class="rounded-[20px] border border-line bg-surface divide-y divide-divider overflow-hidden">
             @foreach ($order as $index => $section)
             @php $label = Ingredient::sectionLabel($section); @endphp
-            <li wire:key="section-{{ $section }}" wire:sort:item="{{ $section }}" class="flex items-center gap-2 bg-white pl-2 pr-1.5 min-h-14">
+            <li wire:key="section-{{ $section }}" wire:sort:item="{{ $section }}" class="flex items-center gap-2 bg-surface pl-2 pr-1.5 min-h-14">
                 <span wire:sort:handle class="flex size-10 cursor-grab items-center justify-center text-faint" aria-hidden="true">
                     <svg class="size-4" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
                 </span>
@@ -84,7 +84,7 @@ new class extends Component {
 
         <div class="mt-4 flex items-center justify-between gap-4">
             <p class="text-[13px] text-muted">{{ __('Changes are saved automatically.') }}</p>
-            <button type="button" wire:click="restoreDefault" @disabled($this->isDefault()) class="h-11 rounded-full border border-field bg-white px-4 text-[14px] font-semibold text-ink disabled:text-faint">
+            <button type="button" wire:click="restoreDefault" @disabled($this->isDefault()) class="h-11 rounded-full border border-field bg-surface px-4 text-[14px] font-semibold text-ink disabled:text-faint">
                 {{ __('Restore the default') }}
             </button>
         </div>

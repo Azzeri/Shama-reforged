@@ -88,7 +88,7 @@ new #[Layout('layouts::app')] class extends Component {
     <div class="flex items-center justify-between gap-3">
         <x-ui.back-button href="{{ $this->backUrl }}" :label="__('Recipes')" />
         <div class="flex items-center gap-2">
-            <button type="button" x-data x-on:click="window.shareOrCopy({ title: @js($recipe->name), url: @js(route('recipes.show', $recipe)) })" class="flex size-10 items-center justify-center rounded-full border border-field bg-white text-ink" aria-label="{{ __('Share') }}">
+            <button type="button" x-data x-on:click="window.shareOrCopy({ title: @js($recipe->name), url: @js(route('recipes.show', $recipe)) })" class="flex size-10 items-center justify-center rounded-full border border-field bg-surface text-ink" aria-label="{{ __('Share') }}">
                 <x-icon.share class="size-[18px]" />
             </button>
             <x-ui.pill variant="outline" icon="pencil" :href="route('recipes.edit', $recipe)">{{ __('Edit') }}</x-ui.pill>
@@ -101,7 +101,7 @@ new #[Layout('layouts::app')] class extends Component {
         <div class="flex items-start gap-3">
             <h2 class="flex-1 font-fraunces text-[30px] font-semibold leading-tight text-ink">{{ $recipe->name }}</h2>
             <x-ui.pill variant="outline" icon="pencil" :href="route('recipes.edit', $recipe)" class="border-field! text-ink! border!">{{ __('Edit') }}</x-ui.pill>
-            <button type="button" wire:click="archive" class="h-10 rounded-full border border-field bg-white px-4 text-[14px] font-semibold text-ink">{{ __('To the archive') }}</button>
+            <button type="button" wire:click="archive" class="h-10 rounded-full border border-field bg-surface px-4 text-[14px] font-semibold text-ink">{{ __('To the archive') }}</button>
         </div>
         @else
         <h1 data-large-title class="font-fraunces text-[26px] lg:text-[32px] font-semibold leading-tight text-ink">{{ $recipe->name }}</h1>
@@ -136,13 +136,13 @@ new #[Layout('layouts::app')] class extends Component {
                 return `${n} ${form.trim()}`;
             },
         }"
-        class="rounded-[20px] border border-line bg-white overflow-hidden">
+        class="rounded-[20px] border border-line bg-surface overflow-hidden">
         <div class="flex items-center gap-3 px-4 pt-3.5 pb-3">
             <div class="flex-1 min-w-0">
                 <h2 class="text-[11px] font-semibold uppercase tracking-[0.09em] text-muted">{{ __('Ingredients') }}</h2>
                 <p class="text-[13px] text-muted">{{ __('Recipe for :servings', ['servings' => Recipe::servingsLabel($base)]) }}</p>
             </div>
-            <div class="inline-flex h-10 items-center rounded-full border border-field bg-white">
+            <div class="inline-flex h-10 items-center rounded-full border border-field bg-surface">
                 <button type="button" x-on:click="servings = Math.max(1, servings - 1)" x-bind:disabled="servings <= 1" aria-label="{{ __('Fewer servings') }}" class="flex size-10 items-center justify-center text-ink disabled:text-faint">
                     <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
                 </button>
@@ -223,7 +223,7 @@ new #[Layout('layouts::app')] class extends Component {
                 this.release();
             },
         }"
-        class="rounded-[20px] border border-line bg-white px-4 py-3.5 space-y-3">
+        class="rounded-[20px] border border-line bg-surface px-4 py-3.5 space-y-3">
         <h2 class="text-[11px] font-semibold uppercase tracking-[0.09em] text-muted">{{ __('Preparation') }}</h2>
 
         @if ($this->steps)
@@ -231,7 +231,7 @@ new #[Layout('layouts::app')] class extends Component {
             @foreach ($this->steps as $step)
             <li class="flex gap-2.5">
                 <span class="w-5 shrink-0 font-fraunces text-[16px] font-semibold text-muted tabular-nums">{{ $loop->iteration }}.</span>
-                <span class="font-fraunces italic text-[16px] leading-relaxed text-[#3A332B]">{{ $step }}</span>
+                <span class="font-fraunces italic text-[16px] leading-relaxed text-prose">{{ $step }}</span>
             </li>
             @endforeach
         </ol>
@@ -241,7 +241,7 @@ new #[Layout('layouts::app')] class extends Component {
             <label class="flex items-center gap-3 min-h-11 border-t border-divider pt-2 cursor-pointer">
                 <span class="flex-1 text-[15px] text-ink">{{ __('Keep the screen on') }}</span>
                 <input type="checkbox" role="switch" class="peer sr-only" x-bind:checked="awake" x-on:change="$event.target.checked ? acquire() : release()" />
-                <span class="relative h-7 w-12 shrink-0 rounded-full bg-field transition-colors peer-checked:bg-sage peer-focus-visible:ring-2 peer-focus-visible:ring-ink after:absolute after:left-0.5 after:top-0.5 after:size-6 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:after:translate-x-5"></span>
+                <span class="relative h-7 w-12 shrink-0 rounded-full bg-field transition-colors peer-checked:bg-sage peer-focus-visible:ring-2 peer-focus-visible:ring-ink after:absolute after:left-0.5 after:top-0.5 after:size-6 after:rounded-full after:bg-surface after:shadow after:transition-transform peer-checked:after:translate-x-5"></span>
             </label>
         </template>
 
