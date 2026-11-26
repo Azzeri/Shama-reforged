@@ -167,7 +167,30 @@ document.addEventListener('livewire:navigate', (event) => {
     }
 });
 
+/*
+ * Going back restores the previous page from Livewire's history snapshot
+ * (or the browser's bfcache) without asking the server, so e.g. the meal
+ * calendar showed the plan from before the day was edited. Components
+ * marked with [data-refresh-on-restore] re-render from the server when
+ * they come back that way.
+ */
+const refreshRestoredComponents = () => {
+    document.querySelectorAll('[data-refresh-on-restore][wire\\:id]').forEach((el) => {
+        window.Livewire?.find(el.getAttribute('wire:id'))?.$refresh();
+    });
+};
+
+window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+        refreshRestoredComponents();
+    }
+});
+
 document.addEventListener('livewire:navigated', () => {
+    if (pendingKind === 'history') {
+        refreshRestoredComponents();
+    }
+
     if (pendingKind === null) {
         // Full page load: keep the stack if it still matches, else restart.
         const stack = readStack();

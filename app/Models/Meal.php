@@ -32,6 +32,20 @@ class Meal extends Model
         };
     }
 
+    /** "z soboty" — where leftovers come from (Polish needs the genitive, hence one key per day). */
+    public static function fromDayLabel(\Carbon\CarbonInterface $date): string
+    {
+        return match ($date->dayOfWeekIso) {
+            1 => __('from Monday'),
+            2 => __('from Tuesday'),
+            3 => __('from Wednesday'),
+            4 => __('from Thursday'),
+            5 => __('from Friday'),
+            6 => __('from Saturday'),
+            default => __('from Sunday'),
+        };
+    }
+
     /**
      * Name of the "meal type" tag matching a meal type, as stored in the
      * tags table (English, e.g. "Breakfast"). Not translated — use

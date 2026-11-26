@@ -25,7 +25,7 @@ test('authenticated user can see weekly meal calendar', function () {
     Livewire::test('pages::meal.index')
         ->set('week', '2026-06-22')
         ->assertOk()
-        ->assertSee('Meal calendar')
+        ->assertSee('Plan')
         ->assertSee('Owsianka')
         ->assertSee('22');
 });

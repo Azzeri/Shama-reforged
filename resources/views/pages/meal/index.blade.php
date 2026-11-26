@@ -2,6 +2,7 @@
 
 use App\Models\Meal;
 use App\Models\Recipe;
+use App\Models\RecipeMealAssignment;
 use App\Actions\ShoppingList\GenerateShoppingList;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
@@ -22,7 +23,7 @@ new #[Layout('layouts::app')] class extends Component {
     public function render()
     {
         return $this->view()
-            ->title(__('Meal calendar'));
+            ->title(__('Plan'));
     }
 
     /**
@@ -72,10 +73,19 @@ new #[Layout('layouts::app')] class extends Component {
         }
 
         $meals = Meal::query()
-            ->with('recipes:id,name,calories_me,calories_wife')
+            ->with('recipes:id,name,servings')
             ->whereBetween(Meal::DATE_COLUMN, [$start->copy()->startOfDay(), $end->copy()->endOfDay()])
             ->orderBy(Meal::DATE_COLUMN)
             ->get();
+
+        // Leftover entries point to the cooking entry; its date gives "z soboty".
+        $cookedFromIds = $meals->flatMap->recipes->pluck('pivot.cooked_from_id')->filter()->unique();
+        $this->cookingDates = $cookedFromIds->isEmpty() ? [] : RecipeMealAssignment::query()
+            ->with('meal:id,date')
+            ->whereKey($cookedFromIds)
+            ->get()
+            ->mapWithKeys(fn (RecipeMealAssignment $assignment) => [$assignment->id => $assignment->meal->date])
+            ->all() + $this->cookingDates;
 
         $dayCount = (int) $start->copy()->startOfDay()->diffInDays($end->copy()->startOfDay()) + 1;
 
@@ -104,14 +114,19 @@ new #[Layout('layouts::app')] class extends Component {
         return $this->days;
     }
 
-    public function mealCalorieTotals(Meal $meal): array
-    {
-        return Recipe::calorieTotals($meal->recipes);
-    }
+    /** assignment id => date of the cooking day, for leftover captions. */
+    private array $cookingDates = [];
 
-    public function dayCalorieTotals(Collection $meals): array
+    /** "gotowanie · 6 porcji" / "z soboty · bez zakupów" under a recipe in the plan. */
+    public function recipeCaption(Recipe $recipe): ?string
     {
-        return Recipe::calorieTotals($meals->flatMap->recipes);
+        return match ($recipe->pivot->mode) {
+            RecipeMealAssignment::MODE_FULL => __('cooking') . ' · ' . Recipe::servingsLabel((int) $recipe->servings),
+            RecipeMealAssignment::MODE_LEFTOVER => isset($this->cookingDates[$recipe->pivot->cooked_from_id])
+                ? Meal::fromDayLabel($this->cookingDates[$recipe->pivot->cooked_from_id]) . ' · ' . __('no shopping')
+                : __('leftovers') . ' · ' . __('no shopping'),
+            default => null,
+        };
     }
 
     public function goToToday(): void
@@ -178,176 +193,146 @@ new #[Layout('layouts::app')] class extends Component {
 };
 ?>
 
-<div>
+<div data-refresh-on-restore>
     <div class="space-y-3">
-        <div class="flex items-center justify-between gap-3">
-            <h1 class="font-fraunces text-[34px] font-semibold leading-none text-ink">{{ __('Plan') }}</h1>
-
+        <x-ui.page-header :title="__('Plan')">
             <flux:modal.trigger name="generate-shopping-list-modal">
-                <button
-                    type="button"
-                    class="inline-flex items-center gap-2 rounded-full border-[1.5px] border-terracotta bg-white px-4 py-2.5 font-inter text-[14.5px] font-semibold text-terracotta-dark">
-                    <flux:icon.shopping-cart class="size-4" />
-                    {{ __('Shopping list') }}
-                </button>
+                <x-ui.pill variant="outline" icon="cart">{{ __('Shopping list') }}</x-ui.pill>
             </flux:modal.trigger>
-        </div>
+        </x-ui.page-header>
 
-        <div class="flex items-center gap-2.5">
-            <div class="flex-1 flex items-center justify-between rounded-2xl bg-sand px-1.5 py-1.5">
-                <button type="button" wire:click="goToPreviousWeek" class="flex items-center justify-center size-9 text-ink" aria-label="{{ __('Previous') }}">
-                    <flux:icon.chevron-left class="size-5" />
+        <div class="flex items-center gap-2">
+            <div class="flex-1 flex h-11 items-center justify-between rounded-[14px] bg-sand">
+                <button type="button" wire:click="goToPreviousWeek" class="flex size-11 items-center justify-center text-ink" aria-label="{{ __('Previous week') }}">
+                    <x-icon.chevron-left class="size-[18px]" />
                 </button>
-                <span class="font-inter text-[15.5px] font-semibold text-ink">
+                <span class="text-[15px] font-semibold text-ink">
                     @if ($this->rangeStart->isSameMonth($this->rangeEnd))
                     {{ $this->rangeStart->format('j') }} – {{ $this->rangeEnd->copy()->locale(app()->getLocale())->isoFormat('D MMMM') }}
                     @else
                     {{ $this->rangeStart->copy()->locale(app()->getLocale())->isoFormat('D MMM') }} – {{ $this->rangeEnd->copy()->locale(app()->getLocale())->isoFormat('D MMM') }}
                     @endif
                 </span>
-                <button type="button" wire:click="goToNextWeek" class="flex items-center justify-center size-9 text-ink" aria-label="{{ __('Next') }}">
-                    <flux:icon.chevron-right class="size-5" />
+                <button type="button" wire:click="goToNextWeek" class="flex size-11 items-center justify-center text-ink" aria-label="{{ __('Next week') }}">
+                    <x-icon.chevron-right class="size-[18px]" />
                 </button>
             </div>
 
-            <button
-                type="button"
-                wire:click="goToToday"
-                class="shrink-0 rounded-2xl border border-line bg-white px-4 py-3 font-inter text-[15px] font-semibold text-ink">
+            <button type="button" wire:click="goToToday" class="h-11 shrink-0 rounded-[14px] border border-field bg-white px-3.5 text-[14px] font-semibold text-ink">
                 {{ __('Today') }}
             </button>
         </div>
 
         @if ($this->isCurrentRange)
         <div class="flex justify-center">
-            <button type="button" wire:click="togglePastDays" class="inline-flex items-center gap-1.5 py-1 font-inter text-[14px] text-muted">
+            <button type="button" wire:click="togglePastDays" class="inline-flex h-9 items-center gap-1 px-3 text-[13px] font-medium text-muted">
                 @if ($showPastDays)
-                <flux:icon.chevron-down class="size-4" />
+                <x-icon.chevron-down class="size-3.5" />
                 {{ __('Hide past days') }}
                 @else
-                <flux:icon.chevron-up class="size-4" />
+                <x-icon.chevron-up class="size-3.5" />
                 {{ __('Show past days') }}
                 @endif
             </button>
         </div>
         @endif
 
+        <div class="space-y-2.5">
         @foreach ($this->visibleDays as $dayData)
         @php
             $dateString = $dayData['date']->toDateString();
-            $dayTotals = $this->dayCalorieTotals($dayData['meals']);
+            $dayName = \Illuminate\Support\Str::ucfirst($dayData['date']->copy()->locale(app()->getLocale())->isoFormat('dddd'));
+            $isEmpty = $dayData['meals']->isEmpty();
         @endphp
         <div
             wire:key="day-{{ $dateString }}"
             @class([
-                'bg-white rounded-[22px] border overflow-hidden',
-                'border-terracotta/45' => $dayData['isToday'],
+                'bg-white rounded-[20px] border overflow-hidden',
+                'border-today-border' => $dayData['isToday'],
                 'border-line' => ! $dayData['isToday'],
                 'opacity-60' => $dayData['isPast'],
             ])>
-            <div class="flex items-center gap-2.5 px-4 py-3.5">
-                <a href="{{ route('meals.day', $dateString) }}" wire:navigate class="flex items-center gap-2.5 min-w-0">
-                    <span class="font-fraunces text-[28px] font-semibold leading-none text-ink">{{ $dayData['date']->format('j') }}</span>
-                    <span class="font-inter text-[16px] font-semibold text-ink truncate">{{ \Illuminate\Support\Str::ucfirst($dayData['date']->copy()->locale(app()->getLocale())->isoFormat('dddd')) }}</span>
-                    @if ($dayData['isToday'])
-                    <span class="shrink-0 rounded-full bg-terracotta/12 px-2.5 py-0.5 font-inter text-[12.5px] font-semibold text-terracotta-dark">{{ __('Today') }}</span>
-                    @endif
-                </a>
+            <a href="{{ route('meals.day.edit', $dateString) }}" wire:navigate
+                aria-label="{{ ($isEmpty ? __('Plan the day') : __('Edit day')) . ': ' . $dayName . ' ' . $dayData['date']->format('j') }}"
+                class="flex items-center gap-2 min-h-[52px] px-3.5 py-2">
+                <span class="w-7 font-fraunces text-[22px] font-semibold leading-none text-ink tabular-nums">{{ $dayData['date']->format('j') }}</span>
+                <span class="text-[14px] font-semibold text-ink-soft">{{ $dayName }}</span>
+                @if ($dayData['isToday'])
+                <span class="rounded-full bg-today px-2 py-0.5 text-[11px] font-semibold text-today-ink">{{ __('Today') }}</span>
+                @endif
+                <span class="flex-1"></span>
+                @if ($isEmpty)
+                <span class="inline-flex items-center gap-1 text-[14px] font-semibold text-terracotta">
+                    <x-icon.plus class="size-4" />
+                    {{ __('Plan it') }}
+                </span>
+                @else
+                <x-icon.pencil class="size-4 text-muted" />
+                @endif
+            </a>
 
-                <div class="ml-auto flex items-center gap-3 shrink-0">
-                    @if ($dayData['meals']->isEmpty())
-                    <a href="{{ route('meals.day.edit', $dateString) }}" wire:navigate class="inline-flex items-center gap-1.5 font-inter text-[15px] font-semibold text-terracotta-dark">
-                        <flux:icon.plus class="size-4" />
-                        {{ __('Plan it') }}
-                    </a>
-                    @else
-                    @if ($dayTotals)
-                    <span class="font-inter text-[13.5px] text-muted">{{ Recipe::shortCalorieLine($dayTotals) }}</span>
-                    @endif
-                    <a href="{{ route('meals.day.edit', $dateString) }}" wire:navigate class="text-muted p-1 -m-1" aria-label="{{ __('Edit day') }}">
-                        <flux:icon.pencil class="size-[18px]" />
-                    </a>
+            @foreach ($dayData['meals'] as $meal)
+            <div wire:key="meal-{{ $meal->id }}" class="flex gap-2.5 px-3.5 border-t border-divider">
+                <span class="w-[72px] shrink-0 py-2.5 text-[13px] leading-[1.4] text-muted">{{ Meal::typeLabel($meal->type) }}</span>
+                <div class="flex-1 min-w-0 flex flex-col">
+                    @foreach ($meal->recipes as $recipe)
+                    @php $caption = $this->recipeCaption($recipe); @endphp
+                    <button
+                        type="button"
+                        wire:key="meal-{{ $meal->id }}-recipe-{{ $recipe->id }}"
+                        x-data
+                        x-on:click="window.openRecipe('{{ route('recipes.show', $recipe) }}')"
+                        class="flex items-center gap-1.5 min-h-10 py-2 text-left text-[14px] leading-[1.4] text-ink">
+                        <span class="flex-1 min-w-0 flex flex-col">
+                            <span>{{ $recipe->name }}</span>
+                            @if ($caption)
+                            <span class="text-[12px] text-muted">{{ $caption }}</span>
+                            @endif
+                        </span>
+                        <x-ui.chevron-right />
+                    </button>
+                    @endforeach
+
+                    @if (filled($meal->note))
+                    <span class="py-2.5 text-[14px] leading-[1.4] italic text-ink-soft">{{ $meal->note }}</span>
                     @endif
                 </div>
             </div>
-
-            @if ($dayData['meals']->isNotEmpty())
-            <div class="divide-y divide-divider border-t border-line">
-                @foreach ($dayData['meals'] as $meal)
-                <div wire:key="meal-{{ $meal->id }}" class="flex gap-3 px-4">
-                    <div class="w-[88px] shrink-0 py-3 font-inter text-[14px] text-muted">{{ Meal::typeLabel($meal->type) }}</div>
-
-                    <div class="flex-1 min-w-0">
-                        @foreach ($meal->recipes as $recipe)
-                        <button
-                            type="button"
-                            wire:key="meal-{{ $meal->id }}-recipe-{{ $recipe->id }}"
-                            x-data
-                            x-on:click="window.openRecipe('{{ route('recipes.show', $recipe) }}')"
-                            class="w-full flex items-center gap-2 py-3 text-left">
-                            <span class="flex-1 font-inter text-[15.5px] text-ink">{{ $recipe->name }}</span>
-                            <x-ui.chevron-right />
-                        </button>
-                        @endforeach
-
-                        @if (filled($meal->note))
-                        <a href="{{ route('meals.day', $dateString) }}" wire:navigate class="flex items-center gap-2 py-3">
-                            <flux:icon.document class="size-4 text-muted shrink-0" />
-                            <span class="font-fraunces italic text-[15px] text-muted">{{ $meal->note }}</span>
-                        </a>
-                        @endif
-                    </div>
-                </div>
-                @endforeach
-            </div>
-            @endif
+            @endforeach
         </div>
         @endforeach
+        </div>
     </div>
 
-    <flux:modal name="generate-shopping-list-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
-        <div class="space-y-5">
-            <div class="flex items-start justify-between gap-2">
-                <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Generate shopping list') }}</h3>
+    <flux:modal name="generate-shopping-list-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-white! max-h-[88dvh] overflow-y-auto">
+        <div class="space-y-4">
+            <div class="flex items-center justify-between gap-2">
+                <h2 class="font-fraunces text-[20px] font-semibold text-ink">{{ __('Generate shopping list') }}</h2>
                 <flux:modal.close>
-                    <button type="button" class="text-ink/25 hover:text-muted p-1.5 text-lg leading-none">✕</button>
+                    <button type="button" class="-mr-2.5 flex size-11 items-center justify-center text-ink" aria-label="{{ __('Close') }}"><x-icon.x class="size-[18px]" /></button>
                 </flux:modal.close>
             </div>
 
-            <p class="font-inter text-[13px] text-muted">{{ __('Select the days to collect ingredients from assigned recipes.') }}</p>
-            <p class="font-inter text-[12.5px] text-muted -mt-3">{{ __('Generating again for the same days updates the list instead of doubling it; already bought items stay.') }}</p>
+            <p class="text-[13px] text-muted">{{ __('Select the days to collect ingredients from assigned recipes.') }} {{ __('Generating again for the same days updates the list instead of doubling it; already bought items stay.') }}</p>
 
-            <div class="space-y-4">
-                <div class="space-y-2">
-                    @foreach ($this->days as $dayData)
-                    <label wire:key="generate-day-{{ $dayData['date']->toDateString() }}" class="flex items-center gap-2.5 border-[1.5px] border-field rounded-xl px-3.5 py-2.5 cursor-pointer">
-                        <input type="checkbox" wire:model="selectedDaysForShoppingList" value="{{ $dayData['date']->toDateString() }}" class="peer sr-only">
-                        <span class="flex items-center justify-center size-5 rounded-[6px] border-2 border-field text-transparent peer-checked:bg-sage peer-checked:border-sage peer-checked:text-white text-xs font-semibold shrink-0 transition-colors">✓</span>
-                        <span class="font-inter text-sm font-semibold text-ink">{{ \Illuminate\Support\Str::ucfirst($dayData['date']->copy()->locale(app()->getLocale())->isoFormat('dddd D.MM')) }}</span>
-                    </label>
-                    @endforeach
-                </div>
-
-                <button
-                    type="button"
-                    wire:click="generateShoppingListFromSelectedDays"
-                    wire:target="generateShoppingListFromSelectedDays"
-                    wire:loading.attr="disabled"
-                    class="w-full flex items-center justify-center gap-2 bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-[14px] py-3.5 font-inter text-sm font-semibold disabled:opacity-60">
-                    <flux:icon.loading wire:loading wire:target="generateShoppingListFromSelectedDays" variant="mini" />
-                    <span wire:loading.remove wire:target="generateShoppingListFromSelectedDays">+ {{ __('Add from selected days') }}</span>
-                </button>
+            <div class="rounded-2xl border border-line divide-y divide-divider">
+                @foreach ($this->days as $dayData)
+                <label wire:key="generate-day-{{ $dayData['date']->toDateString() }}" class="flex items-center gap-3 min-h-12 px-3.5 cursor-pointer">
+                    <input type="checkbox" wire:model="selectedDaysForShoppingList" value="{{ $dayData['date']->toDateString() }}" class="peer sr-only">
+                    <span class="flex size-[22px] items-center justify-center rounded-[7px] border-[1.5px] border-field text-transparent peer-checked:bg-sage peer-checked:border-sage peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-ink shrink-0 transition-colors">
+                        <x-icon.check class="size-3.5" />
+                    </span>
+                    <span class="text-[15px] text-ink">{{ \Illuminate\Support\Str::ucfirst($dayData['date']->copy()->locale(app()->getLocale())->isoFormat('dddd D.MM')) }}</span>
+                </label>
+                @endforeach
             </div>
 
-            <button
-                type="button"
-                wire:click="generateShoppingListFromFullWeek"
-                wire:target="generateShoppingListFromFullWeek"
-                wire:loading.attr="disabled"
-                class="w-full flex items-center justify-center gap-2 bg-transparent border-[1.5px] border-field text-ink rounded-[14px] py-3.5 font-inter text-sm font-semibold disabled:opacity-60">
-                <flux:icon.loading wire:loading wire:target="generateShoppingListFromFullWeek" variant="mini" />
-                <span wire:loading.remove wire:target="generateShoppingListFromFullWeek">📅 {{ __('Add from all 7 days') }}</span>
-            </button>
+            <x-ui.button wire:click="generateShoppingListFromSelectedDays" wire:target="generateShoppingListFromSelectedDays" wire:loading.attr="disabled">
+                {{ __('Add from selected days') }}
+            </x-ui.button>
+            <x-ui.button variant="outline" wire:click="generateShoppingListFromFullWeek" wire:target="generateShoppingListFromFullWeek" wire:loading.attr="disabled">
+                {{ __('Add from all 7 days') }}
+            </x-ui.button>
         </div>
     </flux:modal>
 </div>
