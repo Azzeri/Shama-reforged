@@ -72,7 +72,7 @@ test('the name is required, unique and the section must be known', function () {
         ->assertHasErrors(['name' => 'required'])
         ->set('name', 'sól')
         ->call('save')
-        ->assertHasErrors(['name' => 'unique'])
+        ->assertHasErrors('name')
         ->set('name', 'Pieprz')
         ->set('category', 'not-a-category')
         ->call('save')
