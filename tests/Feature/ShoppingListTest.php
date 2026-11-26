@@ -5,8 +5,8 @@ use App\Models\Ingredient;
 use App\Models\Meal;
 use App\Models\PantryGroup;
 use App\Models\PantryItem;
-use App\Models\RecipeMealAssignment;
 use App\Models\Recipe;
+use App\Models\RecipeMealAssignment;
 use App\Models\ShoppingList;
 use App\Models\ShoppingListItem;
 use App\Models\User;
@@ -566,4 +566,3 @@ test('products are added with a new group and empty groups disappear', function 
     expect($oil->fresh()->group->name)->toBe('Piwnica')
         ->and(PantryGroup::query()->pluck('name')->all())->toBe(['Piwnica']);
 });
-

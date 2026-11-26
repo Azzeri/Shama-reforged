@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -33,7 +34,7 @@ class Meal extends Model
     }
 
     /** "z soboty" — where leftovers come from (Polish needs the genitive, hence one key per day). */
-    public static function fromDayLabel(\Carbon\CarbonInterface $date): string
+    public static function fromDayLabel(CarbonInterface $date): string
     {
         return match ($date->dayOfWeekIso) {
             1 => __('from Monday'),

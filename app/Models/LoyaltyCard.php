@@ -23,12 +23,12 @@ class LoyaltyCard extends Model
 
     /** color key => hex; order = order of the swatches. */
     public const COLORS = [
-        'terracotta' => '#B5432B',
-        'gold' => '#DCA43C',
-        'sage' => '#5C7A5E',
+        'terracotta' => '#B13F27',
+        'gold' => '#DCA53D',
+        'sage' => '#5B7B5A',
         'slate' => '#3F5B78',
         'plum' => '#7B4B6B',
-        'ink' => '#2B2118',
+        'ink' => '#1F1B16',
     ];
 
     public function hex(): string
@@ -39,7 +39,7 @@ class LoyaltyCard extends Model
     /** "•••• 3457" */
     public function maskedNumber(): string
     {
-        return '•••• ' . mb_substr(preg_replace('/\s+/', '', $this->number), -4);
+        return '•••• '.mb_substr(preg_replace('/\s+/', '', $this->number), -4);
     }
 
     /** "5900 9876 5432 4" — groups of four for reading out loud. */

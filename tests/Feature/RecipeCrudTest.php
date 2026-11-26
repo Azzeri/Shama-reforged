@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Ingredient;
+use App\Models\Meal;
 use App\Models\Recipe;
 use App\Models\Tag;
 use App\Models\User;
@@ -111,7 +112,7 @@ test('recipe cards link to the recipe show page', function () {
     $this->actingAs($user);
 
     Livewire::test('pages::recipe.index')
-        ->assertSeeHtml('href="' . route('recipes.show', $recipe) . '"');
+        ->assertSeeHtml('href="'.route('recipes.show', $recipe).'"');
 });
 
 // ---------------------------------------------------------------------
@@ -158,7 +159,7 @@ test('the back button uses a safe local back query parameter', function () {
 
     $this->actingAs($user);
 
-    $this->get(route('recipes.show', $recipe) . '?back=' . urlencode('/shopping-list'))
+    $this->get(route('recipes.show', $recipe).'?back='.urlencode('/shopping-list'))
         ->assertOk()
         ->assertSee('href="/shopping-list"', false);
 });
@@ -169,9 +170,9 @@ test('the back button falls back to the recipe index for a protocol-relative bac
 
     $this->actingAs($user);
 
-    $this->get(route('recipes.show', $recipe) . '?back=' . urlencode('//evil.com/phishing'))
+    $this->get(route('recipes.show', $recipe).'?back='.urlencode('//evil.com/phishing'))
         ->assertOk()
-        ->assertSee('href="' . route('recipes.index') . '"', false)
+        ->assertSee('href="'.route('recipes.index').'"', false)
         ->assertDontSee('evil.com');
 });
 
@@ -181,9 +182,9 @@ test('the back button falls back to the recipe index for an absolute external ba
 
     $this->actingAs($user);
 
-    $this->get(route('recipes.show', $recipe) . '?back=' . urlencode('https://evil.com/phishing'))
+    $this->get(route('recipes.show', $recipe).'?back='.urlencode('https://evil.com/phishing'))
         ->assertOk()
-        ->assertSee('href="' . route('recipes.index') . '"', false);
+        ->assertSee('href="'.route('recipes.index').'"', false);
 });
 
 test('the back button falls back to the recipe index when no back parameter is given', function () {
@@ -193,7 +194,7 @@ test('the back button falls back to the recipe index when no back parameter is g
     $this->actingAs($user);
 
     Livewire::test('pages::recipe.show', ['recipe' => $recipe])
-        ->assertSee('href="' . route('recipes.index') . '"', false);
+        ->assertSee('href="'.route('recipes.index').'"', false);
 });
 
 test('the back button is hidden when showBackButton is false', function () {
@@ -455,11 +456,10 @@ test('editing replaces the previous tag set with the newly selected tags', funct
     expect($recipe->tags->pluck('id')->all())->toBe([$newTag->id]);
 });
 
-
 test('a recipe created from a note replaces the note in the plan', function () {
     $this->actingAs(User::factory()->create());
     $lunch = Tag::query()->firstOrCreate(['name' => 'Lunch', 'category' => Tag::MEAL_TYPE]);
-    $meal = \App\Models\Meal::query()->create(['date' => '2026-11-18 12:00:00', 'type' => 'lunch', 'note' => 'makaron z pesto']);
+    $meal = Meal::query()->create(['date' => '2026-11-18 12:00:00', 'type' => 'lunch', 'note' => 'makaron z pesto']);
 
     Livewire::test('recipe.form', ['noteDate' => '2026-11-18', 'noteType' => 'lunch'])
         ->assertSet('recipeName', 'Makaron z pesto')

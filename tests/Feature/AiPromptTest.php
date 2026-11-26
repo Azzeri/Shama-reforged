@@ -51,7 +51,7 @@ test('generating fills the fields of the user template with form data and histor
         ->toContain('Od 2026-11-19 do 2026-11-21, 3 dni.')
         ->toContain('Składniki: cukinia, feta')
         ->not->toContain('Życzenia:') // empty optional field drops its line
-        ->toContain('lunch: Zupa pomidorowa (#' . $soup->id . ')')
+        ->toContain('lunch: Zupa pomidorowa (#'.$soup->id.')')
         ->toContain('| Zupa pomidorowa | - | - | 4 | healthy |')
         ->not->toContain('Stara zupa')
         ->not->toMatch('/\{[a-z_]+\}/');

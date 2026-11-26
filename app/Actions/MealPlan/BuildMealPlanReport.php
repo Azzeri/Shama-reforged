@@ -94,13 +94,13 @@ TXT;
 
         foreach (self::OPTIONAL_FIELDS as $field) {
             if (trim($values[$field] ?? '') === '') {
-                $lines = array_filter($lines, fn (string $line) => ! str_contains($line, '{' . $field . '}'));
+                $lines = array_filter($lines, fn (string $line) => ! str_contains($line, '{'.$field.'}'));
             }
         }
 
-        $replacements = collect($values)->mapWithKeys(fn ($value, $field) => ['{' . $field . '}' => (string) $value])->all();
+        $replacements = collect($values)->mapWithKeys(fn ($value, $field) => ['{'.$field.'}' => (string) $value])->all();
 
-        return rtrim(strtr(implode("\n", $lines), $replacements)) . "\n";
+        return rtrim(strtr(implode("\n", $lines), $replacements))."\n";
     }
 
     private function formatSection(CarbonInterface $planFrom): string
@@ -117,7 +117,7 @@ TXT;
         ]], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
         $lines[] = '```';
         $lines[] = '';
-        $lines[] = 'JSON można wysłać do aplikacji: `POST ' . url('/api/meal-plan') . '` z nagłówkiem `Authorization: Bearer <API token>` albo wkleić w polu importu. Istniejące posiłki nigdy nie są nadpisywane.';
+        $lines[] = 'JSON można wysłać do aplikacji: `POST '.url('/api/meal-plan').'` z nagłówkiem `Authorization: Bearer <API token>` albo wkleić w polu importu. Istniejące posiłki nigdy nie są nadpisywane.';
 
         return implode("\n", $lines);
     }
@@ -136,11 +136,11 @@ TXT;
 
         if ($topRecipes->isNotEmpty()) {
             $byId = $history->flatMap->recipes->keyBy('id');
-            $lines[] = 'Najczęściej jedzone przepisy: ' . $topRecipes->map(fn ($count, $id) => "{$byId[$id]->name} (#{$id}) ×{$count}")->implode(', ') . '.';
+            $lines[] = 'Najczęściej jedzone przepisy: '.$topRecipes->map(fn ($count, $id) => "{$byId[$id]->name} (#{$id}) ×{$count}")->implode(', ').'.';
         }
 
         if ($topNotes->isNotEmpty()) {
-            $lines[] = 'Najczęstsze notatki: ' . $topNotes->map(fn ($count, $note) => "\"{$note}\" ×{$count}")->implode(', ') . '.';
+            $lines[] = 'Najczęstsze notatki: '.$topNotes->map(fn ($count, $note) => "\"{$note}\" ×{$count}")->implode(', ').'.';
         }
 
         return implode("\n", $lines) ?: 'Brak.';
@@ -156,12 +156,12 @@ TXT;
             $mealTypes = $recipe->tags->where('category', Tag::MEAL_TYPE)->pluck('name')->implode(', ');
             $diet = $recipe->tags->where('category', Tag::DIET_TYPE)->pluck('name')->implode(', ');
             $ingredients = $recipe->ingredients
-                ->map(fn ($ingredient) => $ingredient->name . ($ingredient->pivot->is_optional ? ' (opcjonalnie)' : ''))
+                ->map(fn ($ingredient) => $ingredient->name.($ingredient->pivot->is_optional ? ' (opcjonalnie)' : ''))
                 ->implode(', ');
 
-            $lines[] = "- `{$recipe->id}` | {$recipe->name} | " . ($mealTypes ?: '-') . ' | ' . ($diet ?: '-')
-                . " | {$recipe->servings} | " . ($recipe->rating ?: '-') . ' | ' . ($recipe->packable ? 'tak' : '-')
-                . ' | ' . ($ingredients ?: '-');
+            $lines[] = "- `{$recipe->id}` | {$recipe->name} | ".($mealTypes ?: '-').' | '.($diet ?: '-')
+                ." | {$recipe->servings} | ".($recipe->rating ?: '-').' | '.($recipe->packable ? 'tak' : '-')
+                .' | '.($ingredients ?: '-');
         }
 
         return implode("\n", $lines);
@@ -197,7 +197,7 @@ TXT;
             $lines[] = "### {$day->toDateString()} ({$day->englishDayOfWeek})";
 
             foreach ($dayMeals as $meal) {
-                $parts = $meal->recipes->map(fn (Recipe $r) => "{$r->name} (#{$r->id})" . match ($r->pivot->mode) {
+                $parts = $meal->recipes->map(fn (Recipe $r) => "{$r->name} (#{$r->id})".match ($r->pivot->mode) {
                     RecipeMealAssignment::MODE_FULL => ' [gotowany cały przepis]',
                     RecipeMealAssignment::MODE_LEFTOVER => ' [resztki]',
                     default => '',
@@ -207,7 +207,7 @@ TXT;
                     $parts[] = "notatka: {$meal->note}";
                 }
 
-                $lines[] = "- {$meal->type}: " . (implode(', ', $parts) ?: '-');
+                $lines[] = "- {$meal->type}: ".(implode(', ', $parts) ?: '-');
             }
         }
 

@@ -26,4 +26,4 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('/shopping-list/lists/{customList}', 'pages::shopping-list.custom-list')->name('shopping-list.custom');
 });
 
-require __DIR__ . '/settings.php';
+require __DIR__.'/settings.php';

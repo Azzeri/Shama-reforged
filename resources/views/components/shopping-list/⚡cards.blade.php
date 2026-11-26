@@ -144,7 +144,7 @@ new class extends Component {
             type="button"
             wire:key="card-{{ $card->id }}"
             wire:click="show({{ $card->id }})"
-            class="aspect-[1.58/1] rounded-[18px] p-3.5 flex flex-col justify-between text-left text-white shadow-[0_6px_16px_rgba(43,33,24,0.15)]"
+            class="aspect-[1.58/1] rounded-[18px] p-3.5 flex flex-col justify-between text-left text-white"
             style="background-color: {{ $card->hex() }}">
             <span class="font-fraunces text-[19px] font-semibold leading-tight line-clamp-2">{{ $card->store }}</span>
             <span class="flex items-center justify-between font-inter text-[13px] tracking-wider text-white/85">
@@ -161,16 +161,12 @@ new class extends Component {
         <button
             type="button"
             wire:click="openNew"
-            class="aspect-[1.58/1] rounded-[18px] border border-dashed border-field flex flex-col items-center justify-center gap-1 text-terracotta-dark">
+            class="aspect-[1.58/1] rounded-[18px] border border-dashed border-faint flex flex-col items-center justify-center gap-1 text-terracotta">
             <flux:icon.plus class="size-6" />
             <span class="font-inter text-[15px] font-semibold">{{ __('Add card') }}</span>
         </button>
     </div>
 
-    <p class="mt-4 flex items-start gap-2 font-inter text-[13px] text-muted">
-        <flux:icon.cloud class="size-4 shrink-0 mt-px" />
-        {{ __('Cards are saved in the app — you both see them, also after changing phones.') }}
-    </p>
 
     {{-- Full-screen card to show at the checkout --}}
     @if ($card = $this->openCard)
@@ -205,7 +201,7 @@ new class extends Component {
                 <h2 class="font-fraunces text-[28px] font-semibold text-ink">{{ $card->store }}</h2>
             </div>
 
-            <div class="w-full rounded-[22px] bg-white px-6 py-6 flex flex-col items-center gap-3 shadow-[0_6px_20px_rgba(43,33,24,0.08)]">
+            <div class="w-full rounded-[22px] bg-white px-6 py-6 flex flex-col items-center gap-3 border border-line">
                 <div x-ref="code" @class(['w-full', 'max-w-[230px] aspect-square [&_svg]:size-full' => $card->code_type === LoyaltyCard::CODE_QR])></div>
                 <div class="font-mono text-[20px] tracking-[0.12em] text-ink">{{ $card->groupedNumber() }}</div>
             </div>
@@ -246,13 +242,13 @@ new class extends Component {
 
             <div>
                 <x-ui.eyebrow>{{ __('Store') }}</x-ui.eyebrow>
-                <x-ui.text-input wire:model.live.debounce.200ms="store" placeholder="{{ __('e.g. Biedronka') }}" class="w-full bg-cream" />
+                <x-ui.text-input wire:model.live.debounce.200ms="store" placeholder="{{ __('e.g. Biedronka') }}" class="w-full bg-field-bg" />
                 <x-ui.field-error name="store" />
             </div>
 
             <div>
                 <x-ui.eyebrow>{{ __('Card number') }}</x-ui.eyebrow>
-                <x-ui.text-input wire:model.live.debounce.300ms="number" inputmode="text" autocomplete="off" placeholder="{{ __('Digits under the barcode') }}" class="w-full bg-cream font-mono" />
+                <x-ui.text-input wire:model.live.debounce.300ms="number" inputmode="text" autocomplete="off" placeholder="{{ __('Digits under the barcode') }}" class="w-full bg-field-bg font-mono" />
                 <x-ui.field-error name="number" />
             </div>
 

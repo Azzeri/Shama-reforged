@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use Livewire\Livewire;
 
 #[Fillable([
     'name', 'content', 'link', 'servings', 'rating', 'packable', 'archived_at',
@@ -160,7 +162,7 @@ class Recipe extends Model
      */
     public function showUrlWithBack(): string
     {
-        if (\Livewire\Livewire::isLivewireRequest()) {
+        if (Livewire::isLivewireRequest()) {
             $referer = request()->headers->get('referer');
             $back = null;
 
@@ -173,11 +175,11 @@ class Recipe extends Model
             $back = request()->getRequestUri();
         }
 
-        return route('recipes.show', $this) . ($back ? '?back=' . urlencode($back) : '');
+        return route('recipes.show', $this).($back ? '?back='.urlencode($back) : '');
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, self>  $recipes
+     * @param  Collection<int, self>  $recipes
      * @return array<string, int> profile => total calories, only profiles with a positive total
      */
     /** "M 601 · N 414 kcal" — per-profile calories, profile shortened to its initial. */
@@ -188,11 +190,11 @@ class Recipe extends Model
         }
 
         return collect($totals)
-            ->map(fn (int $kcal, string $profile) => mb_substr(self::nutritionProfileLabel($profile), 0, 1) . ' ' . $kcal)
-            ->implode(' · ') . ' kcal';
+            ->map(fn (int $kcal, string $profile) => mb_substr(self::nutritionProfileLabel($profile), 0, 1).' '.$kcal)
+            ->implode(' · ').' kcal';
     }
 
-    public static function calorieTotals(\Illuminate\Support\Collection $recipes): array
+    public static function calorieTotals(Collection $recipes): array
     {
         return collect(self::NUTRITION_PROFILES)
             ->mapWithKeys(fn (string $profile) => [$profile => (int) $recipes->sum->{"calories_{$profile}"}])
