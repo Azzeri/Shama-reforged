@@ -6,6 +6,8 @@ use App\Models\Recipe;
 use App\Models\RecipeIngredientAssignment;
 use App\Models\RecipeMealAssignment;
 use App\Models\Tag;
+use App\Support\Ingredients\IngredientMatcher;
+use App\Support\Ingredients\IngredientName;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -125,10 +127,78 @@ new class extends Component {
         return Tag::query()->where(Tag::CATEGORY_COLUMN, Tag::DIET_TYPE)->get()->sortBy(fn (Tag $tag) => $tag->label())->values();
     }
 
+    /** Row whose name field is being typed in (its suggestions are shown). */
+    public ?int $activeRow = null;
+
+    /** Folded names of all existing ingredients, to mark rows that would create a new one. */
     #[Computed]
-    public function allIngredients(): Collection
+    public function existingKeys(): array
     {
-        return Ingredient::query()->orderBy('name')->pluck('name');
+        return array_flip(Ingredient::query()->pluck('name_key')->all());
+    }
+
+    public function isNewIngredient(array $item): bool
+    {
+        $fold = IngredientName::fold($item['name'] ?? '');
+
+        return $fold !== '' && ! isset($this->existingKeys[$fold]);
+    }
+
+    /**
+     * Suggestions for the active row: matching / similar existing ingredients
+     * and whether the typed name may be added as a new one.
+     *
+     * @return array{mode: string, items: \Illuminate\Support\Collection}|null
+     *   mode: "exists" (same name in another case — must pick it), "similar"
+     *   ("Czy chodziło o:" + add as new), "matches" (plain list + add as new)
+     */
+    #[Computed]
+    public function suggestions(): ?array
+    {
+        $name = trim($this->recipeIngredients[$this->activeRow]['name'] ?? '');
+
+        if ($this->activeRow === null || mb_strlen($name) < 2) {
+            return null;
+        }
+
+        $matcher = app(IngredientMatcher::class);
+        $same = $matcher->same($name);
+
+        if ($same && $same->name === $name) {
+            return null;
+        }
+
+        $items = $matcher->suggest($name, 5);
+
+        if ($same) {
+            return ['mode' => 'exists', 'items' => collect([['ingredient' => $same, 'similar' => true]])->concat($items->reject(fn ($row) => $row['ingredient']->is($same)))->take(5)->values()];
+        }
+
+        if ($items->isEmpty()) {
+            return null;
+        }
+
+        return ['mode' => $items->contains('similar', true) ? 'similar' : 'matches', 'items' => $items];
+    }
+
+    public function focusRow(int $index): void
+    {
+        $this->activeRow = isset($this->recipeIngredients[$index]) ? $index : null;
+        unset($this->suggestions);
+    }
+
+    public function closeSuggestions(): void
+    {
+        $this->activeRow = null;
+    }
+
+    public function pickIngredient(int $index, int $ingredientId): void
+    {
+        if (isset($this->recipeIngredients[$index]) && ($ingredient = Ingredient::query()->find($ingredientId))) {
+            $this->recipeIngredients[$index]['name'] = $ingredient->name;
+        }
+
+        $this->activeRow = null;
     }
 
     public function decrementServings(): void
@@ -221,7 +291,7 @@ new class extends Component {
             $sync = [];
             foreach ($this->recipeIngredients as $item) {
                 $name = Str::ucfirst(trim($item['name']));
-                $ingredient = Ingredient::query()->firstOrCreate(['name' => $name]);
+                $ingredient = Ingredient::findOrCreateByName($name);
                 $hasAmount = $item['amount'] !== '' && in_array($item['unit'] ?? '', RecipeIngredientAssignment::UNITS, true);
 
                 $sync[$ingredient->id] = [
@@ -358,9 +428,46 @@ new class extends Component {
             @foreach ($recipeIngredients as $index => $item)
             <div wire:key="ingredient-row-{{ $index }}" class="px-3.5 py-3 space-y-2 lg:grid lg:grid-cols-[minmax(0,1fr)_76px_76px_auto_150px_40px] lg:items-center lg:gap-2 lg:space-y-0 lg:py-2.5">
                 <div class="flex items-center gap-2 lg:contents">
-                    <label for="ingredient-{{ $index }}-name" class="sr-only">{{ __('Ingredient') }}</label>
-                    <input id="ingredient-{{ $index }}-name" type="text" wire:model="recipeIngredients.{{ $index }}.name" list="ingredients-autocomplete-list" placeholder="{{ __('Ingredient name') }}"
-                        class="flex-1 min-w-0 h-10 bg-transparent text-[16px] font-medium text-ink placeholder:text-muted focus:outline-none lg:order-1" />
+                    @php
+                        $isActive = $activeRow === $index;
+                        $suggest = $isActive ? $this->suggestions : null;
+                    @endphp
+                    <div class="relative flex-1 min-w-0 lg:order-1" @if ($isActive) x-data x-on:click.outside="$wire.closeSuggestions()" x-on:keydown.escape="$wire.closeSuggestions()" @endif>
+                        <label for="ingredient-{{ $index }}-name" class="sr-only">{{ __('Ingredient') }}</label>
+                        <input id="ingredient-{{ $index }}-name" type="text" autocomplete="off"
+                            wire:model.live.debounce.250ms="recipeIngredients.{{ $index }}.name"
+                            @unless ($isActive) wire:focus="focusRow({{ $index }})" @endunless
+                            role="combobox" aria-autocomplete="list" aria-expanded="{{ $suggest ? 'true' : 'false' }}" aria-controls="ingredient-{{ $index }}-suggestions"
+                            placeholder="{{ __('Ingredient name') }}"
+                            @class(['w-full h-10 text-[16px] font-medium text-ink placeholder:text-muted focus:outline-none', 'rounded-[10px] border border-ink bg-white px-2.5' => $isActive, 'bg-transparent' => ! $isActive]) />
+                        @if (! $isActive && $this->isNewIngredient($item))
+                        <div class="flex items-center gap-2 text-[12px]">
+                            <span class="rounded-full bg-gold-light px-1.5 py-px font-semibold text-gold-dark">{{ __('new ingredient') }}</span>
+                            <button type="button" wire:click="focusRow({{ $index }})" class="font-semibold text-terracotta">{{ __('Replace') }}</button>
+                        </div>
+                        @endif
+                        @if ($suggest)
+                        <div id="ingredient-{{ $index }}-suggestions" role="listbox" class="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-[14px] border border-line bg-white shadow-[0_12px_30px_rgba(31,27,22,0.14)]">
+                            @if ($suggest['mode'] === 'exists')
+                            <p class="px-3 pt-2.5 pb-1 text-[12px] font-semibold text-gold-dark">{{ __('This ingredient already exists — pick it from the list.') }}</p>
+                            @elseif ($suggest['mode'] === 'similar')
+                            <p class="px-3 pt-2.5 pb-1 text-[12px] font-semibold text-muted">{{ __('Did you mean:') }}</p>
+                            @endif
+                            @foreach ($suggest['items'] as $row)
+                            <button type="button" role="option" wire:key="suggestion-{{ $index }}-{{ $row['ingredient']->id }}" wire:click="pickIngredient({{ $index }}, {{ $row['ingredient']->id }})"
+                                class="block w-full border-b border-divider px-3 py-2 text-left hover:bg-field-bg">
+                                <span class="block text-[15px] text-ink">{{ $row['ingredient']->name }}</span>
+                                <span class="block text-[12px] text-muted">{{ Ingredient::categoryLabel($row['ingredient']->category ?? Ingredient::CATEGORY_UNCATEGORIZED) }}</span>
+                            </button>
+                            @endforeach
+                            @if ($suggest['mode'] !== 'exists')
+                            <button type="button" wire:click="closeSuggestions" class="block w-full bg-field-bg px-3 py-2.5 text-left text-[14px] font-semibold text-terracotta">
+                                {{ __('Add “:name” as a new ingredient', ['name' => trim($item['name'])]) }}
+                            </button>
+                            @endif
+                        </div>
+                        @endif
+                    </div>
                     <button type="button" wire:click="removeIngredient({{ $index }})" class="-mr-2 lg:mr-0 lg:order-6 flex size-10 items-center justify-center text-muted" aria-label="{{ __('Remove :name', ['name' => $item['name'] ?: __('ingredient')]) }}">
                         <x-icon.x class="size-4" />
                     </button>
@@ -404,11 +511,6 @@ new class extends Component {
                 {{ __('Add ingredient') }}
             </button>
         </div>
-        <datalist id="ingredients-autocomplete-list">
-            @foreach ($this->allIngredients as $ingredientName)
-            <option value="{{ $ingredientName }}"></option>
-            @endforeach
-        </datalist>
     </div>
 
     <div>

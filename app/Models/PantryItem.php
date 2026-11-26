@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * "Zapasy domowe" group of the shopping list; ticking it off there sets it
  * back to "ok".
  */
-#[Fillable(['name', 'pantry_group_id', 'status'])]
+#[Fillable(['name', 'pantry_group_id', 'ingredient_id', 'status'])]
 class PantryItem extends Model
 {
     public const STATUS_OK = 'ok';
@@ -29,6 +29,12 @@ class PantryItem extends Model
             self::STATUS_OUT => __('Out'),
             default => __('In stock'),
         };
+    }
+
+    /** "The same product as" this recipe ingredient (optional). */
+    public function ingredient(): BelongsTo
+    {
+        return $this->belongsTo(Ingredient::class);
     }
 
     public function group(): BelongsTo

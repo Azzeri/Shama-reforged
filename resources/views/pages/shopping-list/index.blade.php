@@ -330,7 +330,7 @@ new #[Layout('layouts::app')] class extends Component {
         ]);
 
         $name = trim($this->newItemName);
-        $ingredient = Ingredient::query()->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->first();
+        $ingredient = Ingredient::findByName($name);
 
         ShoppingList::main()->items()->create([
             'name' => $ingredient?->name ?? $name,

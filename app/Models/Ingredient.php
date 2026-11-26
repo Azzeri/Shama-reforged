@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Ingredients\IngredientName;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -147,6 +148,30 @@ class Ingredient extends Model
         return $grams >= 1000
             ? rtrim(rtrim(number_format($grams / 1000, 2, '.', ''), '0'), '.').' kg'
             : round($grams).' g';
+    }
+
+    /** Keeps name_key (the folded name, unique) in step with the name. */
+    protected static function booted(): void
+    {
+        static::saving(function (self $ingredient) {
+            if ($ingredient->isDirty('name') || $ingredient->name_key === null) {
+                $ingredient->name_key = IngredientName::fold($ingredient->name);
+            }
+        });
+    }
+
+    /** The ingredient with this name regardless of case / diacritics. */
+    public static function findByName(string $name): ?self
+    {
+        $key = IngredientName::fold($name);
+
+        return $key === '' ? null : self::query()->where('name_key', $key)->first();
+    }
+
+    /** Existing ingredient with this name, or a new one. */
+    public static function findOrCreateByName(string $name): self
+    {
+        return self::findByName($name) ?? self::query()->create(['name' => $name]);
     }
 
     protected function name(): Attribute

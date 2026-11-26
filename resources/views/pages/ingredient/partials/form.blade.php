@@ -15,6 +15,15 @@
         <label for="{{ $prefix }}name" class="{{ $label }}">{{ __('Name') }}</label>
         <x-ui.text-input id="{{ $prefix }}name" wire:model.live="name" class="w-full bg-field-bg" maxlength="255" />
         <x-ui.field-error name="name" />
+    @if ($similar = $this->similarExisting)
+    <div class="mt-2 rounded-[12px] bg-gold-light px-3 py-2.5 text-[14px] text-gold-dark">
+        <p>{{ __('Did you mean: :name?', ['name' => $similar->name]) }}</p>
+        <div class="mt-1 flex gap-4">
+            <button type="button" wire:click="openEdit({{ $similar->id }})" class="font-semibold underline-offset-2 hover:underline">{{ __('Open') }}</button>
+            <button type="button" wire:click="$set('similarDismissed', true)" class="font-semibold underline-offset-2 hover:underline">{{ __('Add as new') }}</button>
+        </div>
+    </div>
+    @endif
         @if ($editingId && $this->editingRecipeCount)
         <p class="mt-1 text-[12.5px] text-muted">{{ trans_choice('Used in :count recipe|Used in :count recipes', $this->editingRecipeCount) }}</p>
         @endif
@@ -65,6 +74,13 @@
             @endforeach
         </div>
     </div>
+
+    @if ($editingId)
+    <button type="button" wire:click="openMerge({{ $editingId }})" class="inline-flex h-11 items-center gap-1.5 text-[14px] font-semibold text-ink-soft">
+        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v6a4 4 0 0 0 4 4h8"/><path d="m15 9 4 4-4 4"/><path d="M6 21v-4"/></svg>
+        {{ __('Merge with another ingredient…') }}
+    </button>
+    @endif
 
     <div class="border-t border-divider pt-3">
         <x-ui.delete-footer :name="$name" action="delete" :can-delete="(bool) $editingId">
