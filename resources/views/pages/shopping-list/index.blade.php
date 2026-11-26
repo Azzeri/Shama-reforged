@@ -320,21 +320,21 @@ new #[Layout('layouts::app')] class extends Component {
                 <h1 class="font-fraunces text-[34px] font-semibold leading-none text-ink">{{ __('Shopping') }}</h1>
 
                 @if (! $isList)
-                <button type="button" wire:click="$dispatch('card-new')" class="inline-flex items-center gap-1.5 rounded-full bg-terracotta px-4 py-2.5 font-manrope text-[15px] font-bold text-white shadow-[0_6px_14px_rgba(193,68,45,0.3)]">
+                <button type="button" wire:click="$dispatch('card-new')" class="inline-flex items-center gap-1.5 rounded-full bg-terracotta px-4 py-2.5 font-inter text-[15px] font-semibold text-white shadow-[0_6px_14px_rgba(193,68,45,0.3)]">
                     <flux:icon.plus class="size-4" />
                     {{ __('Card') }}
                 </button>
                 @else
                 <div class="flex items-center gap-2">
                     <flux:modal.trigger name="add-item-modal">
-                        <button type="button" wire:click="resetNewItemForm" class="inline-flex items-center gap-1.5 rounded-full bg-terracotta px-4 py-2.5 font-manrope text-[15px] font-bold text-white shadow-[0_6px_14px_rgba(193,68,45,0.3)]">
+                        <button type="button" wire:click="resetNewItemForm" class="inline-flex items-center gap-1.5 rounded-full bg-terracotta px-4 py-2.5 font-inter text-[15px] font-semibold text-white shadow-[0_6px_14px_rgba(193,68,45,0.3)]">
                             <flux:icon.plus class="size-4" />
                             {{ __('Add') }}
                         </button>
                     </flux:modal.trigger>
 
                     <flux:dropdown position="bottom" align="end">
-                        <button type="button" class="flex items-center justify-center size-11 rounded-full border border-ink/10 bg-white text-ink" aria-label="{{ __('More') }}">
+                        <button type="button" class="flex items-center justify-center size-11 rounded-full border border-line bg-white text-ink" aria-label="{{ __('More') }}">
                             <flux:icon.ellipsis-horizontal class="size-5" />
                         </button>
                         <flux:menu>
@@ -352,19 +352,19 @@ new #[Layout('layouts::app')] class extends Component {
             <div class="mt-4 grid grid-cols-2 gap-1 rounded-2xl bg-sand p-1">
                 @foreach (['list' => __('List'), 'cards' => __('Cards')] as $key => $label)
                 <button type="button" wire:click="$set('tab', '{{ $key }}')" @class([
-                    'rounded-xl py-2.5 font-manrope text-[15px] font-bold text-ink transition-colors',
+                    'rounded-xl py-2.5 font-inter text-[15px] font-semibold text-ink transition-colors',
                     'bg-white shadow-sm' => ($key === 'cards') === ! $isList,
                 ])>
                     {{ $label }}
                     @if ($key === 'cards' && $this->cardsCount > 0)
-                    <span class="ml-1 font-semibold text-ink/50">{{ $this->cardsCount }}</span>
+                    <span class="ml-1 font-semibold text-muted">{{ $this->cardsCount }}</span>
                     @endif
                 </button>
                 @endforeach
             </div>
 
             @if ($isList && $progress['total'] > 0)
-            <div class="mt-4 flex items-center justify-between font-manrope text-[13.5px] text-ink/60">
+            <div class="mt-4 flex items-center justify-between font-inter text-[13.5px] text-muted">
                 <span>{{ __('Bought :bought of :total', $progress) }}</span>
                 @if ($this->rangeLabel)
                 <span>{{ $this->rangeLabel }}</span>
@@ -380,9 +380,9 @@ new #[Layout('layouts::app')] class extends Component {
         <livewire:shopping-list.cards />
         @else
         @if ($progress['total'] === 0)
-        <div class="rounded-[22px] border border-dashed border-ink/20 px-5 py-10 text-center space-y-3">
-            <p class="font-manrope text-[15px] text-ink/60">{{ __('The shopping list is empty.') }}</p>
-            <a href="{{ route('meals.index') }}" wire:navigate class="inline-flex items-center gap-1.5 font-manrope text-[15px] font-bold text-terracotta-dark">
+        <div class="rounded-[22px] border border-dashed border-field px-5 py-10 text-center space-y-3">
+            <p class="font-inter text-[15px] text-muted">{{ __('The shopping list is empty.') }}</p>
+            <a href="{{ route('meals.index') }}" wire:navigate class="inline-flex items-center gap-1.5 font-inter text-[15px] font-semibold text-terracotta-dark">
                 <flux:icon.calendar-days class="size-4" />
                 {{ __('Generate from the meal plan') }}
             </a>
@@ -393,9 +393,9 @@ new #[Layout('layouts::app')] class extends Component {
         <section x-data="{ open: $persist(true).as('shopping-weekly-open') }">
             <button type="button" x-on:click="open = ! open" class="w-full flex items-center gap-2 text-left">
                 <span class="font-fraunces text-[22px] font-semibold text-ink">{{ __('For the whole week') }}</span>
-                <span class="font-manrope text-[13px] text-ink/50">{{ __('buy right away') }}</span>
-                <span class="ml-auto font-manrope text-[14px] font-bold text-ink/60">{{ $list['weekly']['count'] }}</span>
-                <flux:icon.chevron-down class="size-4 text-ink/50 transition-transform" x-bind:class="open || '-rotate-90'" />
+                <span class="font-inter text-[13px] text-muted">{{ __('buy right away') }}</span>
+                <span class="ml-auto font-inter text-[14px] font-semibold text-muted">{{ $list['weekly']['count'] }}</span>
+                <flux:icon.chevron-down class="size-4 text-muted transition-transform" x-bind:class="open || '-rotate-90'" />
             </button>
 
             <div x-show="open" x-collapse class="mt-3 space-y-4">
@@ -411,12 +411,12 @@ new #[Layout('layouts::app')] class extends Component {
         <section wire:key="day-{{ $dateKey }}" x-data="{ open: true }">
             <button type="button" x-on:click="open = ! open" class="w-full flex items-baseline gap-2 text-left">
                 <span class="font-fraunces text-[22px] font-semibold {{ $day['date']->isToday() ? 'text-terracotta-dark' : 'text-ink' }}">{{ $this->dayName($day['date']) }}</span>
-                <span class="font-manrope text-[13px] text-ink/50">{{ $day['date']->isToday() ? __('today') : $day['date']->format('d.m') }}</span>
+                <span class="font-inter text-[13px] text-muted">{{ $day['date']->isToday() ? __('today') : $day['date']->format('d.m') }}</span>
                 @if ($day['date']->lt(today()))
-                <span class="font-manrope text-[12px] font-bold text-terracotta-dark">{{ __('overdue') }}</span>
+                <span class="font-inter text-[12px] font-semibold text-terracotta-dark">{{ __('overdue') }}</span>
                 @endif
-                <span class="ml-auto font-manrope text-[14px] font-bold text-ink/60">{{ $day['count'] }}</span>
-                <flux:icon.chevron-down class="size-4 self-center text-ink/50 transition-transform" x-bind:class="open || '-rotate-90'" />
+                <span class="ml-auto font-inter text-[14px] font-semibold text-muted">{{ $day['count'] }}</span>
+                <flux:icon.chevron-down class="size-4 self-center text-muted transition-transform" x-bind:class="open || '-rotate-90'" />
             </button>
 
             <div x-show="open" x-collapse class="mt-3 space-y-4">
@@ -425,7 +425,7 @@ new #[Layout('layouts::app')] class extends Component {
                 @endforeach
 
                 @if ($day['coveredCount'] > 0)
-                <p class="flex items-start gap-1.5 font-manrope text-[13px] text-ink/50">
+                <p class="flex items-start gap-1.5 font-inter text-[13px] text-muted">
                     <flux:icon.check-badge class="size-4 shrink-0 mt-px" />
                     {{ trans_choice(':count product for this day is already in the For the whole week section|:count products for this day are already in the For the whole week section', $day['coveredCount']) }}
                 </p>
@@ -438,13 +438,13 @@ new #[Layout('layouts::app')] class extends Component {
         <section x-data="{ open: $persist(false).as('shopping-bought-open') }">
             <button type="button" x-on:click="open = ! open" class="w-full flex items-center gap-2 text-left">
                 <span class="font-fraunces text-[22px] font-semibold text-ink">{{ __('Bought') }}</span>
-                <span class="font-manrope text-[13px] text-ink/50">{{ __('last 7 days') }}</span>
-                <span class="ml-auto font-manrope text-[14px] font-bold text-ink/60">{{ $list['bought']['count'] }}</span>
-                <flux:icon.chevron-down class="size-4 text-ink/50 transition-transform" x-bind:class="open || '-rotate-90'" />
+                <span class="font-inter text-[13px] text-muted">{{ __('last 7 days') }}</span>
+                <span class="ml-auto font-inter text-[14px] font-semibold text-muted">{{ $list['bought']['count'] }}</span>
+                <flux:icon.chevron-down class="size-4 text-muted transition-transform" x-bind:class="open || '-rotate-90'" />
             </button>
 
             <div x-show="open" x-collapse class="mt-3">
-                <div class="rounded-[18px] border border-ink/10 overflow-hidden divide-y divide-ink/8 bg-white">
+                <div class="rounded-[18px] border border-line overflow-hidden divide-y divide-divider bg-white">
                     @foreach ($list['bought']['groups'] as $group)
                     <x-shopping-list.item-tile :group="$group" bought />
                     @endforeach
@@ -460,7 +460,7 @@ new #[Layout('layouts::app')] class extends Component {
             <div class="flex items-start justify-between gap-2">
                 <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Add item') }}</h3>
                 <flux:modal.close>
-                    <button type="button" class="text-ink/25 hover:text-ink/50 p-1.5 text-lg leading-none">✕</button>
+                    <button type="button" class="text-ink/25 hover:text-muted p-1.5 text-lg leading-none">✕</button>
                 </flux:modal.close>
             </div>
 
@@ -477,7 +477,7 @@ new #[Layout('layouts::app')] class extends Component {
                 </div>
                 <div>
                     <x-ui.eyebrow optional>{{ __('For when') }}</x-ui.eyebrow>
-                    <select wire:model="newItemDate" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-base sm:text-sm text-ink">
+                    <select wire:model="newItemDate" class="w-full border-[1.5px] border-field bg-white rounded-2xl px-3.5 py-[13px] font-inter text-base sm:text-sm text-ink">
                         <option value="">{{ __('Whole week') }}</option>
                         @foreach ($this->dateOptions as $option)
                         <option value="{{ $option['value'] }}">{{ $option['label'] }}</option>
@@ -491,7 +491,7 @@ new #[Layout('layouts::app')] class extends Component {
                 <x-ui.text-input wire:model="newItemNotes" class="w-full" />
             </div>
 
-            <button type="submit" class="w-full bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-[14px] py-3.5 font-manrope text-sm font-extrabold">
+            <button type="submit" class="w-full bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-[14px] py-3.5 font-inter text-sm font-semibold">
                 + {{ __('Add') }}
             </button>
         </form>
@@ -504,11 +504,11 @@ new #[Layout('layouts::app')] class extends Component {
                 <div>
                     <h3 class="font-fraunces text-xl font-semibold text-ink">{{ $group['name'] }}</h3>
                     @if ($group['total'])
-                    <div class="font-manrope text-[14px] text-ink/60">{{ __('Total') }}: {{ $group['total'] }}</div>
+                    <div class="font-inter text-[14px] text-muted">{{ __('Total') }}: {{ $group['total'] }}</div>
                     @endif
                 </div>
                 <flux:modal.close>
-                    <button type="button" class="text-ink/25 hover:text-ink/50 p-1.5 text-lg leading-none">✕</button>
+                    <button type="button" class="text-ink/25 hover:text-muted p-1.5 text-lg leading-none">✕</button>
                 </flux:modal.close>
             </div>
 
@@ -526,7 +526,7 @@ new #[Layout('layouts::app')] class extends Component {
                     </div>
                     <div>
                         <x-ui.eyebrow optional>{{ __('For when') }}</x-ui.eyebrow>
-                        <select wire:model="editDate" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-[13px] font-manrope text-base sm:text-sm text-ink">
+                        <select wire:model="editDate" class="w-full border-[1.5px] border-field bg-white rounded-2xl px-3.5 py-[13px] font-inter text-base sm:text-sm text-ink">
                             <option value="">{{ __('Whole week') }}</option>
                             @if ($editDate && ! $this->dateOptions->contains('value', $editDate))
                             <option value="{{ $editDate }}">{{ $this->dayName(Carbon::parse($editDate)) }} {{ Carbon::parse($editDate)->format('d.m') }}</option>
@@ -542,19 +542,19 @@ new #[Layout('layouts::app')] class extends Component {
                     <x-ui.text-input wire:model="editNotes" class="w-full" />
                 </div>
                 @if ($recipe = $group['items'][0]->recipe)
-                <p class="font-manrope text-[13px] text-ink/50">{{ __('From recipe') }}: {{ $recipe->name }}</p>
+                <p class="font-inter text-[13px] text-muted">{{ __('From recipe') }}: {{ $recipe->name }}</p>
                 @endif
-                <button type="submit" class="w-full bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-[14px] py-3.5 font-manrope text-sm font-extrabold">
+                <button type="submit" class="w-full bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-[14px] py-3.5 font-inter text-sm font-semibold">
                     {{ __('Save') }}
                 </button>
             </form>
             @else
-            <div class="rounded-2xl border border-ink/10 bg-white divide-y divide-ink/8">
+            <div class="rounded-2xl border border-line bg-white divide-y divide-divider">
                 @foreach ($group['items'] as $row)
                 <div wire:key="open-row-{{ $row->id }}" class="flex items-center gap-3 px-3.5 py-2.5">
                     <div class="flex-1 min-w-0">
-                        <div class="font-manrope text-[14px] font-semibold text-ink truncate">{{ $row->recipe?->name ?? $row->name }}</div>
-                        <div class="font-manrope text-[12px] text-ink/50">
+                        <div class="font-inter text-[14px] font-semibold text-ink truncate">{{ $row->recipe?->name ?? $row->name }}</div>
+                        <div class="font-inter text-[12px] text-muted">
                             {{ $row->needed_on ? $this->dayName($row->needed_on) . ' ' . $row->needed_on->format('d.m') : __('Whole week') }}
                         </div>
                     </div>
@@ -562,7 +562,7 @@ new #[Layout('layouts::app')] class extends Component {
                         type="text"
                         value="{{ $row->displayQuantity() }}"
                         x-on:change="$wire.updateRowQuantity({{ $row->id }}, $event.target.value)"
-                        class="w-24 rounded-xl border border-ink/15 bg-cream px-2.5 py-1.5 text-right font-manrope text-base sm:text-sm text-ink" />
+                        class="w-24 rounded-xl border border-field bg-cream px-2.5 py-1.5 text-right font-inter text-base sm:text-sm text-ink" />
                     <button type="button" wire:click="deleteItems([{{ $row->id }}])" class="text-ink/40 p-1" aria-label="{{ __('Delete') }}">
                         <flux:icon.x-mark class="size-4" />
                     </button>
@@ -573,12 +573,12 @@ new #[Layout('layouts::app')] class extends Component {
 
             <div class="grid grid-cols-2 gap-2">
                 @if ($group['canMoveEarlier'])
-                <button type="button" wire:click="moveEarlier({{ \Illuminate\Support\Js::from($openIds) }})" class="rounded-[14px] border border-ink/10 bg-white py-3 font-manrope text-sm font-bold text-ink">
+                <button type="button" wire:click="moveEarlier({{ \Illuminate\Support\Js::from($openIds) }})" class="rounded-[14px] border border-line bg-white py-3 font-inter text-sm font-semibold text-ink">
                     {{ __('Buy a day earlier') }}
                 </button>
                 @endif
                 <flux:modal.close>
-                    <button type="button" wire:click="deleteItems({{ \Illuminate\Support\Js::from($openIds) }})" class="w-full rounded-[14px] py-3 font-manrope text-sm font-bold text-terracotta-dark">
+                    <button type="button" wire:click="deleteItems({{ \Illuminate\Support\Js::from($openIds) }})" class="w-full rounded-[14px] py-3 font-inter text-sm font-semibold text-terracotta-dark">
                         {{ __('Delete') }}
                     </button>
                 </flux:modal.close>
@@ -590,13 +590,13 @@ new #[Layout('layouts::app')] class extends Component {
     <flux:modal name="clear-list-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
         <div class="space-y-5">
             <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Clear the whole list?') }}</h3>
-            <p class="font-manrope text-sm text-ink/60">{{ __('All items will be removed, including bought ones. This cannot be undone.') }}</p>
+            <p class="font-inter text-sm text-muted">{{ __('All items will be removed, including bought ones. This cannot be undone.') }}</p>
             <div class="flex gap-2 justify-end">
                 <flux:modal.close>
-                    <button type="button" class="font-manrope text-sm font-extrabold text-ink/60 px-4 py-2.5">{{ __('Cancel') }}</button>
+                    <button type="button" class="font-inter text-sm font-semibold text-muted px-4 py-2.5">{{ __('Cancel') }}</button>
                 </flux:modal.close>
                 <flux:modal.close>
-                    <button type="button" wire:click="clearAll" class="bg-terracotta text-white rounded-2xl px-5 py-2.5 font-manrope text-sm font-extrabold">{{ __('Clear list') }}</button>
+                    <button type="button" wire:click="clearAll" class="bg-terracotta text-white rounded-2xl px-5 py-2.5 font-inter text-sm font-semibold">{{ __('Clear list') }}</button>
                 </flux:modal.close>
             </div>
         </div>

@@ -199,16 +199,16 @@ new class extends Component {
         <div>
             <x-ui.eyebrow>{{ __('Ingredients') }}</x-ui.eyebrow>
 
-            <div class="rounded-[18px] border border-ink/10 bg-white">
+            <div class="rounded-[18px] border border-line bg-white">
                 @if ($recipeIngredients)
-                <div class="grid grid-cols-[1fr_1fr_1fr] gap-2 px-4 pt-3 font-manrope text-[12.5px] font-semibold text-ink/55">
+                <div class="grid grid-cols-[1fr_1fr_1fr] gap-2 px-4 pt-3 font-inter text-[12.5px] font-semibold text-muted">
                     <span>{{ Recipe::nutritionProfileLabel('me') }}</span>
                     <span>{{ Recipe::nutritionProfileLabel('wife') }}</span>
                     <span>{{ __('Unit') }}</span>
                 </div>
                 @endif
 
-                <div class="divide-y divide-ink/8">
+                <div class="divide-y divide-divider">
                     @foreach ($recipeIngredients as $index => $item)
                     <div wire:key="ingredient-row-{{ $index }}" class="px-4 py-3 space-y-2">
                         <div class="flex items-center gap-2">
@@ -217,7 +217,7 @@ new class extends Component {
                                 wire:model="recipeIngredients.{{ $index }}.name"
                                 list="ingredients-autocomplete-list"
                                 placeholder="{{ __('Ingredient name') }}"
-                                class="flex-1 min-w-0 bg-transparent font-manrope text-[16px] font-semibold text-ink placeholder:font-normal placeholder:text-ink/35 focus:outline-none" />
+                                class="flex-1 min-w-0 bg-transparent font-inter text-[16px] font-semibold text-ink placeholder:font-normal placeholder:text-ink/35 focus:outline-none" />
                             <button type="button" wire:click="removeIngredient({{ $index }})" class="shrink-0 p-1 text-ink/40 hover:text-terracotta-dark" aria-label="{{ __('Remove') }}">
                                 <flux:icon.x-mark class="size-4" />
                             </button>
@@ -233,12 +233,12 @@ new class extends Component {
                                 inputmode="decimal"
                                 wire:model="recipeIngredients.{{ $index }}.amount_{{ $profile }}"
                                 aria-label="{{ Recipe::nutritionProfileLabel($profile) }}"
-                                class="w-full min-w-0 rounded-xl border border-ink/12 bg-cream px-3 py-2.5 font-manrope text-base text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
+                                class="w-full min-w-0 rounded-xl border border-line bg-cream px-3 py-2.5 font-inter text-base text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
                             @endforeach
                             <select
                                 wire:model="recipeIngredients.{{ $index }}.unit"
                                 aria-label="{{ __('Unit') }}"
-                                class="w-full min-w-0 rounded-xl border border-ink/12 bg-cream px-2.5 py-2.5 font-manrope text-base text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
+                                class="w-full min-w-0 rounded-xl border border-line bg-cream px-2.5 py-2.5 font-inter text-base text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
                                 @foreach (RecipeIngredientAssignment::UNITS as $unit)
                                 <option value="{{ $unit }}">{{ \App\Support\ShoppingList\Quantity::unitLabel($unit) }}</option>
                                 @endforeach
@@ -253,7 +253,7 @@ new class extends Component {
                 <button
                     type="button"
                     wire:click="addIngredient"
-                    @class(['w-full flex items-center gap-1.5 px-4 py-3.5 font-manrope text-[15px] font-bold text-terracotta-dark', 'border-t border-ink/8' => $recipeIngredients])>
+                    @class(['w-full flex items-center gap-1.5 px-4 py-3.5 font-inter text-[15px] font-semibold text-terracotta-dark', 'border-t border-line' => $recipeIngredients])>
                     <flux:icon.plus class="size-4" />
                     {{ __('Add ingredient') }}
                 </button>
@@ -265,7 +265,7 @@ new class extends Component {
                 @endforeach
             </datalist>
 
-            <p class="mt-2 font-manrope text-[12.5px] text-ink/50">
+            <p class="mt-2 font-inter text-[12.5px] text-muted">
                 {{ __('Amounts go to the shopping list. A new name creates a new ingredient — you can set its aisle on the Ingredients tab.') }}
             </p>
         </div>
@@ -273,8 +273,8 @@ new class extends Component {
         <div>
             <x-ui.eyebrow optional>{{ __('Nutrition per serving') }}</x-ui.eyebrow>
 
-            <div class="rounded-[18px] border border-ink/10 bg-white px-4 py-3">
-                <div class="grid grid-cols-[72px_1fr_1fr_1fr_1fr] gap-2 font-manrope text-[12.5px] font-semibold text-ink/55">
+            <div class="rounded-[18px] border border-line bg-white px-4 py-3">
+                <div class="grid grid-cols-[72px_1fr_1fr_1fr_1fr] gap-2 font-inter text-[12.5px] font-semibold text-muted">
                     <span></span>
                     <span>kcal</span>
                     <span>{{ __('protein g') }}</span>
@@ -284,7 +284,7 @@ new class extends Component {
 
                 @foreach (Recipe::NUTRITION_PROFILES as $profile)
                 <div class="mt-2 grid grid-cols-[72px_1fr_1fr_1fr_1fr] items-center gap-2">
-                    <span class="font-manrope text-[14.5px] font-bold text-ink truncate">{{ Recipe::nutritionProfileLabel($profile) }}</span>
+                    <span class="font-inter text-[14.5px] font-semibold text-ink truncate">{{ Recipe::nutritionProfileLabel($profile) }}</span>
                     @foreach (['calories', 'protein', 'carbs', 'fat'] as $macro)
                     <input
                         type="number"
@@ -293,7 +293,7 @@ new class extends Component {
                         inputmode="decimal"
                         wire:model="recipeNutrition.{{ $profile }}.{{ $macro }}"
                         aria-label="{{ Recipe::nutritionProfileLabel($profile) }} {{ $macro }}"
-                        class="w-full min-w-0 rounded-xl border border-ink/12 bg-cream px-2 py-2.5 font-manrope text-base text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
+                        class="w-full min-w-0 rounded-xl border border-line bg-cream px-2 py-2.5 font-inter text-base text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
                     @endforeach
                 </div>
                 @foreach (['calories', 'protein', 'carbs', 'fat'] as $macro)
@@ -317,7 +317,7 @@ new class extends Component {
 
         @if ($recipe)
         <flux:modal.trigger name="delete-recipe-modal">
-            <button type="button" class="w-full inline-flex items-center justify-center gap-1.5 rounded-[14px] border border-terracotta/50 py-2.5 font-manrope text-[14.5px] font-bold text-terracotta-dark">
+            <button type="button" class="w-full inline-flex items-center justify-center gap-1.5 rounded-[14px] border border-terracotta/50 py-2.5 font-inter text-[14.5px] font-semibold text-terracotta-dark">
                 <flux:icon.trash class="size-4" />
                 {{ __('Delete recipe') }}
             </button>
@@ -328,7 +328,7 @@ new class extends Component {
             <button
                 type="submit"
                 wire:loading.attr="disabled"
-                class="w-full rounded-[16px] bg-terracotta py-4 font-manrope text-[16px] font-bold text-white shadow-[0_10px_22px_rgba(193,68,45,0.3)] disabled:opacity-60">
+                class="w-full rounded-[16px] bg-terracotta py-4 font-inter text-[16px] font-semibold text-white shadow-[0_10px_22px_rgba(193,68,45,0.3)] disabled:opacity-60">
                 {{ $recipe ? __('Save changes') : __('Add recipe') }}
             </button>
         </div>
@@ -338,12 +338,12 @@ new class extends Component {
     <flux:modal name="delete-recipe-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
         <div class="space-y-5">
             <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Delete recipe?') }}</h3>
-            <p class="font-manrope text-sm text-ink/60">{{ __('The recipe will also disappear from planned meals. This cannot be undone.') }}</p>
+            <p class="font-inter text-sm text-muted">{{ __('The recipe will also disappear from planned meals. This cannot be undone.') }}</p>
             <div class="flex gap-2 justify-end">
                 <flux:modal.close>
-                    <button type="button" class="font-manrope text-sm font-extrabold text-ink/60 px-4 py-2.5">{{ __('Cancel') }}</button>
+                    <button type="button" class="font-inter text-sm font-semibold text-muted px-4 py-2.5">{{ __('Cancel') }}</button>
                 </flux:modal.close>
-                <button type="button" wire:click="delete" class="bg-terracotta text-white rounded-2xl px-5 py-2.5 font-manrope text-sm font-extrabold">{{ __('Delete recipe') }}</button>
+                <button type="button" wire:click="delete" class="bg-terracotta text-white rounded-2xl px-5 py-2.5 font-inter text-sm font-semibold">{{ __('Delete recipe') }}</button>
             </div>
         </div>
     </flux:modal>

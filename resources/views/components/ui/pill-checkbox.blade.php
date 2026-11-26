@@ -1,14 +1,17 @@
 @props(['value', 'color' => 'gold'])
 
+{{-- Checkbox styled as a chip (wire:model on the input). gold = meal, sage = main ingredient. --}}
 @php
-$checkedClasses = $color === 'sage'
-    ? 'peer-checked:bg-forest peer-checked:border-forest peer-checked:text-white'
-    : 'peer-checked:bg-gold peer-checked:border-gold peer-checked:text-white';
+$checkedClasses = match ($color) {
+    'sage' => 'peer-checked:bg-sage peer-checked:border-sage peer-checked:text-white',
+    'ink' => 'peer-checked:bg-ink peer-checked:border-ink peer-checked:text-white',
+    default => 'peer-checked:bg-gold peer-checked:border-gold peer-checked:text-ink',
+};
 @endphp
 
-<label class="cursor-pointer">
+<label class="cursor-pointer shrink-0">
     <input type="checkbox" value="{{ $value }}" {{ $attributes->merge(['class' => 'peer sr-only']) }} />
-    <span class="inline-flex rounded-full px-3.5 py-2 font-manrope text-[14px] font-semibold border border-ink/12 bg-white text-ink transition-colors {{ $checkedClasses }}">
+    <span class="inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[14px] font-medium border border-field bg-white text-ink transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-ink {{ $checkedClasses }}">
         {{ $slot }}
     </span>
 </label>

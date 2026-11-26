@@ -329,7 +329,7 @@ new #[Layout('layouts::app')] class extends Component {
 
         <x-meal.week-strip :day="$this->day" route="meals.day.edit" />
 
-        <div class="bg-white rounded-[22px] border border-ink/10 divide-y divide-ink/8">
+        <div class="bg-white rounded-[22px] border border-line divide-y divide-divider">
             @foreach ($this->visibleTypes as $type)
             @php
                 $row = $meals[$type];
@@ -338,10 +338,10 @@ new #[Layout('layouts::app')] class extends Component {
             @endphp
             <div wire:key="meal-type-{{ $type }}" class="px-4 py-4 space-y-3">
                 <div class="flex items-center justify-between">
-                    <span class="font-manrope text-[12px] font-extrabold uppercase tracking-[0.12em] text-ink/60">{{ Meal::typeLabel($type) }}</span>
+                    <span class="font-inter text-[12px] font-semibold uppercase tracking-[0.12em] text-muted">{{ Meal::typeLabel($type) }}</span>
 
                     @if (! $hasNote && ! $isEditingNote)
-                    <button type="button" wire:click="startEditingNote('{{ $type }}')" class="inline-flex items-center gap-1.5 font-manrope text-[14px] text-ink/60">
+                    <button type="button" wire:click="startEditingNote('{{ $type }}')" class="inline-flex items-center gap-1.5 font-inter text-[14px] text-muted">
                         <flux:icon.pencil class="size-4" />
                         {{ __('Note') }}
                     </button>
@@ -362,10 +362,10 @@ new #[Layout('layouts::app')] class extends Component {
                             x-on:mouseup="clearTimeout(timer)"
                             x-on:mouseleave="clearTimeout(timer)"
                             x-on:contextmenu.prevent
-                            class="pl-3.5 py-2 font-manrope text-[14.5px] font-semibold text-ink text-left truncate select-none [-webkit-touch-callout:none]">
+                            class="pl-3.5 py-2 font-inter text-[14.5px] font-semibold text-ink text-left truncate select-none [-webkit-touch-callout:none]">
                             {{ $recipe->name }}
                         </button>
-                        <button type="button" wire:click="removeRecipe('{{ $type }}', {{ $recipeId }})" class="px-2.5 py-2 text-ink/50" aria-label="{{ __('Remove') }}">
+                        <button type="button" wire:click="removeRecipe('{{ $type }}', {{ $recipeId }})" class="px-2.5 py-2 text-muted" aria-label="{{ __('Remove') }}">
                             <flux:icon.x-mark class="size-4" />
                         </button>
                     </div>
@@ -375,7 +375,7 @@ new #[Layout('layouts::app')] class extends Component {
                     <button
                         type="button"
                         wire:click="openRecipePicker('{{ $type }}')"
-                        class="inline-flex items-center gap-1.5 rounded-full border border-dashed border-ink/25 px-3.5 py-2 font-manrope text-[14.5px] font-bold text-terracotta-dark">
+                        class="inline-flex items-center gap-1.5 rounded-full border border-dashed border-field px-3.5 py-2 font-inter text-[14.5px] font-semibold text-terracotta-dark">
                         <flux:icon.plus class="size-4" />
                         {{ empty($row['recipeIds']) ? __('Add recipe') : __('Add') }}
                     </button>
@@ -391,16 +391,16 @@ new #[Layout('layouts::app')] class extends Component {
                         x-init="$nextTick(() => $el.focus())"
                         placeholder="{{ __('e.g. Eating out') }}"
                         maxlength="255"
-                        class="w-full rounded-xl border border-ink/15 bg-cream px-3.5 py-2.5 font-manrope text-base text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
+                        class="w-full rounded-xl border border-field bg-cream px-3.5 py-2.5 font-inter text-base text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
                     <x-ui.field-error name="meals.{{ $type }}.note" />
                 </div>
                 @elseif ($hasNote)
-                <div class="flex items-center gap-2.5 rounded-xl border border-ink/10 bg-cream px-3.5 py-2.5">
-                    <flux:icon.document class="size-4 text-ink/50 shrink-0" />
-                    <button type="button" wire:click="startEditingNote('{{ $type }}')" class="flex-1 text-left font-manrope text-[14.5px] text-ink truncate">
+                <div class="flex items-center gap-2.5 rounded-xl border border-line bg-cream px-3.5 py-2.5">
+                    <flux:icon.document class="size-4 text-muted shrink-0" />
+                    <button type="button" wire:click="startEditingNote('{{ $type }}')" class="flex-1 text-left font-inter text-[14.5px] text-ink truncate">
                         {{ $row['note'] }}
                     </button>
-                    <button type="button" wire:click="clearNote('{{ $type }}')" class="text-ink/50 shrink-0" aria-label="{{ __('Remove') }}">
+                    <button type="button" wire:click="clearNote('{{ $type }}')" class="text-muted shrink-0" aria-label="{{ __('Remove') }}">
                         <flux:icon.x-mark class="size-4" />
                     </button>
                 </div>
@@ -415,7 +415,7 @@ new #[Layout('layouts::app')] class extends Component {
             <button
                 type="button"
                 wire:click="showOptionalType('{{ $optionalType }}')"
-                class="inline-flex items-center gap-1.5 rounded-full border border-dashed border-ink/25 px-3.5 py-2 font-manrope text-[13.5px] font-bold text-ink/60">
+                class="inline-flex items-center gap-1.5 rounded-full border border-dashed border-field px-3.5 py-2 font-inter text-[13.5px] font-semibold text-muted">
                 <flux:icon.plus class="size-4" />
                 {{ Meal::typeLabel($optionalType) }}
             </button>
@@ -432,21 +432,21 @@ new #[Layout('layouts::app')] class extends Component {
         <div class="w-full max-w-xl rounded-t-[24px] bg-cream max-h-[88dvh] overflow-y-auto overscroll-contain p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] space-y-4">
             <div class="flex items-start justify-between gap-2">
                 <h3 class="font-fraunces text-xl font-semibold text-ink">{{ $this->actionRecipe->name }}</h3>
-                <button type="button" wire:click="closeActionSheet" class="text-ink/25 hover:text-ink/50 p-1.5 text-lg leading-none">✕</button>
+                <button type="button" wire:click="closeActionSheet" class="text-ink/25 hover:text-muted p-1.5 text-lg leading-none">✕</button>
             </div>
 
             <x-recipe.nutrition :recipe="$this->actionRecipe" compact />
 
             @if ($showRepeatForm)
-            <div class="rounded-xl border border-ink/10 bg-white p-3.5 space-y-3">
+            <div class="rounded-xl border border-line bg-white p-3.5 space-y-3">
                 <div class="grid grid-cols-2 gap-2.5">
-                    <select wire:model="repeatDayOffset" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-3 font-manrope text-base sm:text-sm text-ink">
+                    <select wire:model="repeatDayOffset" class="w-full border-[1.5px] border-field bg-white rounded-2xl px-3.5 py-3 font-inter text-base sm:text-sm text-ink">
                         <option value="">{{ __('Day') }}</option>
                         @foreach ($this->weekDayOptions as $option)
                         <option value="{{ $option['offset'] }}">{{ $option['label'] }}</option>
                         @endforeach
                     </select>
-                    <select wire:model="repeatMealType" class="w-full border-[1.5px] border-ink/25 bg-white rounded-2xl px-3.5 py-3 font-manrope text-base sm:text-sm text-ink">
+                    <select wire:model="repeatMealType" class="w-full border-[1.5px] border-field bg-white rounded-2xl px-3.5 py-3 font-inter text-base sm:text-sm text-ink">
                         <option value="">{{ __('Meal type') }}</option>
                         @foreach (Meal::TYPES as $optionType)
                         <option value="{{ $optionType }}">{{ Meal::typeLabel($optionType) }}</option>
@@ -455,7 +455,7 @@ new #[Layout('layouts::app')] class extends Component {
                 </div>
                 <x-ui.field-error name="repeatDayOffset" />
                 <x-ui.field-error name="repeatMealType" />
-                <button type="button" wire:click="repeatRecipe" class="w-full bg-forest text-white rounded-xl py-3 font-manrope text-sm font-extrabold">
+                <button type="button" wire:click="repeatRecipe" class="w-full bg-forest text-white rounded-xl py-3 font-inter text-sm font-semibold">
                     {{ __('Add') }}
                 </button>
             </div>
@@ -465,17 +465,17 @@ new #[Layout('layouts::app')] class extends Component {
                 <a
                     href="{{ route('recipes.show', $this->actionRecipe) }}?back={{ urlencode(route('meals.day.edit', $date, false)) }}"
                     wire:navigate
-                    class="flex items-center justify-center gap-2 bg-white border border-ink/10 rounded-[14px] py-3 font-manrope text-sm font-extrabold text-ink">
+                    class="flex items-center justify-center gap-2 bg-white border border-line rounded-[14px] py-3 font-inter text-sm font-semibold text-ink">
                     <flux:icon.book-open class="size-4" />
                     {{ __('Open recipe') }}
                 </a>
                 @unless ($showRepeatForm)
-                <button type="button" wire:click="$set('showRepeatForm', true)" class="flex items-center justify-center gap-2 bg-white border border-ink/10 rounded-[14px] py-3 font-manrope text-sm font-extrabold text-forest">
+                <button type="button" wire:click="$set('showRepeatForm', true)" class="flex items-center justify-center gap-2 bg-white border border-line rounded-[14px] py-3 font-inter text-sm font-semibold text-forest">
                     <flux:icon.arrow-path class="size-4" />
                     {{ __('Repeat on another day') }}
                 </button>
                 @endunless
-                <button type="button" wire:click="removeRecipe('{{ $actionType }}', {{ $this->actionRecipe->id }})" class="flex items-center justify-center gap-2 py-3 font-manrope text-sm font-extrabold text-terracotta-dark">
+                <button type="button" wire:click="removeRecipe('{{ $actionType }}', {{ $this->actionRecipe->id }})" class="flex items-center justify-center gap-2 py-3 font-inter text-sm font-semibold text-terracotta-dark">
                     <flux:icon.trash class="size-4" />
                     {{ __('Remove from meal') }}
                 </button>
@@ -507,7 +507,7 @@ new #[Layout('layouts::app')] class extends Component {
                 class="w-full mb-5"
                 autofocus />
 
-            <div class="rounded-2xl border border-ink/10 overflow-hidden bg-white">
+            <div class="rounded-2xl border border-line overflow-hidden bg-white">
                 @forelse ($this->pickerRecipes as $pickerRecipe)
                 <button
                     type="button"
@@ -541,11 +541,11 @@ new #[Layout('layouts::app')] class extends Component {
                     @touchend="endPress"
                     @click="handleClick"
                     @contextmenu.prevent
-                    class="w-full text-left select-none px-4 py-3.5 font-manrope text-[14.5px] font-semibold text-ink border-b border-ink/10 last:border-b-0 hover:bg-sand/40">
+                    class="w-full text-left select-none px-4 py-3.5 font-inter text-[14.5px] font-semibold text-ink border-b border-line last:border-b-0 hover:bg-sand/40">
                     {{ $pickerRecipe->name }}
                 </button>
                 @empty
-                <div class="px-4 py-8 text-center font-manrope text-sm text-ink/50">
+                <div class="px-4 py-8 text-center font-inter text-sm text-muted">
                     {{ __('No recipes found.') }}
                 </div>
                 @endforelse
@@ -563,7 +563,7 @@ new #[Layout('layouts::app')] class extends Component {
                 <button
                     type="button"
                     wire:click="closeRecipePreview"
-                    class="text-ink/25 hover:text-ink/50 p-1.5 text-lg leading-none">✕</button>
+                    class="text-ink/25 hover:text-muted p-1.5 text-lg leading-none">✕</button>
             </div>
 
             <livewire:pages::recipe.show :recipe="Recipe::find($previewingRecipeId)" :show-back-button="false" :key="'recipe-preview-'.$previewingRecipeId" />

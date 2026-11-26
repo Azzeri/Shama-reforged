@@ -156,24 +156,24 @@ new class extends Component {
                         this.busy = false;
                     },
                 }"
-                class="rounded-[22px] border border-ink/10 bg-white p-4 space-y-4">
+                class="rounded-[22px] border border-line bg-white p-4 space-y-4">
                 <div class="flex items-center gap-2.5">
-                    <span class="flex items-center justify-center size-7 rounded-full bg-ink font-manrope text-[14px] font-bold text-white">1</span>
-                    <h2 class="font-manrope text-[17px] font-bold text-ink">{{ __('Report for the AI') }}</h2>
+                    <span class="flex items-center justify-center size-7 rounded-full bg-ink font-inter text-[14px] font-semibold text-white">1</span>
+                    <h2 class="font-inter text-[17px] font-semibold text-ink">{{ __('Report for the AI') }}</h2>
                 </div>
 
-                <div class="rounded-2xl border border-ink/8 bg-cream divide-y divide-ink/8" x-data="{ editHistory: false, editPlan: false }">
+                <div class="rounded-2xl border border-line bg-cream divide-y divide-divider" x-data="{ editHistory: false, editPlan: false }">
                     <div class="px-3.5 py-3">
                         <button type="button" x-on:click="editHistory = ! editHistory" class="w-full flex items-center gap-3 text-left">
                             <span class="flex-1">
-                                <span class="block font-manrope text-[13px] text-ink/55">{{ __('Based on the history') }}</span>
-                                <span class="block font-manrope text-[16px] font-semibold text-ink">{{ $this->historyLabel }}</span>
+                                <span class="block font-inter text-[13px] text-muted">{{ __('Based on the history') }}</span>
+                                <span class="block font-inter text-[16px] font-semibold text-ink">{{ $this->historyLabel }}</span>
                             </span>
-                            <flux:icon.calendar class="size-5 text-ink/50" />
+                            <flux:icon.calendar class="size-5 text-muted" />
                         </button>
                         <div x-show="editHistory" x-collapse class="grid grid-cols-2 gap-2 pt-3">
-                            <input type="date" wire:model.live="historyFrom" aria-label="{{ __('History from') }}" class="w-full rounded-xl border border-ink/12 bg-white px-2.5 py-2 font-manrope text-base text-ink" />
-                            <input type="date" wire:model.live="historyTo" aria-label="{{ __('History to') }}" class="w-full rounded-xl border border-ink/12 bg-white px-2.5 py-2 font-manrope text-base text-ink" />
+                            <input type="date" wire:model.live="historyFrom" aria-label="{{ __('History from') }}" class="w-full rounded-xl border border-line bg-white px-2.5 py-2 font-inter text-base text-ink" />
+                            <input type="date" wire:model.live="historyTo" aria-label="{{ __('History to') }}" class="w-full rounded-xl border border-line bg-white px-2.5 py-2 font-inter text-base text-ink" />
                         </div>
                         <x-ui.field-error name="historyTo" />
                     </div>
@@ -181,17 +181,17 @@ new class extends Component {
                     <div class="px-3.5 py-3">
                         <div class="flex items-center gap-3">
                             <button type="button" x-on:click="editPlan = ! editPlan" class="flex-1 text-left">
-                                <span class="block font-manrope text-[13px] text-ink/55">{{ __('Plan') }}</span>
-                                <span class="block font-manrope text-[16px] font-semibold text-ink">{{ $this->planLabel }}</span>
+                                <span class="block font-inter text-[13px] text-muted">{{ __('Plan') }}</span>
+                                <span class="block font-inter text-[16px] font-semibold text-ink">{{ $this->planLabel }}</span>
                             </button>
-                            <div class="flex items-center gap-1 rounded-full border border-ink/12 bg-white px-1.5 py-1">
-                                <button type="button" wire:click="changePlanDays(-1)" class="size-8 font-manrope text-lg text-ink/70" aria-label="{{ __('Fewer days') }}">−</button>
-                                <span class="min-w-[52px] text-center font-manrope text-[15px] font-bold text-ink">{{ trans_choice(':count day|:count days', $planDays) }}</span>
-                                <button type="button" wire:click="changePlanDays(1)" class="size-8 font-manrope text-lg text-terracotta-dark" aria-label="{{ __('More days') }}">+</button>
+                            <div class="flex items-center gap-1 rounded-full border border-line bg-white px-1.5 py-1">
+                                <button type="button" wire:click="changePlanDays(-1)" class="size-8 font-inter text-lg text-muted" aria-label="{{ __('Fewer days') }}">−</button>
+                                <span class="min-w-[52px] text-center font-inter text-[15px] font-semibold text-ink">{{ trans_choice(':count day|:count days', $planDays) }}</span>
+                                <button type="button" wire:click="changePlanDays(1)" class="size-8 font-inter text-lg text-terracotta-dark" aria-label="{{ __('More days') }}">+</button>
                             </div>
                         </div>
                         <div x-show="editPlan" x-collapse class="pt-3">
-                            <input type="date" wire:model.live="planFrom" aria-label="{{ __('Plan from') }}" class="w-full rounded-xl border border-ink/12 bg-white px-2.5 py-2 font-manrope text-base text-ink" />
+                            <input type="date" wire:model.live="planFrom" aria-label="{{ __('Plan from') }}" class="w-full rounded-xl border border-line bg-white px-2.5 py-2 font-inter text-base text-ink" />
                         </div>
                     </div>
                 </div>
@@ -210,47 +210,47 @@ new class extends Component {
                     type="button"
                     x-on:click="generate()"
                     x-bind:disabled="busy"
-                    class="w-full rounded-[16px] bg-terracotta py-4 font-manrope text-[16px] font-bold text-white disabled:opacity-60">
+                    class="w-full rounded-[16px] bg-terracotta py-4 font-inter text-[16px] font-semibold text-white disabled:opacity-60">
                     <span x-show="! busy">{{ __('Generate and copy report') }}</span>
                     <span x-show="busy" x-cloak>{{ __('Generating…') }}</span>
                 </button>
 
-                <p x-show="copied" x-cloak class="flex items-center gap-1.5 font-manrope text-[14px] font-semibold text-forest">
+                <p x-show="copied" x-cloak class="flex items-center gap-1.5 font-inter text-[14px] font-semibold text-forest">
                     <flux:icon.check-circle class="size-4" />
                     {{ __('Report copied — paste it into your AI assistant.') }}
                 </p>
 
                 @if ($report !== '')
                 <div x-show="failed" x-cloak class="space-y-2">
-                    <p class="font-manrope text-[13.5px] text-ink/60">{{ __('Could not copy automatically — select and copy the report below.') }}</p>
-                    <textarea readonly rows="8" x-on:focus="$el.select()" class="w-full rounded-xl border border-ink/12 bg-cream p-3 font-mono text-xs text-ink">{{ $report }}</textarea>
+                    <p class="font-inter text-[13.5px] text-muted">{{ __('Could not copy automatically — select and copy the report below.') }}</p>
+                    <textarea readonly rows="8" x-on:focus="$el.select()" class="w-full rounded-xl border border-line bg-cream p-3 font-mono text-xs text-ink">{{ $report }}</textarea>
                 </div>
                 @endif
             </div>
 
             {{-- 2. Import --}}
-            <form wire:submit="import" class="rounded-[22px] border border-ink/10 bg-white p-4 space-y-3">
+            <form wire:submit="import" class="rounded-[22px] border border-line bg-white p-4 space-y-3">
                 <div class="flex items-center gap-2.5">
-                    <span class="flex items-center justify-center size-7 rounded-full bg-sand font-manrope text-[14px] font-bold text-ink/70">2</span>
-                    <h2 class="font-manrope text-[17px] font-bold text-ink">{{ __('Import plan') }}</h2>
+                    <span class="flex items-center justify-center size-7 rounded-full bg-sand font-inter text-[14px] font-semibold text-muted">2</span>
+                    <h2 class="font-inter text-[17px] font-semibold text-ink">{{ __('Import plan') }}</h2>
                 </div>
 
                 <x-ui.textarea wire:model.live.debounce.300ms="importJson" rows="4" placeholder="{{ __('Paste the AI answer or just the JSON') }}" />
                 <x-ui.field-error name="importJson" />
-                <p class="font-manrope text-[13px] text-ink/55">{{ __('We only fill empty meals — nothing gets overwritten.') }}</p>
+                <p class="font-inter text-[13px] text-muted">{{ __('We only fill empty meals — nothing gets overwritten.') }}</p>
 
                 <button
                     type="submit"
                     @disabled(trim($importJson) === '')
-                    class="w-full rounded-[16px] border border-ink/12 bg-white py-3.5 font-manrope text-[15.5px] font-bold text-ink disabled:text-ink/35">
+                    class="w-full rounded-[16px] border border-line bg-white py-3.5 font-inter text-[15.5px] font-semibold text-ink disabled:text-ink/35">
                     {{ __('Import plan') }}
                 </button>
 
                 @if ($importResult)
-                <div class="rounded-xl bg-sand p-3 font-manrope text-sm text-ink space-y-1">
+                <div class="rounded-xl bg-sand p-3 font-inter text-sm text-ink space-y-1">
                     <div>{{ __('Added: :count meals', ['count' => count($importResult['created'])]) }}</div>
                     @if ($importResult['skipped'])
-                    <div class="text-ink/60">{{ __('Skipped (already planned): :list', ['list' => implode(', ', $importResult['skipped'])]) }}</div>
+                    <div class="text-muted">{{ __('Skipped (already planned): :list', ['list' => implode(', ', $importResult['skipped'])]) }}</div>
                     @endif
                 </div>
                 @endif
@@ -258,12 +258,12 @@ new class extends Component {
 
             {{-- API --}}
             <div x-data="{ open: false }" class="px-1">
-                <button type="button" x-on:click="open = ! open" class="inline-flex items-center gap-1.5 font-manrope text-[14px] font-semibold text-ink/60">
+                <button type="button" x-on:click="open = ! open" class="inline-flex items-center gap-1.5 font-inter text-[14px] font-semibold text-muted">
                     <flux:icon.code-bracket class="size-4" />
                     {{ __('Import via API') }}
                     <flux:icon.chevron-down class="size-3.5 transition-transform" x-bind:class="open && 'rotate-180'" />
                 </button>
-                <div x-show="open" x-collapse class="pt-2 font-manrope text-[13.5px] leading-relaxed text-ink/60">
+                <div x-show="open" x-collapse class="pt-2 font-inter text-[13.5px] leading-relaxed text-muted">
                     {{ __('An AI agent can send the same JSON to') }}
                     <code class="text-xs text-ink">POST {{ url('/api/meal-plan') }}</code>
                     {{ __('with the header') }} <code class="text-xs text-ink">Authorization: Bearer &lt;MEAL_PLAN_API_TOKEN&gt;</code>.

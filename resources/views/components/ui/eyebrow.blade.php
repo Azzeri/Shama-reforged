@@ -1,15 +1,8 @@
 @props(['color' => 'ink', 'optional' => false])
 
-@php
-$colorClasses = match ($color) {
-    'forest' => 'text-forest',
-    default => 'text-ink/60',
-};
-@endphp
-
-<div {{ $attributes->merge(['class' => "font-manrope text-[11px] font-extrabold uppercase tracking-[0.12em] mb-2.5 $colorClasses"]) }}>
+<div {{ $attributes->merge(['class' => 'text-[11px] font-semibold uppercase tracking-[0.09em] mb-2 ' . ($color === 'forest' ? 'text-forest' : 'text-muted')]) }}>
     {{ $slot }}
     @if ($optional)
-    <span class="normal-case tracking-normal font-semibold text-ink/40">· {{ __('optional') }}</span>
+    <span class="normal-case tracking-normal font-medium text-muted">· {{ __('optional') }}</span>
     @endif
 </div>

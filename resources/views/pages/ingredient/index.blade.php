@@ -183,19 +183,19 @@ new #[Layout('layouts::app')] class extends Component {
         <div class="flex items-center justify-between gap-3">
             <h1 class="font-fraunces text-[34px] font-semibold leading-none text-ink">{{ __('Ingredients') }}</h1>
 
-            <button type="button" wire:click="openNew" class="inline-flex items-center gap-1.5 rounded-full bg-terracotta px-4 py-2.5 font-manrope text-[15px] font-bold text-white shadow-[0_6px_14px_rgba(193,68,45,0.3)]">
+            <button type="button" wire:click="openNew" class="inline-flex items-center gap-1.5 rounded-full bg-terracotta px-4 py-2.5 font-inter text-[15px] font-semibold text-white shadow-[0_6px_14px_rgba(193,68,45,0.3)]">
                 <flux:icon.plus class="size-4" />
                 {{ __('New') }}
             </button>
         </div>
 
         <div class="relative">
-            <flux:icon.magnifying-glass class="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-ink/45" />
+            <flux:icon.magnifying-glass class="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted" />
             <input
                 type="search"
                 wire:model.live.debounce.250ms="search"
                 placeholder="{{ __('Search ingredients') }}"
-                class="w-full rounded-2xl border border-ink/10 bg-white py-3 pl-10 pr-9 font-manrope text-base text-ink placeholder:text-ink/40 focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
+                class="w-full rounded-2xl border border-line bg-white py-3 pl-10 pr-9 font-inter text-base text-ink placeholder:text-ink/40 focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
             @if ($search !== '')
             <button type="button" wire:click="$set('search', '')" class="absolute right-3 top-1/2 -translate-y-1/2 text-ink/35" aria-label="{{ __('Clear') }}">
                 <flux:icon.x-mark class="size-4" />
@@ -210,9 +210,9 @@ new #[Layout('layouts::app')] class extends Component {
                 wire:key="filter-{{ $key }}"
                 wire:click="setFilter('{{ $key }}')"
                 @class([
-                    'shrink-0 rounded-full border px-3.5 py-2 font-manrope text-[14px] font-semibold whitespace-nowrap',
+                    'shrink-0 rounded-full border px-3.5 py-2 font-inter text-[14px] font-semibold whitespace-nowrap',
                     'bg-ink border-ink text-white' => $filter === $key,
-                    'bg-white border-ink/10 text-ink' => $filter !== $key,
+                    'bg-white border-line text-ink' => $filter !== $key,
                 ])>
                 {{ $label }}
             </button>
@@ -220,17 +220,17 @@ new #[Layout('layouts::app')] class extends Component {
         </div>
 
         @if ($this->ingredients->isNotEmpty())
-        <div class="rounded-[22px] border border-ink/10 bg-white divide-y divide-ink/8 overflow-hidden">
+        <div class="rounded-[22px] border border-line bg-white divide-y divide-divider overflow-hidden">
             @foreach ($this->ingredients as $ingredient)
             <button type="button" wire:key="ingredient-{{ $ingredient->id }}" wire:click="openEdit({{ $ingredient->id }})" class="w-full flex items-center gap-3 px-4 py-3 text-left">
                 <span class="flex-1 min-w-0">
-                    <span class="block font-manrope text-[16px] font-medium text-ink truncate">{{ $ingredient->name }}</span>
+                    <span class="block font-inter text-[16px] font-medium text-ink truncate">{{ $ingredient->name }}</span>
                     <span class="mt-0.5 flex flex-wrap items-center gap-1.5">
-                        <span class="font-manrope text-[12.5px] text-ink/50">{{ Ingredient::categoryLabel($ingredient->category) }}</span>
+                        <span class="font-inter text-[12.5px] text-muted">{{ Ingredient::categoryLabel($ingredient->category) }}</span>
                         @if ($ingredient->skip_shopping)
-                        <span class="rounded-md bg-ink/8 px-1.5 py-px font-manrope text-[11.5px] font-semibold text-ink/55">{{ __('not on the list') }}</span>
+                        <span class="rounded-md bg-ink/8 px-1.5 py-px font-inter text-[11.5px] font-semibold text-muted">{{ __('not on the list') }}</span>
                         @elseif ($ingredient->purchase_timing === Ingredient::PURCHASE_TIMING_ADVANCE)
-                        <span class="rounded-md bg-sage/18 px-1.5 py-px font-manrope text-[11.5px] font-semibold text-forest">{{ __('for the whole week') }}</span>
+                        <span class="rounded-md bg-sage/18 px-1.5 py-px font-inter text-[11.5px] font-semibold text-forest">{{ __('for the whole week') }}</span>
                         @endif
                     </span>
                 </span>
@@ -239,7 +239,7 @@ new #[Layout('layouts::app')] class extends Component {
             @endforeach
         </div>
         @else
-        <div class="rounded-[22px] border border-dashed border-ink/20 px-4 py-10 text-center font-manrope text-[15px] text-ink/50">
+        <div class="rounded-[22px] border border-dashed border-field px-4 py-10 text-center font-inter text-[15px] text-muted">
             {{ __('No ingredients found.') }}
         </div>
         @endif
@@ -250,7 +250,7 @@ new #[Layout('layouts::app')] class extends Component {
             <div class="flex items-center justify-between gap-2">
                 <h3 class="font-fraunces text-[22px] font-semibold text-ink">{{ $editingId ? __('Edit ingredient') : __('New ingredient') }}</h3>
                 <flux:modal.close>
-                    <button type="button" class="p-1 text-ink/60" aria-label="{{ __('Close') }}">
+                    <button type="button" class="p-1 text-muted" aria-label="{{ __('Close') }}">
                         <flux:icon.x-mark class="size-5" />
                     </button>
                 </flux:modal.close>
@@ -273,8 +273,8 @@ new #[Layout('layouts::app')] class extends Component {
                             'rounded-xl px-2 py-2 text-center transition-colors',
                             'bg-white shadow-sm' => $purchaseTiming === $timing,
                         ])>
-                        <span class="block font-manrope text-[14.5px] font-bold text-ink">{{ $title }}</span>
-                        <span class="block font-manrope text-[12px] text-ink/55">{{ $hint }}</span>
+                        <span class="block font-inter text-[14.5px] font-semibold text-ink">{{ $title }}</span>
+                        <span class="block font-inter text-[12px] text-muted">{{ $hint }}</span>
                     </button>
                     @endforeach
                 </div>
@@ -282,17 +282,17 @@ new #[Layout('layouts::app')] class extends Component {
 
             <div>
                 <x-ui.eyebrow>{{ __('Store aisle') }}</x-ui.eyebrow>
-                <select wire:model="category" class="w-full rounded-[14px] border border-ink/15 bg-cream px-3.5 py-3 font-manrope text-base text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
+                <select wire:model="category" class="w-full rounded-[14px] border border-field bg-cream px-3.5 py-3 font-inter text-base text-ink focus:outline-none focus:ring-2 focus:ring-terracotta/30">
                     @foreach (Ingredient::CATEGORIES as $categoryOption)
                     <option value="{{ $categoryOption }}">{{ Ingredient::categoryLabel($categoryOption) }}</option>
                     @endforeach
                 </select>
             </div>
 
-            <label class="flex items-center gap-3 rounded-2xl border border-ink/10 bg-cream px-3.5 py-3 cursor-pointer">
+            <label class="flex items-center gap-3 rounded-2xl border border-line bg-cream px-3.5 py-3 cursor-pointer">
                 <span class="flex-1">
-                    <span class="block font-manrope text-[15px] font-semibold text-ink">{{ __('Skip on the shopping list') }}</span>
-                    <span class="block font-manrope text-[12.5px] text-ink/55">{{ __('Always at home, e.g. salt or water — never added to the list.') }}</span>
+                    <span class="block font-inter text-[15px] font-semibold text-ink">{{ __('Skip on the shopping list') }}</span>
+                    <span class="block font-inter text-[12.5px] text-muted">{{ __('Always at home, e.g. salt or water — never added to the list.') }}</span>
                 </span>
                 <button
                     type="button"
@@ -304,24 +304,24 @@ new #[Layout('layouts::app')] class extends Component {
                 </button>
             </label>
 
-            <div x-data="{ open: {{ collect($unitWeights)->filter(fn ($v) => $v !== '')->isNotEmpty() || ! $editingId ? 'true' : 'false' }} }" class="border-t border-ink/8 pt-4">
+            <div x-data="{ open: {{ collect($unitWeights)->filter(fn ($v) => $v !== '')->isNotEmpty() || ! $editingId ? 'true' : 'false' }} }" class="border-t border-line pt-4">
                 <button type="button" x-on:click="open = ! open" class="w-full flex items-center justify-between">
                     <x-ui.eyebrow optional class="mb-0!">{{ __('Unit weights') }}</x-ui.eyebrow>
-                    <flux:icon.chevron-down class="size-4 text-ink/50 transition-transform" x-bind:class="open && 'rotate-180'" />
+                    <flux:icon.chevron-down class="size-4 text-muted transition-transform" x-bind:class="open && 'rotate-180'" />
                 </button>
                 <div x-show="open" x-collapse>
-                    <p class="mt-2 mb-3 font-manrope text-[12.5px] text-ink/55">{{ __('How many grams one unit weighs, e.g. 1 pcs of egg = 50 g.') }}</p>
+                    <p class="mt-2 mb-3 font-inter text-[12.5px] text-muted">{{ __('How many grams one unit weighs, e.g. 1 pcs of egg = 50 g.') }}</p>
                     <div class="grid grid-cols-2 gap-2">
                         @foreach (Ingredient::WEIGHABLE_UNITS as $unit)
-                        <label wire:key="unit-weight-{{ $unit }}" class="flex items-center gap-1.5 rounded-xl border border-ink/12 bg-cream px-3 py-2.5">
-                            <span class="shrink-0 font-manrope text-[13.5px] text-ink/70">1 {{ Quantity::unitLabel($unit) }} =</span>
+                        <label wire:key="unit-weight-{{ $unit }}" class="flex items-center gap-1.5 rounded-xl border border-line bg-cream px-3 py-2.5">
+                            <span class="shrink-0 font-inter text-[13.5px] text-muted">1 {{ Quantity::unitLabel($unit) }} =</span>
                             <input
                                 type="text"
                                 inputmode="decimal"
                                 wire:model="unitWeights.{{ $unit }}"
                                 placeholder="—"
-                                class="w-full min-w-0 bg-transparent text-right font-manrope text-base text-ink placeholder:text-ink/40 focus:outline-none" />
-                            <span class="font-manrope text-[13.5px] text-ink/50">g</span>
+                                class="w-full min-w-0 bg-transparent text-right font-inter text-base text-ink placeholder:text-ink/40 focus:outline-none" />
+                            <span class="font-inter text-[13.5px] text-muted">g</span>
                         </label>
                         @endforeach
                     </div>
@@ -331,22 +331,22 @@ new #[Layout('layouts::app')] class extends Component {
                 </div>
             </div>
 
-            <div class="border-t border-ink/8 pt-4">
+            <div class="border-t border-line pt-4">
                 @if ($confirmingDelete)
                 <div class="flex items-center gap-3">
-                    <p class="flex-1 font-manrope text-[13.5px] text-ink/70">
+                    <p class="flex-1 font-inter text-[13.5px] text-muted">
                         {{ __('Delete ":name"? This cannot be undone.', ['name' => $name]) }}
                         @if ($this->editingRecipeCount > 0)
                         {{ trans_choice('It will disappear from :count recipe.|It will disappear from :count recipes.', $this->editingRecipeCount) }}
                         @endif
                     </p>
-                    <button type="button" wire:click="$set('confirmingDelete', false)" class="font-manrope text-[14.5px] font-bold text-ink px-2 py-2">{{ __('No') }}</button>
-                    <button type="button" wire:click="delete" class="rounded-[14px] bg-terracotta px-4 py-2.5 font-manrope text-[14.5px] font-bold text-white">{{ __('Delete') }}</button>
+                    <button type="button" wire:click="$set('confirmingDelete', false)" class="font-inter text-[14.5px] font-semibold text-ink px-2 py-2">{{ __('No') }}</button>
+                    <button type="button" wire:click="delete" class="rounded-[14px] bg-terracotta px-4 py-2.5 font-inter text-[14.5px] font-semibold text-white">{{ __('Delete') }}</button>
                 </div>
                 @else
                 <div class="flex items-center justify-between gap-3">
                     @if ($editingId)
-                    <button type="button" wire:click="$set('confirmingDelete', true)" class="inline-flex items-center gap-1.5 font-manrope text-[14.5px] font-bold text-terracotta-dark">
+                    <button type="button" wire:click="$set('confirmingDelete', true)" class="inline-flex items-center gap-1.5 font-inter text-[14.5px] font-semibold text-terracotta-dark">
                         <flux:icon.trash class="size-4" />
                         {{ __('Delete') }}
                     </button>
@@ -356,7 +356,7 @@ new #[Layout('layouts::app')] class extends Component {
                     <button
                         type="submit"
                         @disabled(trim($name) === '')
-                        class="rounded-[14px] bg-terracotta px-5 py-3 font-manrope text-[15px] font-bold text-white disabled:opacity-40">
+                        class="rounded-[14px] bg-terracotta px-5 py-3 font-inter text-[15px] font-semibold text-white disabled:opacity-40">
                         {{ $editingId ? __('Save') : __('Add ingredient') }}
                     </button>
                 </div>

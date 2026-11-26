@@ -14,12 +14,12 @@
  * space, so swapping it in doesn't shift the layout.
  */
 @font-face {
-    font-family: "Manrope fallback";
+    font-family: "Inter fallback";
     src: local("Arial");
-    ascent-override: 106.10%;
-    descent-override: 29.86%;
+    ascent-override: 90.49%;
+    descent-override: 22.56%;
     line-gap-override: 0%;
-    size-adjust: 100.47%;
+    size-adjust: 107.06%;
 }
 
 @font-face {
@@ -34,7 +34,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: var(--font-inter-family), ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 
     --color-zinc-50: #fafafa;
     --color-zinc-100: #f5f5f5;
@@ -49,17 +49,30 @@
     --color-zinc-950: #0a0a0a;
 
     --font-fraunces: var(--font-fraunces-family), ui-serif, Georgia, serif;
-    --font-manrope: var(--font-manrope-family), ui-sans-serif, system-ui, sans-serif;
+    --font-inter: var(--font-inter-family), ui-sans-serif, system-ui, sans-serif;
 
-    --color-cream: #FBF7F0;
-    --color-sand: #F2E9DA;
-    --color-ink: #2B2118;
-    --color-terracotta: #C1442D;
-    --color-terracotta-dark: #9C3623;
-    --color-sage: #5C7A5E;
-    --color-forest: #3F5941;
-    --color-gold: #D9A441;
-    --color-gold-dark: #9A6E1F;
+    /* Redesign palette (2026-11). */
+    --color-cream: #F7F3EC;          /* app background */
+    --color-field-bg: #FBF8F3;       /* input inside a panel */
+    --color-sand: #EFE7DB;           /* bars, segmented controls, chips */
+    --color-line: #E9E2D7;           /* card border */
+    --color-divider: #F0EAE1;        /* row divider inside a card */
+    --color-field: #DDD5C9;          /* input / chip border */
+    --color-ink: #1F1B16;            /* main text */
+    --color-ink-soft: #4E473E;
+    --color-muted: #6B6358;          /* secondary text — never lighter (4.5:1) */
+    --color-faint: #A39A8E;          /* decorative chevrons only */
+    --color-terracotta: #B13F27;     /* the only action colour */
+    --color-terracotta-dark: #9A3520;
+    --color-today: #F6E3DC;
+    --color-today-ink: #8E3220;
+    --color-today-border: #D9A898;
+    --color-sage: #5B7B5A;
+    --color-sage-light: #E3EBE1;
+    --color-forest: #3F5A3E;
+    --color-gold: #DCA53D;
+    --color-gold-light: #F6EBD3;
+    --color-gold-dark: #7A5A12;
 
     --color-accent: var(--color-terracotta);
     --color-accent-content: var(--color-terracotta-dark);
@@ -96,7 +109,27 @@
 input:focus[data-flux-control],
 textarea:focus[data-flux-control],
 select:focus[data-flux-control] {
-    @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-accent-foreground;
+    @apply outline-hidden ring-1 ring-ink border-ink;
+}
+
+/* Number fields: no native spinners (redesign). */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type=number] {
+    -moz-appearance: textfield;
+}
+
+/* Hide horizontal scrollbars on chip rows. */
+.no-scrollbar {
+    scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
 }
 
 /* \[:where(&)\]:size-4 {

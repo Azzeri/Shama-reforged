@@ -64,7 +64,7 @@ new #[Layout('layouts::app')] class extends Component {
             <a
                 href="{{ route('meals.day.edit', $date) }}"
                 wire:navigate
-                class="inline-flex items-center gap-1.5 rounded-full border border-ink/10 bg-white px-4 py-2.5 font-manrope text-[15px] font-bold text-ink shrink-0">
+                class="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-4 py-2.5 font-inter text-[15px] font-semibold text-ink shrink-0">
                 <flux:icon.pencil class="size-4" />
                 {{ __('Edit') }}
             </a>
@@ -76,13 +76,13 @@ new #[Layout('layouts::app')] class extends Component {
 
         @if ($this->dayCalorieTotals)
         <div class="flex items-center justify-between gap-3 rounded-[18px] bg-sand px-4 py-3.5">
-            <span class="font-manrope text-[14px] font-semibold text-ink/70">{{ __('Total for the day') }}</span>
+            <span class="font-inter text-[14px] font-semibold text-muted">{{ __('Total for the day') }}</span>
             <div class="flex gap-5">
                 @foreach ($this->dayCalorieTotals as $profile => $kcal)
                 @php $label = Recipe::nutritionProfileLabel($profile); @endphp
                 <div class="text-right">
-                    <div class="font-manrope text-[12px] text-ink/60">{{ $label }} ({{ mb_substr($label, 0, 1) }})</div>
-                    <div class="font-fraunces text-[22px] font-bold leading-tight text-ink">{{ $kcal }} <span class="font-manrope text-[13px] font-medium">kcal</span></div>
+                    <div class="font-inter text-[12px] text-muted">{{ $label }} ({{ mb_substr($label, 0, 1) }})</div>
+                    <div class="font-fraunces text-[22px] font-semibold leading-tight text-ink">{{ $kcal }} <span class="font-inter text-[13px] font-medium">kcal</span></div>
                 </div>
                 @endforeach
             </div>
@@ -90,10 +90,10 @@ new #[Layout('layouts::app')] class extends Component {
         @endif
 
         @if ($this->meals->isNotEmpty())
-        <div class="bg-white rounded-[22px] border border-ink/10 divide-y divide-ink/8">
+        <div class="bg-white rounded-[22px] border border-line divide-y divide-divider">
             @foreach ($this->meals as $meal)
             <div wire:key="meal-{{ $meal->id }}" class="px-4 py-3.5 space-y-2">
-                <div class="font-manrope text-[12px] font-extrabold uppercase tracking-[0.12em] text-ink/60">{{ Meal::typeLabel($meal->type) }}</div>
+                <div class="font-inter text-[12px] font-semibold uppercase tracking-[0.12em] text-muted">{{ Meal::typeLabel($meal->type) }}</div>
 
                 @foreach ($meal->recipes as $recipe)
                 <div
@@ -101,16 +101,16 @@ new #[Layout('layouts::app')] class extends Component {
                     x-data
                     x-on:click="window.openRecipe('{{ route('recipes.show', $recipe) }}')"
                     class="cursor-pointer">
-                    <div class="font-manrope text-[16px] font-semibold text-ink">{{ $recipe->name }}</div>
+                    <div class="font-inter text-[16px] font-semibold text-ink">{{ $recipe->name }}</div>
                     @if ($line = Recipe::shortCalorieLine($this->recipeCalorieTotals($recipe)))
-                    <div class="font-manrope text-[13.5px] text-ink/55">{{ $line }}</div>
+                    <div class="font-inter text-[13.5px] text-muted">{{ $line }}</div>
                     @endif
                 </div>
                 @endforeach
 
                 @if (filled($meal->note))
                 <div class="flex items-center gap-2.5">
-                    <flux:icon.document class="size-4 text-ink/50 shrink-0" />
+                    <flux:icon.document class="size-4 text-muted shrink-0" />
                     <span class="font-fraunces italic text-[15.5px] text-ink/80">{{ $meal->note }}</span>
                 </div>
                 @endif
@@ -121,7 +121,7 @@ new #[Layout('layouts::app')] class extends Component {
         <a
             href="{{ route('meals.day.edit', $date) }}"
             wire:navigate
-            class="block border border-dashed border-ink/24 rounded-[18px] px-4 py-8 text-center font-manrope text-sm text-ink/40">
+            class="block border border-dashed border-field rounded-[18px] px-4 py-8 text-center font-inter text-sm text-ink/40">
             {{ __('No meals for this day.') }}
         </a>
         @endif

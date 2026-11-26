@@ -71,7 +71,7 @@ new #[Layout('layouts::app')] class extends Component {
         <div class="flex items-center justify-between gap-3">
             <x-ui.back-button href="{{ $this->backUrl }}" :label="__('Recipes')" />
 
-            <a href="{{ route('recipes.edit', $recipe) }}" wire:navigate class="inline-flex items-center gap-1.5 rounded-full border border-ink/10 bg-white px-4 py-2.5 font-manrope text-[15px] font-bold text-ink">
+            <a href="{{ route('recipes.edit', $recipe) }}" wire:navigate class="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-4 py-2.5 font-inter text-[15px] font-semibold text-ink">
                 <flux:icon.pencil class="size-4" />
                 {{ __('Edit') }}
             </a>
@@ -107,41 +107,41 @@ new #[Layout('layouts::app')] class extends Component {
                         : `≈ ${Math.round(grams)} g`;
                 },
             }"
-            class="rounded-[22px] border border-ink/10 bg-white overflow-hidden">
+            class="rounded-[22px] border border-line bg-white overflow-hidden">
             <div class="flex items-end gap-3 px-4 pt-4 pb-2">
-                <span class="flex-1 font-manrope text-[12px] font-extrabold uppercase tracking-[0.1em] text-ink/55">{{ __('Ingredients') }}</span>
+                <span class="flex-1 font-inter text-[12px] font-semibold uppercase tracking-[0.1em] text-muted">{{ __('Ingredients') }}</span>
                 @foreach ($profiles as $profile)
-                <span class="w-[76px] text-right font-manrope text-[13px] font-semibold text-ink/60">{{ Recipe::nutritionProfileLabel($profile) }}</span>
+                <span class="w-[76px] text-right font-inter text-[13px] font-semibold text-muted">{{ Recipe::nutritionProfileLabel($profile) }}</span>
                 @endforeach
             </div>
 
             @if ($profiles)
             <div class="flex items-center gap-3 px-4 pb-3">
-                <span class="flex-1 font-manrope text-[14px] text-ink/55">{{ __('Portions') }}</span>
+                <span class="flex-1 font-inter text-[14px] text-muted">{{ __('Portions') }}</span>
                 @foreach ($profiles as $profile)
                 <div class="w-[76px] flex items-center justify-end gap-2">
-                    <button type="button" x-on:click="portions.{{ $profile }} = Math.max(1, portions.{{ $profile }} - 1)" class="px-1 font-manrope text-lg leading-none text-ink/60" aria-label="{{ __('Fewer portions') }}">−</button>
-                    <span class="font-manrope text-[16px] font-bold text-ink" x-text="portions.{{ $profile }}">1</span>
-                    <button type="button" x-on:click="portions.{{ $profile }}++" class="px-1 font-manrope text-lg leading-none text-terracotta-dark" aria-label="{{ __('More portions') }}">+</button>
+                    <button type="button" x-on:click="portions.{{ $profile }} = Math.max(1, portions.{{ $profile }} - 1)" class="px-1 font-inter text-lg leading-none text-muted" aria-label="{{ __('Fewer portions') }}">−</button>
+                    <span class="font-inter text-[16px] font-semibold text-ink" x-text="portions.{{ $profile }}">1</span>
+                    <button type="button" x-on:click="portions.{{ $profile }}++" class="px-1 font-inter text-lg leading-none text-terracotta-dark" aria-label="{{ __('More portions') }}">+</button>
                 </div>
                 @endforeach
             </div>
             @endif
 
-            <div class="divide-y divide-ink/8 border-t border-ink/8">
+            <div class="divide-y divide-divider border-t border-line">
                 @foreach ($recipe->ingredients as $ingredient)
                 @php $pivot = $ingredient->pivot; @endphp
                 <div class="flex items-center gap-3 px-4 py-3">
-                    <span class="flex-1 min-w-0 font-manrope text-[15.5px] text-ink">{{ $ingredient->name }}</span>
+                    <span class="flex-1 min-w-0 font-inter text-[15.5px] text-ink">{{ $ingredient->name }}</span>
 
                     @if ($profiles)
                     @foreach ($profiles as $profile)
                     @php $value = $pivot->{"amount_{$profile}"}; @endphp
                     <div class="w-[76px] text-right">
                         @if ($value !== null)
-                        <div class="font-manrope text-[15px] text-ink" x-text="amount({{ $value }}, @js($pivot->unit), '{{ $profile }}')">{{ Quantity::format($value, $pivot->unit) }}</div>
+                        <div class="font-inter text-[15px] text-ink" x-text="amount({{ $value }}, @js($pivot->unit), '{{ $profile }}')">{{ Quantity::format($value, $pivot->unit) }}</div>
                         @if (($grams = $ingredient->gramsFor($pivot->unit, $value)) !== null)
-                        <div class="font-manrope text-[11.5px] text-ink/45" x-text="grams({{ $grams }}, '{{ $profile }}')"></div>
+                        <div class="font-inter text-[11.5px] text-muted" x-text="grams({{ $grams }}, '{{ $profile }}')"></div>
                         @endif
                         @else
                         <span class="text-ink/30">–</span>
@@ -149,7 +149,7 @@ new #[Layout('layouts::app')] class extends Component {
                     </div>
                     @endforeach
                     @elseif ($pivot->quantity)
-                    <span class="font-manrope text-[15px] text-ink">{{ $pivot->quantity }}</span>
+                    <span class="font-inter text-[15px] text-ink">{{ $pivot->quantity }}</span>
                     @endif
                 </div>
                 @endforeach
@@ -195,12 +195,12 @@ new #[Layout('layouts::app')] class extends Component {
                     this.release();
                 },
             }"
-            class="rounded-[22px] border border-ink/10 bg-white px-4 py-4">
+            class="rounded-[22px] border border-line bg-white px-4 py-4">
             <div class="flex items-center justify-between gap-3">
-                <span class="font-manrope text-[12px] font-extrabold uppercase tracking-[0.1em] text-ink/55">{{ __('Preparation') }}</span>
+                <span class="font-inter text-[12px] font-semibold uppercase tracking-[0.1em] text-muted">{{ __('Preparation') }}</span>
 
                 <label x-show="supported" class="inline-flex items-center gap-2.5 cursor-pointer">
-                    <span class="font-manrope text-[13.5px] text-ink/60">{{ __('Keep screen on') }}</span>
+                    <span class="font-inter text-[13.5px] text-muted">{{ __('Keep screen on') }}</span>
                     <button
                         type="button"
                         role="switch"
@@ -222,7 +222,7 @@ new #[Layout('layouts::app')] class extends Component {
             @endif
 
             @if (filled($recipe->link))
-            <a href="{{ $recipe->link }}" target="_blank" rel="noopener" class="mt-4 inline-flex items-center gap-1 font-manrope text-[14.5px] font-bold text-terracotta-dark">
+            <a href="{{ $recipe->link }}" target="_blank" rel="noopener" class="mt-4 inline-flex items-center gap-1 font-inter text-[14.5px] font-semibold text-terracotta-dark">
                 {{ __('Recipe source') }}
                 <flux:icon.arrow-up-right class="size-3.5" />
             </a>
@@ -231,12 +231,12 @@ new #[Layout('layouts::app')] class extends Component {
         @endif
 
         @if ($nutritionProfiles->isNotEmpty())
-        <section class="rounded-[22px] border border-ink/10 bg-white px-4 py-4">
-            <div class="font-manrope text-[12px] font-extrabold uppercase tracking-[0.1em] text-ink/55">{{ __('Nutrition per serving') }}</div>
+        <section class="rounded-[22px] border border-line bg-white px-4 py-4">
+            <div class="font-inter text-[12px] font-semibold uppercase tracking-[0.1em] text-muted">{{ __('Nutrition per serving') }}</div>
 
-            <table class="mt-2 w-full font-manrope">
+            <table class="mt-2 w-full font-inter">
                 <thead>
-                    <tr class="text-[12.5px] text-ink/50">
+                    <tr class="text-[12.5px] text-muted">
                         <th></th>
                         <th class="py-1 text-right font-normal">kcal</th>
                         <th class="py-1 text-right font-normal">{{ __('protein') }}</th>
@@ -244,12 +244,12 @@ new #[Layout('layouts::app')] class extends Component {
                         <th class="py-1 text-right font-normal">{{ __('fat') }}</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-ink/8">
+                <tbody class="divide-y divide-divider">
                     @foreach ($nutritionProfiles as $profile)
                     @php $n = $recipe->nutritionFor($profile); @endphp
                     <tr class="text-[15px] text-ink">
-                        <td class="py-2.5 font-bold">{{ Recipe::nutritionProfileLabel($profile) }}</td>
-                        <td class="py-2.5 text-right font-fraunces text-[19px] font-bold">{{ $n['calories'] ?? '–' }}</td>
+                        <td class="py-2.5 font-semibold">{{ Recipe::nutritionProfileLabel($profile) }}</td>
+                        <td class="py-2.5 text-right font-fraunces text-[19px] font-semibold">{{ $n['calories'] ?? '–' }}</td>
                         <td class="py-2.5 text-right">{{ $n['protein'] !== null ? round($n['protein']) . ' g' : '–' }}</td>
                         <td class="py-2.5 text-right">{{ $n['carbs'] !== null ? round($n['carbs']) . ' g' : '–' }}</td>
                         <td class="py-2.5 text-right">{{ $n['fat'] !== null ? round($n['fat']) . ' g' : '–' }}</td>

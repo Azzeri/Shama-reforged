@@ -1,10 +1,10 @@
 @php
 $items = [
-    ['route' => 'recipes.index', 'paths' => ['/recipes'], 'icon' => 'book-open', 'label' => __('Recipes')],
-    ['route' => 'meals.index', 'paths' => ['/meals'], 'icon' => 'calendar-days', 'label' => __('Plan')],
-    ['route' => 'shopping-list.index', 'paths' => ['/shopping-list'], 'icon' => 'shopping-cart', 'label' => __('Shopping')],
-    ['route' => 'ingredients.index', 'paths' => ['/ingredients'], 'icon' => 'archive-box', 'label' => __('Ingredients')],
-    ['route' => 'profile.edit', 'paths' => ['/settings'], 'icon' => 'user-circle', 'label' => __('Account')],
+    ['route' => 'recipes.index', 'paths' => ['/recipes'], 'icon' => 'book', 'label' => __('Recipes')],
+    ['route' => 'meals.index', 'paths' => ['/meals'], 'icon' => 'calendar', 'label' => __('Plan')],
+    ['route' => 'shopping-list.index', 'paths' => ['/shopping-list'], 'icon' => 'cart', 'label' => __('Shopping')],
+    ['route' => 'ingredients.index', 'paths' => ['/ingredients'], 'icon' => 'pantry', 'label' => __('Ingredients')],
+    ['route' => 'profile.edit', 'paths' => ['/settings'], 'icon' => 'user', 'label' => __('Account')],
 ];
 
 $currentPath = '/' . ltrim(request()->path(), '/');
@@ -13,11 +13,12 @@ $isActive = fn (array $paths) => collect($paths)->contains(fn ($p) => $currentPa
 
 {{--
     Persisted across wire:navigate visits so the bar doesn't get torn down and
-    re-painted (backdrop blur flicker) on every tab switch. Because the markup
-    survives navigation, the active tab is tracked client-side from the URL;
-    the server-rendered data-active only covers the very first paint.
+    re-painted on every tab switch. Because the markup survives navigation,
+    the active tab is tracked client-side from the URL; the server-rendered
+    data-active only covers the very first paint.
 --}}
 <nav
+    aria-label="{{ __('Main navigation') }}"
     x-data="{
         path: window.location.pathname,
         isActive(paths) {
@@ -25,21 +26,21 @@ $isActive = fn (array $paths) => collect($paths)->contains(fn ($p) => $currentPa
         },
     }"
     x-on:livewire:navigated.window="path = window.location.pathname"
-    class="fixed inset-x-0 bottom-0 z-40 bg-white/85 backdrop-blur-xl border-t border-ink/10 select-none"
+    class="fixed inset-x-0 bottom-0 z-40 bg-white border-t border-line select-none"
     style="padding-bottom: env(safe-area-inset-bottom)">
-    <div class="max-w-xl mx-auto grid grid-cols-5">
+    <div class="max-w-xl mx-auto grid grid-cols-5 px-1 pt-1.5 pb-1">
         @foreach ($items as $item)
         <a
             href="{{ route($item['route']) }}"
             wire:navigate.hover
             data-nav-root
             x-on:click="path = new URL($el.href).pathname"
-            @if ($isActive($item['paths'])) data-active @endif
+            @if ($isActive($item['paths'])) data-active aria-current="page" @endif
             x-bind:data-active="isActive({{ Js::from($item['paths']) }})"
-            class="group flex flex-col items-center justify-center gap-0.5 py-2.5 min-w-0 text-ink/40 data-active:text-terracotta-dark">
-            <x-dynamic-component :component="'flux::icon.' . $item['icon']" variant="outline" class="size-6 group-data-active:hidden" />
-            <x-dynamic-component :component="'flux::icon.' . $item['icon']" variant="solid" class="size-6 hidden group-data-active:block" />
-            <span class="font-manrope text-[10.5px] font-bold truncate max-w-full px-1">{{ $item['label'] }}</span>
+            x-bind:aria-current="isActive({{ Js::from($item['paths']) }}) ? 'page' : null"
+            class="flex h-[52px] flex-col items-center justify-center gap-1 min-w-0 text-muted font-medium data-active:text-terracotta data-active:font-semibold">
+            <x-dynamic-component :component="'icon.' . $item['icon']" class="size-[22px]" />
+            <span class="text-[11px] truncate max-w-full px-1">{{ $item['label'] }}</span>
         </a>
         @endforeach
     </div>

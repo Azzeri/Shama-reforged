@@ -4,7 +4,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-title" content="Shama" />
-<meta name="theme-color" content="#FBF7F0" />
+<meta name="theme-color" content="#F7F3EC" />
 <meta name="format-detection" content="telephone=no" />
 
 <title>

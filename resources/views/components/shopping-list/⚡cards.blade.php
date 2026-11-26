@@ -147,7 +147,7 @@ new class extends Component {
             class="aspect-[1.58/1] rounded-[18px] p-3.5 flex flex-col justify-between text-left text-white shadow-[0_6px_16px_rgba(43,33,24,0.15)]"
             style="background-color: {{ $card->hex() }}">
             <span class="font-fraunces text-[19px] font-semibold leading-tight line-clamp-2">{{ $card->store }}</span>
-            <span class="flex items-center justify-between font-manrope text-[13px] tracking-wider text-white/85">
+            <span class="flex items-center justify-between font-inter text-[13px] tracking-wider text-white/85">
                 <span>{{ $card->maskedNumber() }}</span>
                 @if ($card->code_type === LoyaltyCard::CODE_QR)
                 <flux:icon.qr-code class="size-4" />
@@ -161,13 +161,13 @@ new class extends Component {
         <button
             type="button"
             wire:click="openNew"
-            class="aspect-[1.58/1] rounded-[18px] border border-dashed border-ink/25 flex flex-col items-center justify-center gap-1 text-terracotta-dark">
+            class="aspect-[1.58/1] rounded-[18px] border border-dashed border-field flex flex-col items-center justify-center gap-1 text-terracotta-dark">
             <flux:icon.plus class="size-6" />
-            <span class="font-manrope text-[15px] font-bold">{{ __('Add card') }}</span>
+            <span class="font-inter text-[15px] font-semibold">{{ __('Add card') }}</span>
         </button>
     </div>
 
-    <p class="mt-4 flex items-start gap-2 font-manrope text-[13px] text-ink/55">
+    <p class="mt-4 flex items-start gap-2 font-inter text-[13px] text-muted">
         <flux:icon.cloud class="size-4 shrink-0 mt-px" />
         {{ __('Cards are saved in the app — you both see them, also after changing phones.') }}
     </p>
@@ -193,7 +193,7 @@ new class extends Component {
             <button type="button" wire:click="close" class="p-2 -ml-2 text-ink" aria-label="{{ __('Close') }}">
                 <flux:icon.x-mark class="size-6" />
             </button>
-            <button type="button" wire:click="openEdit({{ $card->id }})" class="inline-flex items-center gap-1.5 rounded-full border border-ink/10 bg-white px-4 py-2.5 font-manrope text-[15px] font-bold text-ink">
+            <button type="button" wire:click="openEdit({{ $card->id }})" class="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-4 py-2.5 font-inter text-[15px] font-semibold text-ink">
                 <flux:icon.pencil class="size-4" />
                 {{ __('Edit') }}
             </button>
@@ -210,7 +210,7 @@ new class extends Component {
                 <div class="font-mono text-[20px] tracking-[0.12em] text-ink">{{ $card->groupedNumber() }}</div>
             </div>
 
-            <p class="flex items-center gap-2 font-manrope text-[13.5px] text-ink/55">
+            <p class="flex items-center gap-2 font-inter text-[13.5px] text-muted">
                 <flux:icon.sun class="size-4" />
                 {{ __('The screen stays on while the card is open') }}
             </p>
@@ -224,7 +224,7 @@ new class extends Component {
             <div class="flex items-center justify-between gap-2">
                 <h3 class="font-fraunces text-[22px] font-semibold text-ink">{{ $editingId ? __('Edit card') : __('New card') }}</h3>
                 <flux:modal.close>
-                    <button type="button" class="p-1 text-ink/60" aria-label="{{ __('Close') }}">
+                    <button type="button" class="p-1 text-muted" aria-label="{{ __('Close') }}">
                         <flux:icon.x-mark class="size-5" />
                     </button>
                 </flux:modal.close>
@@ -232,13 +232,13 @@ new class extends Component {
 
             <template x-if="supported">
                 <div class="space-y-4">
-                    <button type="button" x-on:click="start()" class="w-full inline-flex items-center justify-center gap-2 rounded-[16px] border-[1.5px] border-ink py-3.5 font-manrope text-[16px] font-bold text-ink">
+                    <button type="button" x-on:click="start()" class="w-full inline-flex items-center justify-center gap-2 rounded-[16px] border-[1.5px] border-ink py-3.5 font-inter text-[16px] font-semibold text-ink">
                         <flux:icon.viewfinder-circle class="size-5" />
                         {{ __('Scan the code on the card') }}
                     </button>
-                    <p x-show="error === 'denied'" x-cloak class="font-manrope text-[13px] text-terracotta-dark">{{ __('No access to the camera — allow it in the browser settings or type the number.') }}</p>
-                    <p x-show="error === 'failed'" x-cloak class="font-manrope text-[13px] text-terracotta-dark">{{ __('Could not start the camera — type the number instead.') }}</p>
-                    <div class="flex items-center gap-3 font-manrope text-[13px] text-ink/50">
+                    <p x-show="error === 'denied'" x-cloak class="font-inter text-[13px] text-terracotta-dark">{{ __('No access to the camera — allow it in the browser settings or type the number.') }}</p>
+                    <p x-show="error === 'failed'" x-cloak class="font-inter text-[13px] text-terracotta-dark">{{ __('Could not start the camera — type the number instead.') }}</p>
+                    <div class="flex items-center gap-3 font-inter text-[13px] text-muted">
                         <span class="h-px flex-1 bg-ink/10"></span>{{ __('or type it in') }}<span class="h-px flex-1 bg-ink/10"></span>
                     </div>
                 </div>
@@ -260,7 +260,7 @@ new class extends Component {
                 <x-ui.eyebrow>{{ __('Code type') }}</x-ui.eyebrow>
                 <div class="grid grid-cols-2 gap-1 rounded-2xl bg-sand p-1">
                     @foreach ([LoyaltyCard::CODE_BARCODE => __('Barcode'), LoyaltyCard::CODE_QR => __('QR code')] as $type => $label)
-                    <button type="button" wire:click="$set('codeType', '{{ $type }}')" @class(['rounded-xl py-2.5 font-manrope text-[15px] font-bold text-ink transition-colors', 'bg-white shadow-sm' => $codeType === $type])>
+                    <button type="button" wire:click="$set('codeType', '{{ $type }}')" @class(['rounded-xl py-2.5 font-inter text-[15px] font-semibold text-ink transition-colors', 'bg-white shadow-sm' => $codeType === $type])>
                         {{ $label }}
                     </button>
                     @endforeach
@@ -283,24 +283,24 @@ new class extends Component {
                 </div>
             </div>
 
-            <div class="border-t border-ink/8 pt-4">
+            <div class="border-t border-line pt-4">
                 @if ($confirmingDelete)
                 <div class="flex items-center gap-3">
-                    <p class="flex-1 font-manrope text-[13.5px] text-ink/70">{{ __('Delete ":name"? This cannot be undone.', ['name' => $store]) }}</p>
-                    <button type="button" wire:click="$set('confirmingDelete', false)" class="font-manrope text-[14.5px] font-bold text-ink px-2 py-2">{{ __('No') }}</button>
-                    <button type="button" wire:click="delete" class="rounded-[14px] bg-terracotta px-4 py-2.5 font-manrope text-[14.5px] font-bold text-white">{{ __('Delete') }}</button>
+                    <p class="flex-1 font-inter text-[13.5px] text-muted">{{ __('Delete ":name"? This cannot be undone.', ['name' => $store]) }}</p>
+                    <button type="button" wire:click="$set('confirmingDelete', false)" class="font-inter text-[14.5px] font-semibold text-ink px-2 py-2">{{ __('No') }}</button>
+                    <button type="button" wire:click="delete" class="rounded-[14px] bg-terracotta px-4 py-2.5 font-inter text-[14.5px] font-semibold text-white">{{ __('Delete') }}</button>
                 </div>
                 @else
                 <div class="flex items-center justify-between gap-3">
                     @if ($editingId)
-                    <button type="button" wire:click="$set('confirmingDelete', true)" class="inline-flex items-center gap-1.5 font-manrope text-[14.5px] font-bold text-terracotta-dark">
+                    <button type="button" wire:click="$set('confirmingDelete', true)" class="inline-flex items-center gap-1.5 font-inter text-[14.5px] font-semibold text-terracotta-dark">
                         <flux:icon.trash class="size-4" />
                         {{ __('Delete') }}
                     </button>
                     @else
                     <span></span>
                     @endif
-                    <button type="submit" @disabled(trim($store) === '' || trim($number) === '') class="rounded-[14px] bg-terracotta px-5 py-3 font-manrope text-[15px] font-bold text-white disabled:opacity-40">
+                    <button type="submit" @disabled(trim($store) === '' || trim($number) === '') class="rounded-[14px] bg-terracotta px-5 py-3 font-inter text-[15px] font-semibold text-white disabled:opacity-40">
                         {{ $editingId ? __('Save') : __('Add card') }}
                     </button>
                 </div>
@@ -317,8 +317,8 @@ new class extends Component {
                     <video x-ref="video" class="flex-1 w-full object-cover" playsinline muted autoplay></video>
                     <div class="pointer-events-none absolute inset-x-8 top-1/2 -translate-y-1/2 h-40 rounded-2xl border-2 border-white/80"></div>
                     <div class="absolute inset-x-0 bottom-0 p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-center space-y-3">
-                        <p class="font-manrope text-[14px] text-white/80">{{ __('Point the camera at the code on the card') }}</p>
-                        <button type="button" x-on:click="stop()" class="rounded-full bg-white px-6 py-3 font-manrope text-[15px] font-bold text-ink">{{ __('Cancel') }}</button>
+                        <p class="font-inter text-[14px] text-white/80">{{ __('Point the camera at the code on the card') }}</p>
+                        <button type="button" x-on:click="stop()" class="rounded-full bg-white px-6 py-3 font-inter text-[15px] font-semibold text-ink">{{ __('Cancel') }}</button>
                     </div>
                 </div>
             </dialog>

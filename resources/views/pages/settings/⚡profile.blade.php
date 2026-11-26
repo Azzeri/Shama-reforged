@@ -79,29 +79,29 @@ new class extends Component {
 
     <div>
         <x-ui.eyebrow>{{ __('Profile') }}</x-ui.eyebrow>
-        <form wire:submit="updateProfileInformation" class="rounded-[18px] border border-ink/10 bg-white p-4 space-y-3.5">
+        <form wire:submit="updateProfileInformation" class="rounded-[18px] border border-line bg-white p-4 space-y-3.5">
             <div>
-                <label for="profile-name" class="block mb-1.5 font-manrope text-[14px] font-semibold text-ink">{{ __('First name') }}</label>
+                <label for="profile-name" class="block mb-1.5 font-inter text-[14px] font-semibold text-ink">{{ __('First name') }}</label>
                 <x-ui.text-input id="profile-name" wire:model="name" class="w-full bg-cream" required autocomplete="name" />
                 <x-ui.field-error name="name" />
             </div>
 
             <div>
-                <label for="profile-email" class="block mb-1.5 font-manrope text-[14px] font-semibold text-ink">{{ __('Email') }}</label>
+                <label for="profile-email" class="block mb-1.5 font-inter text-[14px] font-semibold text-ink">{{ __('Email') }}</label>
                 <x-ui.text-input id="profile-email" type="email" wire:model="email" class="w-full bg-cream" required autocomplete="email" />
                 <x-ui.field-error name="email" />
 
                 {{-- @chisel-email-verification --}}
                 @if ($this->hasUnverifiedEmail)
-                <p class="mt-2 font-manrope text-[13px] text-ink/60">
+                <p class="mt-2 font-inter text-[13px] text-muted">
                     {{ __('Your email address is unverified.') }}
-                    <button type="button" class="font-bold text-terracotta-dark" wire:click.prevent="resendVerificationNotification">
+                    <button type="button" class="font-semibold text-terracotta-dark" wire:click.prevent="resendVerificationNotification">
                         {{ __('Click here to re-send the verification email.') }}
                     </button>
                 </p>
 
                 @if (session('status') === 'verification-link-sent')
-                <p class="mt-1 font-manrope text-[13px] font-semibold text-forest">
+                <p class="mt-1 font-inter text-[13px] font-semibold text-forest">
                     {{ __('A new verification link has been sent to your email address.') }}
                 </p>
                 @endif
@@ -109,7 +109,7 @@ new class extends Component {
                 {{-- @end-chisel-email-verification --}}
             </div>
 
-            <button type="submit" data-test="update-profile-button" class="rounded-[14px] bg-terracotta px-5 py-3 font-manrope text-[15px] font-bold text-white">
+            <button type="submit" data-test="update-profile-button" class="rounded-[14px] bg-terracotta px-5 py-3 font-inter text-[15px] font-semibold text-white">
                 {{ __('Save') }}
             </button>
         </form>
@@ -117,28 +117,28 @@ new class extends Component {
 
     <div>
         <x-ui.eyebrow>{{ __('Settings') }}</x-ui.eyebrow>
-        <div class="rounded-[18px] border border-ink/10 bg-white divide-y divide-ink/8 overflow-hidden">
+        <div class="rounded-[18px] border border-line bg-white divide-y divide-divider overflow-hidden">
             <a href="{{ route('security.edit') }}" wire:navigate class="flex items-center gap-3.5 px-4 py-3.5">
-                <flux:icon.lock-closed class="size-5 shrink-0 text-ink/70" />
+                <flux:icon.lock-closed class="size-5 shrink-0 text-muted" />
                 <span class="flex-1 min-w-0">
-                    <span class="block font-manrope text-[16px] font-medium text-ink">{{ __('Security') }}</span>
-                    <span class="block font-manrope text-[13px] text-ink/50">{{ __('Password and sign-in') }}</span>
+                    <span class="block font-inter text-[16px] font-medium text-ink">{{ __('Security') }}</span>
+                    <span class="block font-inter text-[13px] text-muted">{{ __('Password and sign-in') }}</span>
                 </span>
                 <flux:icon.chevron-right class="size-4 shrink-0 text-ink/35" />
             </a>
             <a href="{{ route('ai-report.edit') }}" wire:navigate class="flex items-center gap-3.5 px-4 py-3.5">
-                <flux:icon.sparkles class="size-5 shrink-0 text-ink/70" />
+                <flux:icon.sparkles class="size-5 shrink-0 text-muted" />
                 <span class="flex-1 min-w-0">
-                    <span class="block font-manrope text-[16px] font-medium text-ink">{{ __('AI meal plan') }}</span>
-                    <span class="block font-manrope text-[13px] text-ink/50">{{ __('Report for an AI assistant and plan import') }}</span>
+                    <span class="block font-inter text-[16px] font-medium text-ink">{{ __('AI meal plan') }}</span>
+                    <span class="block font-inter text-[13px] text-muted">{{ __('Report for an AI assistant and plan import') }}</span>
                 </span>
                 <flux:icon.chevron-right class="size-4 shrink-0 text-ink/35" />
             </a>
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
                 <button type="submit" data-test="logout-button" class="w-full flex items-center gap-3.5 px-4 py-3.5 text-left">
-                    <flux:icon.arrow-right-start-on-rectangle class="size-5 shrink-0 text-ink/70" />
-                    <span class="font-manrope text-[16px] font-medium text-ink">{{ __('Log out') }}</span>
+                    <flux:icon.arrow-right-start-on-rectangle class="size-5 shrink-0 text-muted" />
+                    <span class="font-inter text-[16px] font-medium text-ink">{{ __('Log out') }}</span>
                 </button>
             </form>
         </div>
