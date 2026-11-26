@@ -34,6 +34,9 @@ new #[Layout('layouts::app')] class extends Component {
         $this->validate(['newItem' => ['string', 'max:120']]);
         $this->customList->items()->create(['name' => $this->newItem]);
         $this->customList->touch();
+        \App\Support\Push\PushNotifier::toOthers(auth()->user(), $this->customList->name,
+            __(':name: added “:item” to the list :list', ['name' => auth()->user()->name, 'item' => $this->newItem, 'list' => $this->customList->name]),
+            route('shopping-list.custom', $this->customList));
         $this->newItem = '';
         $this->dispatch('custom-list-changed');
     }
@@ -94,7 +97,7 @@ new #[Layout('layouts::app')] class extends Component {
         <div x-on:touchstart="touchstart" x-on:touchmove="touchmove" x-on:touchend="touchend" x-on:touchcancel="touchend"
             :style="`transform: translateX(${dx}px)`" :class="dragging ? '' : 'transition-transform duration-200'"
             class="relative flex items-center gap-3 bg-surface pl-3.5 pr-1.5 min-h-[52px]">
-            <button type="button" x-on:click="window.haptic?.()" wire:click="setChecked({{ $item->id }}, {{ $item->is_checked ? 'false' : 'true' }})"
+            <button type="button" x-on:click="window.haptic?.(); window.offlineCall($wire, 'pages::shopping-list.custom-list', 'setChecked', [{{ $item->id }}, {{ $item->is_checked ? 'false' : 'true' }}])"
                 aria-pressed="{{ $item->is_checked ? 'true' : 'false' }}" aria-label="{{ __('Bought') }}: {{ $item->name }}" class="shrink-0 -m-2 p-2">
                 <span @class(['size-[22px] rounded-[7px] border-[1.5px] flex items-center justify-center', 'bg-sage border-sage' => $item->is_checked, 'border-field bg-surface' => ! $item->is_checked])>
                     @if ($item->is_checked)<x-icon.check class="size-3.5 text-white" />@endif

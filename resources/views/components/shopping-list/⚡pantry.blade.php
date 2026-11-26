@@ -108,7 +108,20 @@ new class extends Component {
             return;
         }
 
-        PantryItem::query()->whereKey($id)->update(['status' => $status]);
+        $item = PantryItem::query()->find($id);
+
+        if (! $item) {
+            return;
+        }
+
+        $item->update(['status' => $status]);
+
+        if ($status !== PantryItem::STATUS_OK) {
+            \App\Support\Push\PushNotifier::toOthers(auth()->user(), __('Household supplies'),
+                __(':name: “:item” — :status', ['name' => auth()->user()->name, 'item' => $item->name, 'status' => mb_strtolower(PantryItem::statusLabel($status))]),
+                route('shopping-list.index'));
+        }
+
         $this->refresh();
     }
 

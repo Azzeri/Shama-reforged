@@ -8,6 +8,8 @@ import './native/sheet-drag';
 import './native/pull-to-refresh';
 import './native/gestures';
 import './native/keyboard-share';
+import './native/badge-push';
+import './native/offline';
 
 /*
  * Split views (recipes, custom lists): on the phone a row is a wire:navigate
@@ -424,7 +426,7 @@ const registerShoppingTile = (Alpine) => Alpine.data('shoppingTile', ({ ids, bou
         this.pending = true;
         this.timer = setTimeout(() => {
             this.removing = true;
-            setTimeout(() => this.$wire.toggle(ids, ! this.original), 250);
+            setTimeout(() => window.offlineCall(this.$wire, 'pages::shopping-list.index', 'toggle', [ids, ! this.original]), 250);
         }, 900);
     },
     startDrag(e) {

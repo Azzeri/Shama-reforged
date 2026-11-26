@@ -216,7 +216,13 @@ new #[Layout('layouts::app')] class extends Component {
             return;
         }
 
-        app(GenerateShoppingList::class)($dates);
+        $result = app(GenerateShoppingList::class)($dates);
+
+        if ($result['added'] > 0) {
+            \App\Support\Push\PushNotifier::toOthers(auth()->user(), __('Shopping list'),
+                trans_choice(':name: added :count product from the plan to the shopping list|:name: added :count products from the plan to the shopping list', $result['added'], ['name' => auth()->user()->name]),
+                route('shopping-list.index'));
+        }
 
         $this->selectedDaysForShoppingList = [];
 

@@ -365,6 +365,10 @@ new #[Layout('layouts::app')] class extends Component {
             'is_checked' => false,
         ]);
 
+        \App\Support\Push\PushNotifier::toOthers(auth()->user(), __('Shopping list'),
+            __(':name: added “:item” to the shopping list', ['name' => auth()->user()->name, 'item' => $ingredient?->name ?? $name]),
+            route('shopping-list.index'));
+
         $this->resetNewItemForm();
         $this->refreshList();
         $this->dispatch('modal-close', name: 'add-item-modal');

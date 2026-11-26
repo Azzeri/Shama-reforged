@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Support\LiveSync\DataVersion;
+use App\Support\ShoppingList\ShoppingListCount;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -18,6 +19,13 @@ class LiveSyncController extends Controller
         abort_if($version === null, 404);
         abort_if($version === DataVersion::GONE, 410);
 
-        return response()->json(['v' => $version])->header('Cache-Control', 'no-store');
+        // The shopping list also reports what is left to buy (the app icon badge).
+        $payload = ['v' => $version];
+
+        if ($scope === DataVersion::SHOPPING) {
+            $payload['count'] = ShoppingListCount::get();
+        }
+
+        return response()->json($payload)->header('Cache-Control', 'no-store');
     }
 }

@@ -344,3 +344,24 @@ html.is-navigating [data-flux-main] {
 .native-toast.is-hiding {
     opacity: 0;
 }
+
+/* "Offline" pill (native/offline.js). */
+.offline-pill {
+    position: fixed;
+    left: 50%;
+    top: calc(env(safe-area-inset-top) + 6px);
+    z-index: 60;
+    transform: translate(-50%, -60px);
+    padding: 4px 12px;
+    border-radius: 9999px;
+    background: var(--color-ink);
+    color: var(--color-surface);
+    font-size: 12px;
+    font-weight: 600;
+    transition: transform 200ms ease;
+    pointer-events: none;
+}
+
+.offline-pill.is-visible {
+    transform: translate(-50%, 0);
+}

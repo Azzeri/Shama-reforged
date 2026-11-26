@@ -146,6 +146,21 @@ new class extends Component {
                 </span>
                 <x-ui.chevron-right class="size-4" />
             </a>
+            @if (\App\Support\Push\PushNotifier::enabled())
+            <div x-data="pushToggle(@js(config('services.webpush.public_key')))" class="px-4 py-3 min-h-[60px]">
+                <label class="flex items-center gap-3.5 cursor-pointer">
+                    <svg class="size-5 shrink-0 text-ink-soft" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                    <span class="flex-1 min-w-0">
+                        <span class="block text-[16px] font-medium text-ink">{{ __('Notifications') }}</span>
+                        <span class="block text-[13px] text-muted" x-show="supported && ! denied">{{ __('When the other person adds something to the shopping lists') }}</span>
+                        <span class="block text-[13px] text-muted" x-show="! supported" x-cloak>{{ __('On iPhone: add the app to the home screen first (Share › Add to Home Screen).') }}</span>
+                        <span class="block text-[13px] text-terracotta" x-show="denied" x-cloak>{{ __('Blocked in the phone settings.') }}</span>
+                    </span>
+                    <input type="checkbox" role="switch" class="peer sr-only" x-bind:checked="enabled" x-bind:disabled="! supported || busy || denied" x-on:change="toggle()" />
+                    <span class="relative h-7 w-12 shrink-0 rounded-full bg-field transition-colors peer-checked:bg-sage peer-disabled:opacity-50 peer-focus-visible:ring-2 peer-focus-visible:ring-ink after:absolute after:left-0.5 after:top-0.5 after:size-6 after:rounded-full after:bg-surface after:shadow after:transition-transform peer-checked:after:translate-x-5"></span>
+                </label>
+            </div>
+            @endif
             <a href="{{ route('store-sections.edit') }}" wire:navigate class="flex items-center gap-3.5 px-4 py-3 min-h-[60px]">
                 <x-icon.cart class="size-5 text-ink-soft" />
                 <span class="flex-1 min-w-0">

@@ -39,4 +39,11 @@ return [
         'token' => env('MEAL_PLAN_API_TOKEN'),
     ],
 
+    // Web Push (iOS 16.4+ home-screen app). Generate with `php artisan push:vapid`.
+    'webpush' => [
+        'public_key' => env('VAPID_PUBLIC_KEY'),
+        'private_key' => env('VAPID_PRIVATE_KEY'),
+        'subject' => env('VAPID_SUBJECT', 'mailto:admin@example.com'),
+    ],
+
 ];

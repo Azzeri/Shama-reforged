@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\LiveSyncController;
+use App\Http\Controllers\PushSubscriptionController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -25,6 +26,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::livewire('/shopping-list', 'pages::shopping-list.index')->name('shopping-list.index');
     Route::livewire('/shopping-list/lists/{customList}', 'pages::shopping-list.custom-list')->name('shopping-list.custom');
+
+    Route::post('/push/subscriptions', [PushSubscriptionController::class, 'store'])->name('push.subscribe');
+    Route::delete('/push/subscriptions', [PushSubscriptionController::class, 'destroy'])->name('push.unsubscribe');
 
     // Tiny "has anything changed?" endpoint for screens shared by both phones.
     Route::get('/sync/{scope}/{id?}', LiveSyncController::class)
