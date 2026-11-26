@@ -33,6 +33,23 @@ new #[Layout('layouts::app')] class extends Component {
 
     public bool $archiveOpen = false;
 
+    /** Desktop split view: the recipe shown next to the list. */
+    #[Url(as: 'r')]
+    public ?int $selectedId = null;
+
+    public function select(int $recipeId): void
+    {
+        $this->selectedId = $recipeId;
+    }
+
+    /** The embedded details archived the recipe: it leaves the list. */
+    #[\Livewire\Attributes\On('recipe-archived')]
+    public function recipeArchived(): void
+    {
+        $this->selectedId = null;
+        unset($this->recipes, $this->archivedRecipes);
+    }
+
     public string $ingredientSearch = '';
 
     /** The ingredient list in the filter sheet is only rendered once opened. */
@@ -183,13 +200,49 @@ new #[Layout('layouts::app')] class extends Component {
 @endphp
 
 <div class="space-y-3">
-    <x-ui.page-header :title="__('Recipes')">
-        <x-ui.pill :href="route('recipes.create')">{{ __('New') }}</x-ui.pill>
-    </x-ui.page-header>
+    <div class="flex items-center gap-3 lg:gap-6">
+        <h1 class="font-fraunces text-[28px] lg:text-[32px] font-semibold leading-none tracking-[-0.01em] text-ink">{{ __('Recipes') }}</h1>
+        <div class="hidden lg:block flex-1 max-w-[420px]">
+            <x-ui.search-input id="recipe-search-desktop" wire:model.live.debounce.250ms="search" :placeholder="__('Search recipe')" />
+        </div>
+        <div class="ml-auto">
+            <x-ui.pill :href="route('recipes.create')"><span class="lg:hidden">{{ __('New') }}</span><span class="hidden lg:inline">{{ __('New recipe') }}</span></x-ui.pill>
+        </div>
+    </div>
 
-    <x-ui.search-input id="recipe-search" wire:model.live.debounce.250ms="search" :placeholder="__('Search recipe')" />
+    <div class="lg:hidden">
+        <x-ui.search-input id="recipe-search" wire:model.live.debounce.250ms="search" :placeholder="__('Search recipe')" />
+    </div>
 
-    <div class="-mx-4 px-4 flex gap-2 overflow-x-auto no-scrollbar">
+    {{-- Desktop: every filter in one wrapping row, no panel to unfold. --}}
+    <div class="hidden lg:flex flex-wrap items-center gap-2">
+        @foreach ($this->mealTags as $tag)
+        <x-ui.chip wire:key="d-meal-chip-{{ $tag->id }}" color="gold" :active="in_array($tag->id, $tagIds)" wire:click="toggleTag({{ $tag->id }})">{{ $tag->label() }}</x-ui.chip>
+        @endforeach
+        <span class="h-6 w-px bg-field mx-1" aria-hidden="true"></span>
+        @foreach ($this->dietTags as $tag)
+        <x-ui.chip wire:key="d-diet-chip-{{ $tag->id }}" color="sage" :active="in_array($tag->id, $tagIds)" wire:click="toggleTag({{ $tag->id }})">{{ $tag->label() }}</x-ui.chip>
+        @endforeach
+        <span class="h-6 w-px bg-field mx-1" aria-hidden="true"></span>
+        @foreach (Recipe::RATINGS as $ratingOption)
+        <x-ui.chip wire:key="d-rating-chip-{{ $ratingOption }}" :active="$rating === $ratingOption" wire:click="setRating('{{ $ratingOption }}')">
+            <span class="size-2 rounded-full {{ Recipe::ratingDotClass($ratingOption) }}" aria-hidden="true"></span>
+            {{ Recipe::ratingLabel($ratingOption) }}
+        </x-ui.chip>
+        @endforeach
+        <x-ui.chip :active="$packable" wire:click="$toggle('packable')">{{ __('for packing') }}</x-ui.chip>
+        @foreach ($this->selectedIngredients as $ingredient)
+        <x-ui.chip wire:key="d-ingredient-chip-{{ $ingredient->id }}" active wire:click="toggleIngredient({{ $ingredient->id }})">
+            {{ $ingredient->name }} <x-icon.x class="size-3.5" />
+        </x-ui.chip>
+        @endforeach
+        <button type="button" wire:click="openIngredientFilter" class="inline-flex h-9 items-center gap-1 rounded-full border border-dashed border-faint px-3.5 text-[14px] font-medium text-terracotta">
+            <x-icon.plus class="size-4" />
+            {{ __('Contains ingredient') }}
+        </button>
+    </div>
+
+    <div class="lg:hidden -mx-4 px-4 flex gap-2 overflow-x-auto no-scrollbar">
         <button type="button" wire:click="$toggle('filtersOpen')" aria-expanded="{{ $filtersOpen ? 'true' : 'false' }}"
             @class(['inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-[14px] font-semibold', 'bg-sand border-faint text-ink' => $filtersOpen || $this->panelFilterCount, 'bg-white border-field text-ink' => ! $filtersOpen && ! $this->panelFilterCount])>
             <x-icon.filter class="size-4" />
@@ -201,7 +254,7 @@ new #[Layout('layouts::app')] class extends Component {
     </div>
 
     @if ($filtersOpen)
-    <div class="space-y-3 pt-1">
+    <div class="space-y-3 pt-1 lg:hidden">
         <div>
             <x-ui.section-label class="mb-1.5">{{ __('Main ingredient') }}</x-ui.section-label>
             <div class="flex flex-wrap gap-2">
@@ -236,6 +289,12 @@ new #[Layout('layouts::app')] class extends Component {
     </div>
     @endif
 
+    <div class="lg:grid lg:grid-cols-[minmax(340px,420px)_1fr] lg:items-start lg:gap-8 lg:pt-2">
+    {{-- On desktop a row selects the recipe for the right-hand pane instead of opening its page. --}}
+    <div class="space-y-3"
+        x-data
+        x-init="if (window.isDesktop() && ! $wire.selectedId && {{ $recipes->first()?->id ?? 'null' }}) $wire.select({{ $recipes->first()?->id ?? 'null' }})"
+        x-on:click.capture="if (window.isDesktop()) { const row = $event.target.closest('a[data-recipe-id]'); if (row) { $event.preventDefault(); $event.stopPropagation(); $wire.select(Number(row.dataset.recipeId)) } }">
     @if ($filtersActive)
     <div class="flex items-center justify-between pt-1">
         <span class="text-[14px] text-muted">{{ trans_choice(':count recipe|:count recipes', $recipes->count()) }}</span>
@@ -250,7 +309,7 @@ new #[Layout('layouts::app')] class extends Component {
     @else
     <x-ui.card class="divide-y divide-divider">
         @foreach ($recipes as $recipe)
-        <x-recipe.row :recipe="$recipe" wire:key="recipe-{{ $recipe->id }}" />
+        <x-recipe.row :recipe="$recipe" :selected="$selectedId === $recipe->id" data-recipe-id="{{ $recipe->id }}" wire:key="recipe-{{ $recipe->id }}" />
         @endforeach
     </x-ui.card>
     @endif
@@ -275,6 +334,15 @@ new #[Layout('layouts::app')] class extends Component {
         @endif
     </div>
     @endif
+
+    </div>
+
+    <div class="hidden lg:block min-w-0">
+        @if ($selectedId && Recipe::query()->whereKey($selectedId)->exists())
+        <livewire:pages::recipe.show :recipe="Recipe::find($selectedId)" :embedded="true" :key="'recipe-pane-'.$selectedId" />
+        @endif
+    </div>
+    </div>
 
     <flux:modal name="ingredient-filter-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-white! max-h-[88dvh] overflow-y-auto">
         <div class="space-y-4">

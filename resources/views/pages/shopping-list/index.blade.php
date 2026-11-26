@@ -375,7 +375,12 @@ new #[Layout('layouts::app')] class extends Component {
 <div @if ($isList) x-data="liveSync(@js(route('live-sync', 'shopping')))" data-sync-version="{{ \App\Support\LiveSync\DataVersion::for('shopping') }}" @endif>
     <div class="space-y-4">
         <div class="space-y-3">
-            <x-ui.page-header :title="__('Shopping')">
+            <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+                <h1 class="font-fraunces text-[28px] lg:text-[32px] font-semibold leading-none tracking-[-0.01em] text-ink">{{ __('Shopping') }}</h1>
+
+                <x-ui.segmented :options="$tabs" model="tab" :value="$tab" size="sm" class="order-last w-full lg:order-none lg:w-[440px]" />
+
+                <div class="ml-auto flex items-center gap-2">
                 @switch($tab)
                 @case('pantry')
                 <x-ui.pill wire:click="$dispatch('pantry-new')">{{ __('Product') }}</x-ui.pill>
@@ -404,19 +409,18 @@ new #[Layout('layouts::app')] class extends Component {
                     </flux:menu>
                 </flux:dropdown>
                 @endswitch
-            </x-ui.page-header>
-
-            <x-ui.segmented :options="$tabs" model="tab" :value="$tab" size="sm" />
+                </div>
+            </div>
 
             @if ($isList && $progress['total'] > 0)
-            <div>
-                <div class="flex items-center justify-between text-[13px] text-muted">
-                    <span>{{ __('Bought :bought of :total', $progress) }}</span>
+            <div class="lg:flex lg:items-center lg:gap-4 lg:max-w-[860px]">
+                <div class="flex items-center justify-between text-[13px] text-muted lg:contents">
+                    <span class="lg:order-1 lg:shrink-0">{{ __('Bought :bought of :total', $progress) }}</span>
                     @if ($this->rangeLabel)
-                    <span>{{ $this->rangeLabel }}</span>
+                    <span class="lg:order-3 lg:shrink-0">{{ $this->rangeLabel }}</span>
                     @endif
                 </div>
-                <div class="mt-1.5 h-1.5 rounded-full bg-sand overflow-hidden" role="progressbar" aria-valuemin="0" aria-valuemax="{{ $progress['total'] }}" aria-valuenow="{{ $progress['bought'] }}">
+                <div class="mt-1.5 lg:mt-0 lg:order-2 lg:flex-1 h-1.5 rounded-full bg-sand overflow-hidden" role="progressbar" aria-valuemin="0" aria-valuemax="{{ $progress['total'] }}" aria-valuenow="{{ $progress['bought'] }}">
                     <div class="h-full rounded-full bg-sage transition-all" style="width: {{ round($progress['bought'] / $progress['total'] * 100) }}%"></div>
                 </div>
             </div>
@@ -455,13 +459,13 @@ new #[Layout('layouts::app')] class extends Component {
                 <x-icon.chevron-down class="mt-2 size-4 text-muted transition-transform" x-bind:class="open || '-rotate-90'" />
             </button>
 
-            <div x-show="open" x-collapse class="mt-2 space-y-3">
+            <div x-show="open" x-collapse class="mt-2 space-y-3 lg:space-y-0 lg:columns-3 lg:gap-5">
                 @foreach ($list['upcoming']['categories'] as $category)
                 <x-shopping-list.category :category="$category" wire:key="upcoming-{{ $category['category'] }}" />
                 @endforeach
 
                 @if ($pantry->isNotEmpty())
-                <div wire:key="upcoming-pantry">
+                <div wire:key="upcoming-pantry" class="break-inside-avoid lg:mb-5">
                     <x-ui.section-label class="mb-1.5">{{ __('Household supplies') }}</x-ui.section-label>
                     <div class="rounded-2xl border border-line overflow-hidden divide-y divide-divider bg-white">
                         @foreach ($pantry as $pantryItem)
@@ -503,7 +507,7 @@ new #[Layout('layouts::app')] class extends Component {
                 <x-icon.chevron-down class="mt-2 size-4 text-muted transition-transform" x-bind:class="open || '-rotate-90'" />
             </button>
 
-            <div x-show="open" x-collapse class="mt-2 space-y-3">
+            <div x-show="open" x-collapse class="mt-2 space-y-3 lg:space-y-0 lg:columns-3 lg:gap-5">
                 @foreach ($day['categories'] as $category)
                 <x-shopping-list.category :category="$category" can-move-earlier wire:key="day-{{ $dateKey }}-{{ $category['category'] }}" />
                 @endforeach
@@ -522,7 +526,7 @@ new #[Layout('layouts::app')] class extends Component {
                 <x-icon.chevron-down class="mt-2 size-4 text-muted transition-transform" x-bind:class="open || '-rotate-90'" />
             </button>
 
-            <div x-show="open" x-collapse class="mt-2">
+            <div x-show="open" x-collapse class="mt-2 lg:max-w-[560px]">
                 <div class="rounded-2xl border border-line overflow-hidden divide-y divide-divider bg-white">
                     @foreach ($list['bought']['groups'] as $group)
                     <x-shopping-list.item-tile :group="$group" bought />

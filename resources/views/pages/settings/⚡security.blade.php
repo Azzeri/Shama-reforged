@@ -183,7 +183,7 @@ new class extends Component {
     /* @end-chisel-2fa */
 }; ?>
 
-<section class="w-full">
+<section class="w-full lg:max-w-[720px]">
     <flux:heading class="sr-only">{{ __('Security settings') }}</flux:heading>
 
     <x-pages::settings.layout :heading="__('Security')" :subheading="__('Password and sign-in')">

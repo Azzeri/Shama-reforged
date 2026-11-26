@@ -142,16 +142,17 @@ new class extends Component {
 };
 ?>
 
-<div class="space-y-4">
+<div class="space-y-4 lg:space-y-0">
     @if ($this->toBuyCount > 0)
-    <button type="button" wire:click="$parent.$set('tab', 'list')" class="w-full flex items-center gap-2 min-h-12 rounded-[14px] bg-sage-light px-3.5 text-left text-[15px] text-forest">
+    <button type="button" wire:click="$parent.$set('tab', 'list')" class="lg:mb-5 lg:max-w-[560px] w-full flex items-center gap-2 min-h-12 rounded-[14px] bg-sage-light px-3.5 text-left text-[15px] text-forest">
         <span class="flex-1">{{ trans_choice(':count product is on the shopping list|:count products are on the shopping list', $this->toBuyCount) }}</span>
         <x-icon.chevron-right class="size-4" />
     </button>
     @endif
 
+    <div class="space-y-4 lg:space-y-0 lg:columns-3 lg:gap-5">
     @forelse ($this->groups as $group)
-    <section wire:key="pantry-group-{{ $group->id }}">
+    <section wire:key="pantry-group-{{ $group->id }}" class="break-inside-avoid lg:mb-5">
         <x-ui.section-label class="mb-1.5">{{ $group->name }}</x-ui.section-label>
         <x-ui.card class="divide-y divide-divider">
             @foreach ($group->items as $item)
@@ -188,6 +189,7 @@ new class extends Component {
         {{ __('No products yet. Add things you keep at home — when they run low, they land on the shopping list.') }}
     </div>
     @endforelse
+    </div>
 
     @if ($sheetOpen)
     <x-ui.sheet :title="$editingId ? __('Edit product') : __('New product')" close="closeSheet">

@@ -21,9 +21,23 @@ new #[Layout('layouts::app')] class extends Component {
 
 <div class="space-y-4">
     @if ($noteDate && $noteType)
-    <x-ui.sub-header :title="__('New recipe')" :back-href="route('meals.day.edit', $noteDate)" :back-label="__('Day editor')" />
+    <x-ui.sub-header :title="__('New recipe')" :back-href="route('meals.day.edit', $noteDate)" :back-label="__('Day editor')">
+        <x-slot:action>
+            <div class="hidden lg:flex items-center gap-2">
+                <a href="{{ route('meals.day.edit', $noteDate) }}" wire:navigate class="h-11 inline-flex items-center px-4 text-[15px] font-semibold text-ink">{{ __('Cancel') }}</a>
+                <button type="submit" form="recipe-form" class="h-11 rounded-[14px] bg-terracotta px-5 text-[15px] font-semibold text-white hover:bg-terracotta-dark">{{ $noteDate && $noteType ? __('Save and add to the plan') : __('Add recipe') }}</button>
+            </div>
+        </x-slot:action>
+    </x-ui.sub-header>
     @else
-    <x-ui.sub-header :title="__('New recipe')" :back-href="route('recipes.index')" :back-label="__('Recipes')" />
+    <x-ui.sub-header :title="__('New recipe')" :back-href="route('recipes.index')" :back-label="__('Recipes')">
+        <x-slot:action>
+            <div class="hidden lg:flex items-center gap-2">
+                <a href="{{ route('recipes.index') }}" wire:navigate class="h-11 inline-flex items-center px-4 text-[15px] font-semibold text-ink">{{ __('Cancel') }}</a>
+                <button type="submit" form="recipe-form" class="h-11 rounded-[14px] bg-terracotta px-5 text-[15px] font-semibold text-white hover:bg-terracotta-dark">{{ $noteDate && $noteType ? __('Save and add to the plan') : __('Add recipe') }}</button>
+            </div>
+        </x-slot:action>
+    </x-ui.sub-header>
     @endif
 
     <livewire:recipe.form :note-date="$noteDate" :note-type="$noteType" />

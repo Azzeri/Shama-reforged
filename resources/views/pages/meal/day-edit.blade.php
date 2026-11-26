@@ -30,6 +30,9 @@ new #[Layout('layouts::app')] class extends Component {
 
     public string $date;
 
+    /** Rendered inside the desktop calendar's side panel instead of as a page. */
+    public bool $inPanel = false;
+
     /** @var array<string, array{entries: list<array>, note: string}> */
     public array $meals = [];
 
@@ -387,7 +390,18 @@ new #[Layout('layouts::app')] class extends Component {
 };
 ?>
 
-<div class="space-y-3">
+<div @class(['space-y-3', 'lg:max-w-[720px]' => ! $inPanel])>
+    @if ($inPanel)
+    <div class="flex items-start justify-between gap-3 border-b border-line pb-3">
+        <div>
+            <p class="text-[13px] text-muted">{{ __('Day editor') }}</p>
+            <h2 class="font-fraunces text-[24px] font-semibold leading-tight text-ink">{{ $this->title() }}</h2>
+        </div>
+        <button type="button" x-on:click="$dispatch('close-day-panel')" class="-mr-2 flex size-11 items-center justify-center text-ink" aria-label="{{ __('Close') }}">
+            <x-icon.x class="size-5" />
+        </button>
+    </div>
+    @else
     <div class="space-y-1">
         <div class="flex items-center justify-between">
             <x-ui.back-button href="{{ route('meals.index') }}" :label="__('Week')" />
@@ -407,8 +421,9 @@ new #[Layout('layouts::app')] class extends Component {
     </div>
 
     <x-meal.week-strip :day="$this->day" route="meals.day.edit" />
+    @endif
 
-    <x-ui.card>
+    <x-ui.card @class(['border-0 rounded-none bg-transparent' => $inPanel])>
         @foreach ($this->visibleTypes as $type)
         @php
             $row = $meals[$type];
@@ -484,7 +499,7 @@ new #[Layout('layouts::app')] class extends Component {
     </x-ui.card>
 
     @if ($this->hiddenOptionalTypes)
-    <div class="flex flex-wrap gap-2">
+    <div @class(['flex flex-wrap gap-2', 'px-3.5' => $inPanel])>
         @foreach ($this->hiddenOptionalTypes as $optionalType)
         <button type="button" wire:click="showOptionalType('{{ $optionalType }}')" class="inline-flex h-10 items-center gap-1.5 rounded-full border border-dashed border-faint px-3.5 text-[13.5px] font-semibold text-muted">
             <x-icon.plus class="size-4" />

@@ -12,6 +12,28 @@ new class extends Component {
 
     public string $name = '';
 
+    /** Desktop: the list shown next to the overview. */
+    #[\Livewire\Attributes\Url(as: 'list')]
+    public ?int $selectedId = null;
+
+    public function select(int $id): void
+    {
+        $this->selectedId = $id;
+    }
+
+    #[On('custom-list-deleted')]
+    public function listDeleted(): void
+    {
+        $this->selectedId = null;
+        unset($this->lists);
+    }
+
+    #[On('custom-list-changed')]
+    public function listChanged(): void
+    {
+        unset($this->lists);
+    }
+
     #[Computed]
     public function lists(): Collection
     {
@@ -38,20 +60,30 @@ new class extends Component {
 
         $list = CustomList::query()->create(['name' => $this->name]);
 
-        $this->redirectRoute('shopping-list.custom', $list, navigate: true);
+        // The phone opens the list's own screen; the desktop shows it next to the overview.
+        $this->sheetOpen = false;
+        $this->reset('name');
+        unset($this->lists);
+        $this->dispatch('custom-list-created', id: $list->id, url: route('shopping-list.custom', $list));
     }
 };
 ?>
 
-<div class="space-y-3">
+<div
+    x-data
+    x-init="if (window.isDesktop() && ! $wire.selectedId && {{ $this->lists->first()?->id ?? 'null' }}) $wire.select({{ $this->lists->first()?->id ?? 'null' }})"
+    x-on:custom-list-created.window="window.isDesktop() ? $wire.select($event.detail.id) : window.Livewire.navigate($event.detail.url)"
+    class="lg:grid lg:grid-cols-[minmax(300px,380px)_1fr] lg:items-start lg:gap-8">
+<div class="space-y-3"
+    x-on:click.capture="if (window.isDesktop()) { const card = $event.target.closest('a[data-list-id]'); if (card) { $event.preventDefault(); $event.stopPropagation(); $wire.select(Number(card.dataset.listId)) } }">
     @foreach ($this->lists as $customList)
     @php
         $total = $customList->items->count();
         $done = $customList->items->where('is_checked', true)->count();
         $preview = $customList->items->where('is_checked', false)->pluck('name')->implode(', ');
     @endphp
-    <a href="{{ route('shopping-list.custom', $customList) }}" wire:navigate wire:key="custom-list-{{ $customList->id }}"
-        class="flex items-center gap-3 rounded-[20px] border border-line bg-white px-4 py-3.5">
+    <a href="{{ route('shopping-list.custom', $customList) }}" wire:navigate wire:key="custom-list-{{ $customList->id }}" data-list-id="{{ $customList->id }}"
+        @class(['flex items-center gap-3 rounded-[20px] border bg-white px-4 py-3.5', 'border-line' => $selectedId !== $customList->id, 'border-line lg:border-terracotta lg:bg-[#FBF6F0]' => $selectedId === $customList->id])>
         <span class="flex-1 min-w-0 space-y-1">
             <span class="flex items-baseline gap-2">
                 <span class="font-fraunces text-[20px] font-semibold text-ink truncate">{{ $customList->name }}</span>
@@ -72,6 +104,13 @@ new class extends Component {
     </button>
 
     <p class="text-[13px] text-muted">{{ __('Custom lists are not tied to the meal plan.') }}</p>
+</div>
+
+<div class="hidden lg:block min-w-0">
+    @if ($selectedId && CustomList::query()->whereKey($selectedId)->exists())
+    <livewire:pages::shopping-list.custom-list :custom-list="CustomList::find($selectedId)" :embedded="true" :key="'custom-list-pane-'.$selectedId" />
+    @endif
+</div>
 
     @if ($sheetOpen)
     <x-ui.sheet :title="__('New list')" close="closeSheet">

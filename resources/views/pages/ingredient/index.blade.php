@@ -40,6 +40,15 @@ new #[Layout('layouts::app')] class extends Component {
 
     public bool $confirmingDelete = false;
 
+    /** Desktop: the edit form is open in the panel next to the table. */
+    public bool $panelOpen = false;
+
+    public function closePanel(): void
+    {
+        $this->resetForm();
+        $this->panelOpen = false;
+    }
+
     public function render()
     {
         return $this->view()->title(__('Ingredients'));
@@ -94,7 +103,8 @@ new #[Layout('layouts::app')] class extends Component {
     public function openNew(): void
     {
         $this->resetForm();
-        $this->dispatch('modal-show', name: 'ingredient-modal');
+        $this->panelOpen = true;
+        $this->dispatch('ingredient-form-opened');
     }
 
     public function openEdit(int $id): void
@@ -115,7 +125,8 @@ new #[Layout('layouts::app')] class extends Component {
             ->mapWithKeys(fn (string $unit) => [$unit => isset($ingredient->unit_weights[$unit]) ? Quantity::number((float) $ingredient->unit_weights[$unit]) : ''])
             ->all();
 
-        $this->dispatch('modal-show', name: 'ingredient-modal');
+        $this->panelOpen = true;
+        $this->dispatch('ingredient-form-opened');
     }
 
     private function resetForm(): void
@@ -163,6 +174,7 @@ new #[Layout('layouts::app')] class extends Component {
             : Ingredient::query()->create($attributes);
 
         $this->resetForm();
+        $this->panelOpen = false;
         unset($this->ingredients, $this->filters);
         $this->dispatch('modal-close', name: 'ingredient-modal');
     }
@@ -172,6 +184,7 @@ new #[Layout('layouts::app')] class extends Component {
         Ingredient::query()->whereKey($this->editingId)->delete();
 
         $this->resetForm();
+        $this->panelOpen = false;
         unset($this->ingredients, $this->filters);
         $this->dispatch('modal-close', name: 'ingredient-modal');
     }
@@ -183,23 +196,33 @@ new #[Layout('layouts::app')] class extends Component {
     $filledWeights = collect($unitWeights)->filter(fn ($grams) => trim((string) $grams) !== '')->count();
 @endphp
 
-<div class="space-y-3">
-    <x-ui.page-header :title="__('Ingredients')">
-        <x-ui.pill wire:click="openNew">{{ __('New') }}</x-ui.pill>
-    </x-ui.page-header>
+<div class="space-y-3" x-on:ingredient-form-opened.window="if (! window.isDesktop()) $dispatch('modal-show', { name: 'ingredient-modal' })">
+    <div class="flex items-center gap-3 lg:gap-6">
+        <h1 class="font-fraunces text-[28px] lg:text-[32px] font-semibold leading-none tracking-[-0.01em] text-ink">{{ __('Ingredients') }}</h1>
+        <div class="hidden lg:block flex-1 max-w-[420px]">
+            <x-ui.search-input id="ingredient-search-desktop" wire:model.live.debounce.250ms="search" :placeholder="__('Search ingredient')" />
+        </div>
+        <div class="ml-auto">
+            <x-ui.pill wire:click="openNew"><span class="lg:hidden">{{ __('New') }}</span><span class="hidden lg:inline">{{ __('New ingredient') }}</span></x-ui.pill>
+        </div>
+    </div>
 
-    <x-ui.search-input id="ingredient-search" wire:model.live.debounce.250ms="search" :placeholder="__('Search ingredient')" />
+    <div class="lg:hidden">
+        <x-ui.search-input id="ingredient-search" wire:model.live.debounce.250ms="search" :placeholder="__('Search ingredient')" />
+    </div>
 
-    <div class="-mx-4 px-4 flex gap-2 overflow-x-auto no-scrollbar">
+    <div class="-mx-4 px-4 flex gap-2 overflow-x-auto no-scrollbar lg:mx-0 lg:px-0 lg:flex-wrap lg:overflow-visible">
         @foreach ($this->filters as $key => $filterLabel)
         <x-ui.chip wire:key="filter-{{ $key }}" :active="$filter === $key" wire:click="setFilter('{{ $key }}')">{{ $filterLabel }}</x-ui.chip>
         @endforeach
     </div>
 
+    <div @class(['lg:grid lg:items-start lg:gap-6 lg:pt-1', 'lg:grid-cols-[minmax(0,1fr)_420px]' => $panelOpen])>
+    <div class="min-w-0">
     @if ($this->ingredients->isEmpty())
     <div class="rounded-[20px] border border-dashed border-field px-5 py-10 text-center text-[15px] text-muted">{{ __('No ingredients found.') }}</div>
     @else
-    <x-ui.card class="divide-y divide-divider">
+    <x-ui.card class="divide-y divide-divider lg:hidden">
         @foreach ($this->ingredients as $ingredient)
         <button type="button" wire:key="ingredient-{{ $ingredient->id }}" wire:click="openEdit({{ $ingredient->id }})" class="flex w-full items-center gap-3 px-4 py-2.5 min-h-14 text-left">
             <span class="flex-1 min-w-0">
@@ -218,79 +241,54 @@ new #[Layout('layouts::app')] class extends Component {
         </button>
         @endforeach
     </x-ui.card>
+
+    {{-- Desktop: a table; the selected row opens in the panel on the right. --}}
+    <div class="hidden lg:block rounded-[20px] border border-line bg-white overflow-hidden">
+        <table class="w-full text-left">
+            <thead>
+                <tr class="border-b border-line text-[13px] font-semibold text-ink-soft">
+                    <th scope="col" class="px-4 py-3 font-semibold">{{ __('Name') }}</th>
+                    <th scope="col" class="px-4 py-3 font-semibold">{{ __('Store section') }}</th>
+                    <th scope="col" class="px-4 py-3 font-semibold whitespace-nowrap">{{ __('When to buy') }}</th>
+                    <th scope="col" class="w-10"><span class="sr-only">{{ __('Edit') }}</span></th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-divider">
+                @foreach ($this->ingredients as $ingredient)
+                @php $isSelected = $panelOpen && $editingId === $ingredient->id; @endphp
+                <tr wire:key="ingredient-row-{{ $ingredient->id }}" wire:click="openEdit({{ $ingredient->id }})" @class(['cursor-pointer hover:bg-field-bg', 'relative bg-[#FBF6F0] [&>td:first-child]:shadow-[inset_3px_0_0_var(--color-terracotta)]' => $isSelected])>
+                    <td class="px-4 py-3 text-[15px] text-ink">
+                        <button type="button" class="text-left" aria-label="{{ __('Edit') }}: {{ $ingredient->name }}">{{ $ingredient->name }}</button>
+                    </td>
+                    <td class="px-4 py-3 text-[14px] text-ink-soft whitespace-nowrap">{{ Ingredient::categoryLabel($ingredient->category ?? Ingredient::CATEGORY_UNCATEGORIZED) }}</td>
+                    <td class="px-4 py-3 text-[13px]">
+                        @if ($ingredient->skip_shopping)
+                        <span class="whitespace-nowrap rounded-full bg-sand px-2 py-0.5 font-semibold text-ink-soft">{{ __('not on the list') }}</span>
+                        @elseif ($ingredient->purchase_timing === Ingredient::PURCHASE_TIMING_ADVANCE)
+                        <span class="whitespace-nowrap rounded-full bg-sage-light px-2 py-0.5 font-semibold text-forest">{{ __('for the whole week') }}</span>
+                        @else
+                        <span class="text-muted">{{ __('fresh') }}</span>
+                        @endif
+                    </td>
+                    <td class="pr-4"><x-ui.chevron-right class="size-4" /></td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
     @endif
+    </div>
+
+    <div @class(['hidden', 'lg:block' => $panelOpen])>
+        @if ($panelOpen)
+        <div class="sticky top-6 rounded-[20px] border border-line bg-white p-5" x-data x-on:keydown.escape.window="$wire.closePanel()">
+            @include('pages.ingredient.partials.form', ['prefix' => 'd-', 'desktop' => true])
+        </div>
+        @endif
+    </div>
+    </div>
 
     <flux:modal name="ingredient-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-white! max-h-[90dvh] overflow-y-auto">
-        <form wire:submit="save" class="space-y-4">
-            <div class="flex items-center justify-between gap-2">
-                <h2 class="font-fraunces text-[20px] font-semibold text-ink">{{ $editingId ? __('Edit ingredient') : __('New ingredient') }}</h2>
-                <flux:modal.close>
-                    <button type="button" class="-mr-2.5 flex size-11 items-center justify-center text-ink" aria-label="{{ __('Close') }}"><x-icon.x class="size-[18px]" /></button>
-                </flux:modal.close>
-            </div>
-
-            <div>
-                <label for="ingredient-name" class="{{ $label }}">{{ __('Name') }}</label>
-                <x-ui.text-input id="ingredient-name" wire:model.live="name" class="w-full bg-field-bg" maxlength="255" />
-                <x-ui.field-error name="name" />
-                @if ($editingId && $this->editingRecipeCount)
-                <p class="mt-1 text-[12.5px] text-muted">{{ trans_choice('Used in :count recipe|Used in :count recipes', $this->editingRecipeCount) }}</p>
-                @endif
-            </div>
-
-            <div>
-                <span class="{{ $label }}">{{ __('When to buy') }}</span>
-                <div role="radiogroup" class="flex rounded-[14px] bg-sand p-1 gap-1">
-                    @foreach (Ingredient::PURCHASE_TIMINGS as $timing)
-                    @php $on = $purchaseTiming === $timing; @endphp
-                    <button type="button" role="radio" aria-checked="{{ $on ? 'true' : 'false' }}" wire:click="$set('purchaseTiming', '{{ $timing }}')"
-                        @class(['flex-1 min-w-0 rounded-[10px] px-2 py-1.5 min-h-11 text-[13px] leading-tight', 'bg-white text-ink font-semibold shadow-[0_1px_2px_rgba(31,27,22,0.12)]' => $on, 'text-muted font-medium' => ! $on])>
-                        {{ Ingredient::purchaseTimingLabel($timing) }}
-                    </button>
-                    @endforeach
-                </div>
-            </div>
-
-            <div>
-                <label for="ingredient-category" class="{{ $label }}">{{ __('Store section') }}</label>
-                <select id="ingredient-category" wire:model="category" class="w-full h-11 border border-field bg-field-bg rounded-xl px-3 text-base text-ink">
-                    @foreach (Ingredient::CATEGORIES as $categoryOption)
-                    <option value="{{ $categoryOption }}">{{ Ingredient::categoryLabel($categoryOption) }}</option>
-                    @endforeach
-                </select>
-            </div>
-
-            <div class="rounded-2xl border border-line px-3.5 py-1">
-                <x-ui.toggle wire:model="skipShopping" :label="__('Always at home')" :hint="__('Never added to the shopping list (salt, water...)')" />
-            </div>
-
-            <div x-data="{ open: false }" class="rounded-2xl border border-line">
-                <button type="button" x-on:click="open = ! open" x-bind:aria-expanded="open" class="flex w-full items-center gap-2 px-3.5 min-h-12 text-left">
-                    <span class="flex-1 text-[14px] font-semibold text-ink">{{ __('Unit weights') }} <span class="font-normal text-muted">· {{ __('optional') }}</span></span>
-                    @if ($filledWeights)
-                    <span class="text-[12.5px] text-muted">{{ __('filled in :count', ['count' => $filledWeights]) }}</span>
-                    @endif
-                    <x-icon.chevron-down class="size-4 text-muted transition-transform" x-bind:class="open && 'rotate-180'" />
-                </button>
-                <div x-show="open" x-collapse class="border-t border-divider px-3.5 py-2 space-y-1.5">
-                    @foreach (Ingredient::WEIGHABLE_UNITS as $unit)
-                    <div wire:key="weight-{{ $unit }}" class="flex items-center gap-2">
-                        <label for="weight-{{ $unit }}" class="w-24 shrink-0 text-[14px] text-ink">1 {{ Quantity::unitLabel($unit) }} =</label>
-                        <input id="weight-{{ $unit }}" type="text" inputmode="decimal" wire:model="unitWeights.{{ $unit }}" class="w-24 h-10 rounded-[10px] border border-field bg-field-bg px-2.5 text-right text-base text-ink focus:outline-none focus:border-ink focus:ring-1 focus:ring-ink" />
-                        <span class="text-[14px] text-muted">g</span>
-                    </div>
-                    <x-ui.field-error name="unitWeights.{{ $unit }}" />
-                    @endforeach
-                </div>
-            </div>
-
-            <div class="border-t border-divider pt-3">
-                <x-ui.delete-footer :name="$name" action="delete" :can-delete="(bool) $editingId">
-                    <button type="submit" @disabled(trim($name) === '') class="h-12 rounded-[14px] bg-terracotta px-5 text-[15px] font-semibold text-white disabled:opacity-40">
-                        {{ $editingId ? __('Save') : __('Add ingredient') }}
-                    </button>
-                </x-ui.delete-footer>
-            </div>
-        </form>
+        @include('pages.ingredient.partials.form', ['prefix' => 'm-', 'desktop' => false])
     </flux:modal>
 </div>

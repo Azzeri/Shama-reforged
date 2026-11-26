@@ -1,3 +1,6 @@
+/** Desktop layout (side menu, split views, side panels) from this width up — Tailwind's `lg`. */
+window.isDesktop = () => window.matchMedia('(min-width: 1024px)').matches;
+
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').catch(() => {});

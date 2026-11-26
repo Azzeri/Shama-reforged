@@ -155,7 +155,7 @@ new class extends Component {
 
 <section class="w-full">
     <x-pages::settings.layout :heading="__('AI meal plan')" :subheading="__('Generate a report for an AI assistant, then paste its answer back here.')">
-        <div class="space-y-3">
+        <div class="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-6 lg:space-y-0">
             {{-- 1. Report --}}
             <div
                 x-data="{
@@ -233,7 +233,7 @@ new class extends Component {
                     <x-ui.textarea id="ai-wishes" wire:model="extraWishes" rows="2" placeholder="{{ __('e.g. fish twice, quick dinners on weekdays') }}" />
                 </div>
 
-                <div x-data="{ open: false }" class="border-t border-divider pt-3 space-y-2">
+                <div x-data="{ open: window.isDesktop() }" class="border-t border-divider pt-3 space-y-2">
                     <button type="button" x-on:click="open = ! open" x-bind:aria-expanded="open" class="flex w-full items-center gap-2 min-h-11 text-left">
                         <span class="flex-1 text-[15px] font-semibold text-ink">
                             {{ __('Prompt for the AI') }}
@@ -278,6 +278,7 @@ new class extends Component {
                 @endif
             </div>
 
+            <div class="space-y-3">
             {{-- 2. Import --}}
             <form wire:submit="import" class="rounded-[20px] border border-line bg-white p-4 space-y-3">
                 <div class="flex items-center gap-2.5">
@@ -320,6 +321,7 @@ new class extends Component {
                     <span class="block mt-1 text-terracotta">{{ __('The API is disabled — MEAL_PLAN_API_TOKEN is not set.') }}</span>
                     @endif
                 </div>
+            </div>
             </div>
         </div>
     </x-pages::settings.layout>

@@ -10,6 +10,9 @@ new #[Layout('layouts::app')] class extends Component {
 
     public string $newItem = '';
 
+    /** Desktop: shown next to the list overview (no back link, no own page). */
+    public bool $embedded = false;
+
     public function render()
     {
         return $this->view()->title($this->customList->name);
@@ -32,6 +35,7 @@ new #[Layout('layouts::app')] class extends Component {
         $this->customList->items()->create(['name' => $this->newItem]);
         $this->customList->touch();
         $this->newItem = '';
+        $this->dispatch('custom-list-changed');
     }
 
     /** Sets the requested state (not a flip) so two phones don't undo each other. */
@@ -39,16 +43,25 @@ new #[Layout('layouts::app')] class extends Component {
     {
         $this->item($id)->update(['is_checked' => $checked]);
         $this->customList->touch();
+        $this->dispatch('custom-list-changed');
     }
 
     public function removeItem(int $id): void
     {
         $this->item($id)->delete();
+        $this->dispatch('custom-list-changed');
     }
 
     public function deleteList(): void
     {
         $this->customList->delete();
+
+        if ($this->embedded) {
+            $this->dispatch('custom-list-deleted');
+
+            return;
+        }
+
         $this->redirect(route('shopping-list.index', ['tab' => 'lists']), navigate: true);
     }
 };
@@ -59,9 +72,11 @@ new #[Layout('layouts::app')] class extends Component {
     $done = $items->where('is_checked', true)->count();
 @endphp
 
-<div x-data="liveSync(@js(route('live-sync', ['scope' => 'custom-list', 'id' => $customList->id])))" data-sync-version="{{ \App\Support\LiveSync\DataVersion::for('custom-list', $customList->id) }}" data-sync-gone="{{ route('shopping-list.index', ['tab' => 'lists']) }}" class="space-y-4">
+<div x-data="liveSync(@js(route('live-sync', ['scope' => 'custom-list', 'id' => $customList->id])))" data-sync-version="{{ \App\Support\LiveSync\DataVersion::for('custom-list', $customList->id) }}" data-sync-gone="{{ route('shopping-list.index', ['tab' => 'lists']) }}" class="space-y-4 lg:max-w-[720px]">
     <div>
+        @unless ($embedded)
         <x-ui.back-button href="{{ route('shopping-list.index', ['tab' => 'lists']) }}" :label="__('Custom lists')" />
+        @endunless
         <div class="flex items-baseline gap-2.5">
             <h1 class="font-fraunces text-[26px] font-semibold leading-tight text-ink truncate">{{ $customList->name }}</h1>
             <span class="shrink-0 text-[14px] text-muted">{{ __(':done of :total', ['done' => $done, 'total' => $items->count()]) }}</span>

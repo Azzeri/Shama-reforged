@@ -10,6 +10,7 @@ use Illuminate\Support\Collection;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 
 new #[Layout('layouts::app')] class extends Component {
@@ -17,6 +18,37 @@ new #[Layout('layouts::app')] class extends Component {
     public ?string $week = null;
 
     public bool $showPastDays = false;
+
+    /** Desktop: the day open in the side panel (Y-m-d). */
+    #[Url(as: 'day')]
+    public ?string $editingDay = null;
+
+    public function openDay(string $date): void
+    {
+        $this->editingDay = Carbon::parse($date)->toDateString();
+    }
+
+    #[On('close-day-panel')]
+    public function closeDay(): void
+    {
+        $this->editingDay = null;
+    }
+
+    /** The side panel saved something — re-render the grid. */
+    #[On('saved')]
+    public function dayChanged(): void
+    {
+        unset($this->days);
+    }
+
+    /** Meal rows of the desktop grid: the four daily ones, dessert only when planned this week. */
+    #[Computed]
+    public function gridTypes(): array
+    {
+        $hasDessert = $this->days->contains(fn (array $day) => $day['meals']->contains('type', 'dessert'));
+
+        return array_values(array_filter(Meal::TYPES, fn (string $type) => $type !== 'dessert' || $hasDessert));
+    }
 
     public array $selectedDaysForShoppingList = [];
 
@@ -195,34 +227,48 @@ new #[Layout('layouts::app')] class extends Component {
 
 <div data-refresh-on-restore>
     <div class="space-y-3">
-        <x-ui.page-header :title="__('Plan')">
-            <flux:modal.trigger name="generate-shopping-list-modal">
-                <x-ui.pill variant="outline" icon="cart">{{ __('Shopping list') }}</x-ui.pill>
-            </flux:modal.trigger>
-        </x-ui.page-header>
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-3">
+            <h1 class="font-fraunces text-[28px] lg:text-[32px] font-semibold leading-none tracking-[-0.01em] text-ink">{{ __('Plan') }}</h1>
 
-        <div class="flex items-center gap-2">
-            <div class="flex-1 flex h-11 items-center justify-between rounded-[14px] bg-sand">
-                <button type="button" wire:click="goToPreviousWeek" class="flex size-11 items-center justify-center text-ink" aria-label="{{ __('Previous week') }}">
-                    <x-icon.chevron-left class="size-[18px]" />
-                </button>
-                <span class="text-[15px] font-semibold text-ink">
-                    @if ($this->rangeStart->isSameMonth($this->rangeEnd))
-                    {{ $this->rangeStart->format('j') }} – {{ $this->rangeEnd->copy()->locale(app()->getLocale())->isoFormat('D MMMM') }}
-                    @else
-                    {{ $this->rangeStart->copy()->locale(app()->getLocale())->isoFormat('D MMM') }} – {{ $this->rangeEnd->copy()->locale(app()->getLocale())->isoFormat('D MMM') }}
-                    @endif
-                </span>
-                <button type="button" wire:click="goToNextWeek" class="flex size-11 items-center justify-center text-ink" aria-label="{{ __('Next week') }}">
-                    <x-icon.chevron-right class="size-[18px]" />
+            <div class="order-last w-full lg:order-none lg:w-auto flex items-center gap-2">
+                <div class="flex-1 lg:flex-none lg:w-[230px] flex h-11 items-center justify-between rounded-[14px] bg-sand">
+                    <button type="button" wire:click="goToPreviousWeek" class="flex size-11 items-center justify-center text-ink" aria-label="{{ __('Previous week') }}">
+                        <x-icon.chevron-left class="size-[18px]" />
+                    </button>
+                    <span class="text-[15px] font-semibold text-ink">
+                        @if ($this->rangeStart->isSameMonth($this->rangeEnd))
+                        {{ $this->rangeStart->format('j') }} – {{ $this->rangeEnd->copy()->locale(app()->getLocale())->isoFormat('D MMMM') }}
+                        @else
+                        {{ $this->rangeStart->copy()->locale(app()->getLocale())->isoFormat('D MMM') }} – {{ $this->rangeEnd->copy()->locale(app()->getLocale())->isoFormat('D MMM') }}
+                        @endif
+                    </span>
+                    <button type="button" wire:click="goToNextWeek" class="flex size-11 items-center justify-center text-ink" aria-label="{{ __('Next week') }}">
+                        <x-icon.chevron-right class="size-[18px]" />
+                    </button>
+                </div>
+
+                <button type="button" wire:click="goToToday" class="h-11 shrink-0 rounded-[14px] border border-field bg-white px-3.5 text-[14px] font-semibold text-ink">
+                    {{ __('Today') }}
                 </button>
             </div>
 
-            <button type="button" wire:click="goToToday" class="h-11 shrink-0 rounded-[14px] border border-field bg-white px-3.5 text-[14px] font-semibold text-ink">
-                {{ __('Today') }}
-            </button>
+            <div class="ml-auto flex items-center gap-2">
+                <a href="{{ route('ai-report.edit') }}" wire:navigate class="hidden lg:inline-flex h-10 items-center gap-1.5 px-3 text-[14px] font-semibold text-ink">
+                    <x-icon.sparkle class="size-4" />
+                    {{ __('AI plan') }}
+                </a>
+                <flux:modal.trigger name="generate-shopping-list-modal">
+                    <x-ui.pill variant="outline" icon="cart">{{ __('Shopping list') }}</x-ui.pill>
+                </flux:modal.trigger>
+            </div>
         </div>
 
+        {{-- Desktop: week grid (7 days × meals), day editor in a side panel. --}}
+        <div class="hidden lg:block">
+            @include('pages.meal.partials.week-grid')
+        </div>
+
+        <div class="space-y-3 lg:hidden">
         @if ($this->isCurrentRange)
         <div class="flex justify-center">
             <button type="button" wire:click="togglePastDays" class="inline-flex h-9 items-center gap-1 px-3 text-[13px] font-medium text-muted">
@@ -302,7 +348,20 @@ new #[Layout('layouts::app')] class extends Component {
         </div>
         @endforeach
         </div>
+        </div>
     </div>
+
+    @if ($editingDay)
+    {{-- Desktop side panel with the day editor (the phone opens the day editor page instead). --}}
+    <div class="hidden lg:block" x-data x-on:keydown.escape.window="$wire.closeDay()">
+        <aside role="dialog" aria-modal="true" aria-label="{{ __('Day editor') }}" class="fixed inset-y-0 right-0 z-50 flex w-[400px] flex-col border-l border-line bg-white shadow-[-12px_0_40px_rgba(31,27,22,0.12)]">
+            <div class="flex-1 overflow-y-auto px-5 pt-6 pb-4">
+                <livewire:pages::meal.day-edit :date="$editingDay" :in-panel="true" :key="'day-panel-'.$editingDay" />
+            </div>
+            <p class="border-t border-line px-5 py-3.5 text-[13px] text-muted">{{ __('Changes are saved automatically.') }}</p>
+        </aside>
+    </div>
+    @endif
 
     <flux:modal name="generate-shopping-list-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-white! max-h-[88dvh] overflow-y-auto">
         <div class="space-y-4">

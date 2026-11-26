@@ -11,6 +11,9 @@ new #[Layout('layouts::app')] class extends Component {
 
     public bool $showBackButton = true;
 
+    /** Desktop recipe list: shown in the right-hand pane (no back link, actions beside the title). */
+    public bool $embedded = false;
+
     public function mount(): void
     {
         $this->recipe->loadMissing(['tags', 'ingredients']);
@@ -63,6 +66,10 @@ new #[Layout('layouts::app')] class extends Component {
     public function archive(): void
     {
         $this->recipe->update(['archived_at' => now()]);
+
+        if ($this->embedded) {
+            $this->dispatch('recipe-archived');
+        }
     }
 
     public function unarchive(): void
@@ -76,8 +83,8 @@ new #[Layout('layouts::app')] class extends Component {
     $base = max(1, (int) $recipe->servings);
 @endphp
 
-<div class="space-y-4">
-    @if ($showBackButton)
+<div @class(['space-y-4', 'lg:max-w-[1040px]' => ! $embedded])>
+    @if ($showBackButton && ! $embedded)
     <div class="flex items-center justify-between gap-3">
         <x-ui.back-button href="{{ $this->backUrl }}" :label="__('Recipes')" />
         <x-ui.pill variant="outline" icon="pencil" :href="route('recipes.edit', $recipe)">{{ __('Edit') }}</x-ui.pill>
@@ -85,13 +92,22 @@ new #[Layout('layouts::app')] class extends Component {
     @endif
 
     <div class="space-y-2">
-        <h1 class="font-fraunces text-[26px] font-semibold leading-tight text-ink">{{ $recipe->name }}</h1>
+        @if ($embedded)
+        <div class="flex items-start gap-3">
+            <h2 class="flex-1 font-fraunces text-[30px] font-semibold leading-tight text-ink">{{ $recipe->name }}</h2>
+            <x-ui.pill variant="outline" icon="pencil" :href="route('recipes.edit', $recipe)" class="border-field! text-ink! border!">{{ __('Edit') }}</x-ui.pill>
+            <button type="button" wire:click="archive" class="h-10 rounded-full border border-field bg-white px-4 text-[14px] font-semibold text-ink">{{ __('To the archive') }}</button>
+        </div>
+        @else
+        <h1 class="font-fraunces text-[26px] lg:text-[32px] font-semibold leading-tight text-ink">{{ $recipe->name }}</h1>
+        @endif
         <x-recipe.labels :recipe="$recipe" />
         @if ($recipe->isArchived())
         <p class="inline-flex items-center gap-1.5 rounded-full bg-sand px-2.5 py-1 text-[12.5px] text-ink-soft"><x-icon.archive class="size-3.5" /> {{ __('In the archive') }}</p>
         @endif
     </div>
 
+    <div @class(['space-y-4', 'lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-start lg:gap-5 lg:space-y-0' => ! $embedded])>
     @if ($recipe->ingredients->isNotEmpty())
     <section
         x-data="{
@@ -233,8 +249,10 @@ new #[Layout('layouts::app')] class extends Component {
     </section>
     @endif
 
-    @if ($showBackButton)
-    <div class="pt-2 space-y-2">
+    </div>
+
+    @if ($showBackButton && ! $embedded)
+    <div class="pt-2 space-y-2 lg:max-w-[420px]">
         @if ($recipe->isArchived())
         <x-ui.button variant="outline" wire:click="unarchive">
             <x-icon.undo class="size-4" />

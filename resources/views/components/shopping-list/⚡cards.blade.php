@@ -137,14 +137,17 @@ new class extends Component {
 };
 ?>
 
-<div>
-    <div class="grid grid-cols-2 gap-3">
+{{-- Desktop: the grid with the selected card's code in a panel beside it (no full-screen checkout view). --}}
+<div class="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)] lg:items-start lg:gap-6"
+    x-data
+    x-init="if (window.isDesktop() && ! $wire.openCardId && {{ $this->cards->first()?->id ?? 'null' }}) $wire.show({{ $this->cards->first()?->id ?? 'null' }})">
+    <div class="grid grid-cols-2 gap-3 lg:gap-4">
         @foreach ($this->cards as $card)
         <button
             type="button"
             wire:key="card-{{ $card->id }}"
             wire:click="show({{ $card->id }})"
-            class="aspect-[1.58/1] rounded-[18px] p-3.5 flex flex-col justify-between text-left text-white"
+            @class(['aspect-[1.58/1] rounded-[18px] p-3.5 lg:p-4 flex flex-col justify-between text-left text-white', 'lg:ring-[3px] lg:ring-ink/80 lg:ring-offset-2 lg:ring-offset-cream' => $openCardId === $card->id])"
             style="background-color: {{ $card->hex() }}">
             <span class="font-fraunces text-[19px] font-semibold leading-tight line-clamp-2">{{ $card->store }}</span>
             <span class="flex items-center justify-between font-inter text-[13px] tracking-wider text-white/85">
@@ -176,6 +179,8 @@ new class extends Component {
             lock: null,
             async init() {
                 window.renderCardCode($refs.code, @js(['number' => $card->number, 'codeType' => $card->code_type, 'format' => $card->format]));
+                // Phone: full-screen checkout view (no scrolling behind, screen stays on).
+                if (window.isDesktop()) return;
                 document.documentElement.classList.add('overflow-hidden');
                 try { this.lock = await navigator.wakeLock?.request('screen'); } catch (e) {}
             },
@@ -184,8 +189,9 @@ new class extends Component {
                 this.lock?.release();
             },
         }"
-        class="fixed inset-0 z-50 bg-cream flex flex-col px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
-        <div class="flex items-center justify-between">
+        x-on:keydown.escape.window="if (! window.isDesktop()) $wire.close()"
+        class="fixed inset-0 z-50 bg-cream flex flex-col px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] lg:static lg:z-auto lg:rounded-[20px] lg:border lg:border-line lg:bg-white lg:p-6">
+        <div class="flex items-center justify-between lg:hidden">
             <button type="button" wire:click="close" class="p-2 -ml-2 text-ink" aria-label="{{ __('Close') }}">
                 <flux:icon.x-mark class="size-6" />
             </button>
@@ -195,18 +201,19 @@ new class extends Component {
             </button>
         </div>
 
-        <div class="flex-1 flex flex-col items-center justify-center gap-5">
+        <div class="flex-1 flex flex-col items-center justify-center gap-5 lg:items-stretch lg:gap-4">
             <div class="flex items-center gap-2.5">
                 <span class="size-3.5 rounded-full" style="background-color: {{ $card->hex() }}"></span>
-                <h2 class="font-fraunces text-[28px] font-semibold text-ink">{{ $card->store }}</h2>
+                <h2 class="font-fraunces text-[28px] font-semibold text-ink lg:flex-1">{{ $card->store }}</h2>
+                <button type="button" wire:click="openEdit({{ $card->id }})" class="hidden lg:inline-flex h-10 items-center rounded-full border border-field bg-white px-4 text-[14px] font-semibold text-ink">{{ __('Edit') }}</button>
             </div>
 
-            <div class="w-full rounded-[22px] bg-white px-6 py-6 flex flex-col items-center gap-3 border border-line">
+            <div class="w-full rounded-[22px] bg-white px-6 py-6 flex flex-col items-center gap-3 border border-line lg:border-0 lg:px-2 lg:py-2">
                 <div x-ref="code" @class(['w-full', 'max-w-[230px] aspect-square [&_svg]:size-full' => $card->code_type === LoyaltyCard::CODE_QR])></div>
                 <div class="font-mono text-[20px] tracking-[0.12em] text-ink">{{ $card->groupedNumber() }}</div>
             </div>
 
-            <p class="flex items-center gap-2 font-inter text-[13.5px] text-muted">
+            <p class="flex items-center gap-2 font-inter text-[13.5px] text-muted lg:hidden">
                 <flux:icon.sun class="size-4" />
                 {{ __('The screen stays on while the card is open') }}
             </p>

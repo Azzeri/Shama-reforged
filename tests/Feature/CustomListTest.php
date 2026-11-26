@@ -10,13 +10,17 @@ beforeEach(function () {
 });
 
 test('a new list opens right away and items can be added, ticked and removed', function () {
-    Livewire::test('shopping-list.custom-lists')
+    $overview = Livewire::test('shopping-list.custom-lists')
         ->call('openNew')
         ->set('name', 'Budowlany')
-        ->call('create')
-        ->assertRedirect(route('shopping-list.custom', CustomList::query()->sole()));
+        ->call('create');
 
     $list = CustomList::query()->sole();
+
+    // The phone navigates to the list's page, the desktop selects it next to the overview.
+    $overview->assertDispatched('custom-list-created', id: $list->id, url: route('shopping-list.custom', $list))
+        ->call('select', $list->id)
+        ->assertSet('selectedId', $list->id);
 
     $page = Livewire::test('pages::shopping-list.custom-list', ['customList' => $list])
         ->set('newItem', 'Taśma malarska')->call('addItem')
@@ -58,6 +62,18 @@ test('the overview shows progress and a preview of what is left; deleting a list
     Livewire::test('pages::shopping-list.custom-list', ['customList' => $list])
         ->call('deleteList')
         ->assertRedirect(route('shopping-list.index', ['tab' => 'lists']));
+
+    expect(CustomList::query()->count())->toBe(0);
+});
+
+test('on the desktop a list deleted from its pane leaves the overview without a redirect', function () {
+    $list = CustomList::query()->create(['name' => 'Apteka']);
+
+    Livewire::test('pages::shopping-list.custom-list', ['customList' => $list, 'embedded' => true])
+        ->assertDontSee('Własne listy')
+        ->call('deleteList')
+        ->assertNoRedirect()
+        ->assertDispatched('custom-list-deleted');
 
     expect(CustomList::query()->count())->toBe(0);
 });

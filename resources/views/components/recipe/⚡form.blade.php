@@ -256,13 +256,14 @@ new class extends Component {
     $field = 'w-full border border-field bg-white rounded-xl px-3 text-base text-ink placeholder:text-muted focus:outline-none focus:border-ink focus:ring-1 focus:ring-ink';
 @endphp
 
-<form wire:submit="save" class="space-y-5 pb-24">
+<form id="recipe-form" wire:submit="save" class="space-y-5 pb-24 lg:pb-0 lg:grid lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start lg:gap-x-10 lg:gap-y-5 lg:space-y-0">
     @if ($this->noteContext)
-    <div class="rounded-[14px] bg-gold-light px-3.5 py-3 text-[14px] leading-normal text-gold-dark">
+    <div class="lg:col-span-2 rounded-[14px] bg-gold-light px-3.5 py-3 text-[14px] leading-normal text-gold-dark">
         {{ __('You are creating a recipe from the note :note. After saving, the recipe will replace this note in the plan.', ['note' => $this->noteContext]) }}
     </div>
     @endif
 
+    <div class="space-y-5">
     <div>
         <label for="recipe-name" class="{{ $label }}">{{ __('Name') }}</label>
         <input id="recipe-name" type="text" wire:model="recipeName" class="{{ $field }} h-11" required maxlength="255" />
@@ -319,46 +320,82 @@ new class extends Component {
         </label>
     </div>
 
+    <div class="hidden lg:block space-y-5 border-t border-line pt-5">
+    <div>
+        <label for="recipe-url-desktop" class="{{ $label }}">{{ __('Source') }} <span class="normal-case tracking-normal font-normal">· {{ __('optional') }}</span></label>
+        <input id="recipe-url-desktop" type="url" wire:model="recipeUrl" placeholder="https://" class="{{ $field }} h-11" />
+        <x-ui.field-error name="recipeUrl" />
+    </div>
+
+    @if ($isEdit)
+    <div class="space-y-2 pt-1">
+        <x-ui.button variant="outline" wire:click="archive">
+            <x-icon.archive class="size-4" />
+            {{ __('Move to the archive') }}
+        </x-ui.button>
+        <p class="text-[13px] text-muted text-center">{{ __('An archived recipe disappears from the list and from planning, but nothing is deleted.') }}</p>
+
+        <div x-data="{ confirming: false }" class="flex justify-center pt-1">
+            <button type="button" x-show="! confirming" x-on:click="confirming = true" class="inline-flex h-11 items-center gap-1.5 text-[15px] font-semibold text-terracotta">
+                {{ __('Delete the recipe permanently') }}
+            </button>
+            <div x-show="confirming" x-cloak class="flex w-full items-center gap-2">
+                <span class="flex-1 text-[15px] font-semibold text-ink">{{ __('Delete “:name”?', ['name' => $recipe->name]) }}</span>
+                <button type="button" x-on:click="confirming = false" class="h-11 rounded-full border border-field bg-white px-4 text-[14px] font-semibold text-ink">{{ __('No') }}</button>
+                <button type="button" wire:click="delete" class="h-11 rounded-full bg-terracotta px-4 text-[14px] font-semibold text-white">{{ __('Delete') }}</button>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    </div>
+    </div>
+
+    <div class="space-y-5">
     <div>
         <div class="{{ $label }}">{{ __('Ingredients') }} <span class="normal-case tracking-normal font-normal">· {{ __('for :servings', ['servings' => Recipe::servingsLabel($servings)]) }}</span></div>
         <div class="rounded-[20px] border border-line bg-white divide-y divide-divider">
             @foreach ($recipeIngredients as $index => $item)
-            <div wire:key="ingredient-row-{{ $index }}" class="px-3.5 py-3 space-y-2">
-                <div class="flex items-center gap-2">
+            <div wire:key="ingredient-row-{{ $index }}" class="px-3.5 py-3 space-y-2 lg:grid lg:grid-cols-[minmax(0,1fr)_76px_76px_auto_150px_40px] lg:items-center lg:gap-2 lg:space-y-0 lg:py-2.5">
+                <div class="flex items-center gap-2 lg:contents">
                     <label for="ingredient-{{ $index }}-name" class="sr-only">{{ __('Ingredient') }}</label>
                     <input id="ingredient-{{ $index }}-name" type="text" wire:model="recipeIngredients.{{ $index }}.name" list="ingredients-autocomplete-list" placeholder="{{ __('Ingredient name') }}"
-                        class="flex-1 min-w-0 h-10 bg-transparent text-[16px] font-medium text-ink placeholder:text-muted focus:outline-none" />
-                    <button type="button" wire:click="removeIngredient({{ $index }})" class="-mr-2 flex size-10 items-center justify-center text-muted" aria-label="{{ __('Remove :name', ['name' => $item['name'] ?: __('ingredient')]) }}">
+                        class="flex-1 min-w-0 h-10 bg-transparent text-[16px] font-medium text-ink placeholder:text-muted focus:outline-none lg:order-1" />
+                    <button type="button" wire:click="removeIngredient({{ $index }})" class="-mr-2 lg:mr-0 lg:order-6 flex size-10 items-center justify-center text-muted" aria-label="{{ __('Remove :name', ['name' => $item['name'] ?: __('ingredient')]) }}">
                         <x-icon.x class="size-4" />
                     </button>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 lg:contents">
                     <label for="ingredient-{{ $index }}-amount" class="sr-only">{{ __('Amount') }}</label>
                     <input id="ingredient-{{ $index }}-amount" type="text" inputmode="decimal" wire:model="recipeIngredients.{{ $index }}.amount" placeholder="{{ __('Amount') }}"
-                        class="w-20 h-10 rounded-[10px] border border-field bg-field-bg px-2.5 text-base text-ink focus:outline-none focus:border-ink focus:ring-1 focus:ring-ink" />
+                        class="lg:order-2 w-20 lg:w-full h-10 rounded-[10px] border border-field bg-field-bg px-2.5 text-base text-ink focus:outline-none focus:border-ink focus:ring-1 focus:ring-ink" />
                     <label for="ingredient-{{ $index }}-unit" class="sr-only">{{ __('Unit') }}</label>
-                    <select id="ingredient-{{ $index }}-unit" wire:model="recipeIngredients.{{ $index }}.unit" class="w-[4.75rem] h-10 rounded-[10px] border border-field bg-field-bg px-2 text-base text-ink">
+                    <select id="ingredient-{{ $index }}-unit" wire:model="recipeIngredients.{{ $index }}.unit" class="lg:order-3 w-[4.75rem] lg:w-full h-10 rounded-[10px] border border-field bg-field-bg px-2 text-base text-ink">
                         @foreach (RecipeIngredientAssignment::UNITS as $unit)
                         <option value="{{ $unit }}">{{ \App\Support\ShoppingList\Quantity::unitLabel($unit) }}</option>
                         @endforeach
                     </select>
-                    <span class="flex-1"></span>
+                    <span class="flex-1 lg:hidden"></span>
                     <button type="button" wire:click="$toggle('recipeIngredients.{{ $index }}.optional')" aria-pressed="{{ $item['optional'] ? 'true' : 'false' }}"
-                        @class(['h-10 rounded-full px-3 text-[13px] font-medium', 'bg-ink text-white' => $item['optional'], 'border border-dashed border-faint text-ink-soft' => ! $item['optional']])>
+                        @class(['lg:order-4 h-10 rounded-full px-3 text-[13px] font-medium', 'bg-ink text-white' => $item['optional'], 'border border-dashed border-faint text-ink-soft' => ! $item['optional']])>
                         {{ __('optional ingredient') }}
                     </button>
                 </div>
                 @if ($item['showSubstitute'] || filled($item['substitute']))
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 lg:order-5">
                     <label for="ingredient-{{ $index }}-substitute" class="text-[13px] text-muted">{{ __('or') }}:</label>
                     <input id="ingredient-{{ $index }}-substitute" type="text" wire:model="recipeIngredients.{{ $index }}.substitute" placeholder="{{ __('e.g. hummus') }}"
                         class="flex-1 min-w-0 h-10 rounded-[10px] border border-field bg-field-bg px-2.5 text-base text-ink focus:outline-none focus:border-ink focus:ring-1 focus:ring-ink" />
                 </div>
                 @else
-                <button type="button" wire:click="$set('recipeIngredients.{{ $index }}.showSubstitute', true)" class="h-8 text-[13px] font-medium text-ink-soft">+ {{ __('substitute') }}</button>
+                <button type="button" wire:click="$set('recipeIngredients.{{ $index }}.showSubstitute', true)" class="lg:hidden h-8 text-[13px] font-medium text-ink-soft">+ {{ __('substitute') }}</button>
+                <div class="hidden lg:block lg:order-5">
+                    <label for="ingredient-{{ $index }}-substitute-desktop" class="sr-only">{{ __('substitute') }}</label>
+                    <input id="ingredient-{{ $index }}-substitute-desktop" type="text" wire:model="recipeIngredients.{{ $index }}.substitute" placeholder="{{ __('or') }}: {{ __('substitute') }}"
+                        class="w-full h-10 rounded-[10px] border border-field bg-field-bg px-2.5 text-base text-ink placeholder:text-muted focus:outline-none focus:border-ink focus:ring-1 focus:ring-ink" />
+                </div>
                 @endif
-                <x-ui.field-error name="recipeIngredients.{{ $index }}.name" />
-                <x-ui.field-error name="recipeIngredients.{{ $index }}.amount" />
+                <div class="lg:order-7 lg:col-span-6"><x-ui.field-error name="recipeIngredients.{{ $index }}.name" /><x-ui.field-error name="recipeIngredients.{{ $index }}.amount" /></div>
             </div>
             @endforeach
 
@@ -379,6 +416,7 @@ new class extends Component {
         <x-ui.textarea id="recipe-content" wire:model="recipeContent" rows="4">{{ $recipeContent }}</x-ui.textarea>
     </div>
 
+    <div class="lg:hidden space-y-5">
     <div>
         <label for="recipe-url" class="{{ $label }}">{{ __('Source') }} <span class="normal-case tracking-normal font-normal">· {{ __('optional') }}</span></label>
         <input id="recipe-url" type="url" wire:model="recipeUrl" placeholder="https://" class="{{ $field }} h-11" />
@@ -406,7 +444,10 @@ new class extends Component {
     </div>
     @endif
 
-    <div class="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-cream/95 backdrop-blur px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+    </div>
+    </div>
+
+    <div class="lg:hidden fixed inset-x-0 bottom-0 z-30 border-t border-line bg-cream/95 backdrop-blur px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
         <div class="max-w-xl mx-auto">
             <x-ui.button type="submit" wire:loading.attr="disabled" wire:target="save">
                 {{ $this->isFromNote() ? __('Save and add to the plan') : ($isEdit ? __('Save changes') : __('Add recipe')) }}

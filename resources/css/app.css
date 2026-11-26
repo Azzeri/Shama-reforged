@@ -168,6 +168,25 @@ dialog[data-flux-flyout] {
     overscroll-behavior: contain;
 }
 
+/* Desktop: bottom sheets become centred dialogs (440 px, rounded, shadow). */
+@media (min-width: 1024px) {
+    dialog[data-flux-flyout] {
+        width: 440px !important;
+        min-width: 0 !important;
+        max-width: calc(100vw - 3rem) !important;
+        margin: auto !important;
+        border-radius: 24px !important;
+        border: 0 !important;
+        padding: 1.75rem !important;
+        box-shadow: 0 24px 60px rgba(31, 27, 22, 0.25);
+        --flux-flyout-translate: translateY(12px) !important;
+    }
+
+    dialog[data-flux-flyout]::backdrop {
+        background: rgba(31, 27, 22, 0.42);
+    }
+}
+
 /*
  * Livewire's navigation progress bar sits at top: 0, which in the iOS
  * home-screen app is hidden under the status bar. Move it below the notch
