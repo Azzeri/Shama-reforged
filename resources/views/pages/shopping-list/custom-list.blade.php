@@ -59,7 +59,7 @@ new #[Layout('layouts::app')] class extends Component {
     $done = $items->where('is_checked', true)->count();
 @endphp
 
-<div wire:poll.5s class="space-y-4">
+<div x-data="liveSync(@js(route('live-sync', ['scope' => 'custom-list', 'id' => $customList->id])))" data-sync-version="{{ \App\Support\LiveSync\DataVersion::for('custom-list', $customList->id) }}" data-sync-gone="{{ route('shopping-list.index', ['tab' => 'lists']) }}" class="space-y-4">
     <div>
         <x-ui.back-button href="{{ route('shopping-list.index', ['tab' => 'lists']) }}" :label="__('Custom lists')" />
         <div class="flex items-baseline gap-2.5">

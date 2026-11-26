@@ -423,6 +423,76 @@ if (window.Alpine) {
 }
 
 /*
+ * Live sync for screens both phones edit at the same time (shopping list,
+ * custom lists). Instead of re-rendering the whole page every few seconds
+ * (wire:poll), it asks the server for a tiny data fingerprint and refreshes
+ * the Livewire component only when that changed. Nothing is fetched while the
+ * app is in the background; coming back checks right away.
+ *
+ * Usage: <div x-data="liveSync('/sync/shopping')" data-sync-version="{{ ... }}">
+ * (+ data-sync-gone="<url>" where the data can be deleted, e.g. a custom list)
+ * The server renders the current fingerprint into data-sync-version, so the
+ * phone's own changes (which re-render the component) don't trigger an
+ * extra refresh.
+ */
+const LIVE_SYNC_INTERVAL = 4000;
+
+const registerLiveSync = (Alpine) => Alpine.data('liveSync', (url) => ({
+    timer: null,
+    busy: false,
+    init() {
+        this.onVisibility = () => {
+            if (document.visibilityState === 'visible') {
+                this.check();
+            }
+        };
+        document.addEventListener('visibilitychange', this.onVisibility);
+        this.timer = setInterval(() => this.check(), LIVE_SYNC_INTERVAL);
+    },
+    destroy() {
+        clearInterval(this.timer);
+        document.removeEventListener('visibilitychange', this.onVisibility);
+    },
+    async check() {
+        if (this.busy || document.visibilityState !== 'visible' || ! navigator.onLine) {
+            return;
+        }
+
+        this.busy = true;
+
+        try {
+            const response = await fetch(url, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+
+            // Deleted on the other phone: leave for the parent screen.
+            if (response.status === 410 && this.$root.dataset.syncGone) {
+                clearInterval(this.timer);
+                window.Livewire.navigate(this.$root.dataset.syncGone);
+
+                return;
+            }
+
+            if (response.ok) {
+                const { v } = await response.json();
+
+                if (v && v !== this.$root.dataset.syncVersion) {
+                    await this.$wire.$refresh();
+                }
+            }
+        } catch {
+            // Offline or the server is restarting — try again next tick.
+        } finally {
+            this.busy = false;
+        }
+    },
+}));
+
+if (window.Alpine) {
+    registerLiveSync(window.Alpine);
+} else {
+    document.addEventListener('alpine:init', () => registerLiveSync(window.Alpine));
+}
+
+/*
  * Loyalty cards (shopping → "Cards" tab). The barcode / QR libraries and the
  * camera scanner are loaded on demand, so they don't weigh down every page.
  */

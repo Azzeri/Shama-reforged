@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\LiveSyncController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -24,6 +25,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::livewire('/shopping-list', 'pages::shopping-list.index')->name('shopping-list.index');
     Route::livewire('/shopping-list/lists/{customList}', 'pages::shopping-list.custom-list')->name('shopping-list.custom');
+
+    // Tiny "has anything changed?" endpoint for screens shared by both phones.
+    Route::get('/sync/{scope}/{id?}', LiveSyncController::class)
+        ->whereNumber('id')
+        ->name('live-sync');
 });
 
 require __DIR__.'/settings.php';

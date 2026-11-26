@@ -371,8 +371,8 @@ new #[Layout('layouts::app')] class extends Component {
     $tabs = ['list' => __('Meals'), 'pantry' => __('Supplies'), 'lists' => __('Custom'), 'cards' => __('Cards')];
 @endphp
 
-{{-- The meals tab polls so changes made by someone else on another phone show up live. --}}
-<div @if ($isList) wire:poll.5s @endif>
+{{-- The meals tab follows changes made on the other phone (live sync, see app.js). --}}
+<div @if ($isList) x-data="liveSync(@js(route('live-sync', 'shopping')))" data-sync-version="{{ \App\Support\LiveSync\DataVersion::for('shopping') }}" @endif>
     <div class="space-y-4">
         <div class="space-y-3">
             <x-ui.page-header :title="__('Shopping')">
