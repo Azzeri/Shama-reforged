@@ -525,7 +525,7 @@ new #[Layout('layouts::app')] class extends Component {
 
     @if ($pickingType !== null)
     @php $sheetTitle = __('Add to: :meal', ['meal' => Meal::typeLabel($pickingType)]); @endphp
-    <x-ui.sheet :title="$sheetTitle" close="closeRecipePicker" :wide="$previewRecipeId && ! $this->chosenRecipe">
+    <x-ui.sheet :title="$sheetTitle" close="closeRecipePicker" :wide="$previewRecipeId && ! $this->chosenRecipe" fullscreen>
         @if ($previewRecipeId && ! $this->chosenRecipe)
         <div class="space-y-3">
             <button type="button" wire:click="closePreview" class="-ml-2 inline-flex h-10 items-center gap-1 px-2 text-[15px] font-medium text-ink">
