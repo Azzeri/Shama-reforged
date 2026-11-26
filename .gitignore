@@ -22,3 +22,6 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# Database dumps (contain personal data)
+/db_backup_*.sql
