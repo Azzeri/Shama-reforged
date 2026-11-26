@@ -225,10 +225,10 @@ new #[Layout('layouts::app')] class extends Component {
 };
 ?>
 
-<div data-refresh-on-restore>
+<div data-refresh-on-restore data-pull-refresh>
     <div class="space-y-3">
         <div class="flex flex-wrap items-center gap-x-4 gap-y-3">
-            <h1 class="font-fraunces text-[28px] lg:text-[32px] font-semibold leading-none tracking-[-0.01em] text-ink">{{ __('Plan') }}</h1>
+            <h1 data-large-title class="font-fraunces text-[28px] lg:text-[32px] font-semibold leading-none tracking-[-0.01em] text-ink">{{ __('Plan') }}</h1>
 
             <div class="order-last w-full lg:order-none lg:w-auto flex items-center gap-2">
                 <div class="flex-1 lg:flex-none lg:w-[230px] flex h-11 items-center justify-between rounded-[14px] bg-sand">

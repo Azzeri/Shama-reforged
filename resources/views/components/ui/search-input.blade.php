@@ -8,5 +8,6 @@
     <input
         id="{{ $id }}"
         type="search"
+        enterkeyhint="search"
         {{ $attributes->except('id')->merge(['class' => 'w-full h-11 border border-field rounded-xl pl-10 pr-3 text-base text-ink placeholder:text-muted focus:outline-none focus:border-ink focus:ring-1 focus:ring-ink ' . ($bg === 'field' ? 'bg-field-bg' : 'bg-white')]) }} />
 </div>

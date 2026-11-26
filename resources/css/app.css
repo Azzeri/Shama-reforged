@@ -168,6 +168,12 @@ dialog[data-flux-flyout] {
     overscroll-behavior: contain;
 }
 
+/* Phone: sheets and flyouts sit above the on-screen keyboard (native/keyboard-share.js). */
+[data-sheet-panel],
+dialog[data-flux-flyout] {
+    margin-bottom: var(--keyboard-inset, 0px);
+}
+
 /* Desktop: bottom sheets become centred dialogs (440 px, rounded, shadow). */
 @media (min-width: 1024px) {
     dialog[data-flux-flyout] {
@@ -205,4 +211,100 @@ dialog[data-flux-flyout] {
 html.is-navigating [data-flux-main] {
     opacity: 0.55;
     transition: opacity 150ms ease;
+}
+
+/* ------------------------------------------------------------------
+ * Native feel (resources/js/native/*)
+ * ------------------------------------------------------------------ */
+
+/* Compact title bar that appears when the large title scrolls away. */
+.compact-title-bar {
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 30;
+    padding: calc(env(safe-area-inset-top) + 10px) 56px 10px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--color-ink);
+    background: color-mix(in srgb, var(--color-cream) 82%, transparent);
+    -webkit-backdrop-filter: saturate(180%) blur(16px);
+    backdrop-filter: saturate(180%) blur(16px);
+    border-bottom: 1px solid var(--color-line);
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+    transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.compact-title-bar span {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.compact-title-bar.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+@media (min-width: 1024px) {
+    .compact-title-bar {
+        display: none;
+    }
+}
+
+/* Pull-to-refresh spinner. */
+.pull-indicator {
+    position: fixed;
+    left: 50%;
+    top: calc(env(safe-area-inset-top) + 8px);
+    z-index: 45;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 9999px;
+    background: var(--color-surface, #fff);
+    color: var(--color-muted);
+    box-shadow: 0 4px 14px rgba(31, 27, 22, 0.15);
+    opacity: 0;
+    transform: translate(-50%, -40px);
+    pointer-events: none;
+}
+
+.pull-indicator.is-armed {
+    color: var(--color-terracotta);
+}
+
+.pull-indicator.is-loading svg {
+    animation: pull-spin 700ms linear infinite;
+}
+
+@keyframes pull-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Short confirmation toast (shareOrCopy). */
+.native-toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(env(safe-area-inset-bottom) + 88px);
+    z-index: 80;
+    transform: translateX(-50%);
+    padding: 10px 16px;
+    border-radius: 9999px;
+    background: rgba(31, 27, 22, 0.88);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    transition: opacity 300ms ease;
+}
+
+.native-toast.is-hiding {
+    opacity: 0;
 }

@@ -90,6 +90,26 @@ new #[Layout('layouts::app')] class extends Component {
         ];
     }
 
+    /** Long-pressed recipe whose context menu is open. */
+    public ?int $actionRecipeId = null;
+
+    public function openActions(int $recipeId): void
+    {
+        $this->actionRecipeId = Recipe::query()->whereKey($recipeId)->exists() ? $recipeId : null;
+    }
+
+    public function closeActions(): void
+    {
+        $this->actionRecipeId = null;
+    }
+
+    public function archiveFromMenu(): void
+    {
+        Recipe::query()->whereKey($this->actionRecipeId)->update(['archived_at' => now()]);
+        $this->actionRecipeId = null;
+        unset($this->recipes, $this->archivedRecipes);
+    }
+
     public function select(int $recipeId): void
     {
         $this->selectedId = $recipeId;
@@ -254,7 +274,7 @@ new #[Layout('layouts::app')] class extends Component {
 
 <div class="space-y-3">
     <div class="flex items-center gap-3 lg:gap-6">
-        <h1 class="font-fraunces text-[28px] lg:text-[32px] font-semibold leading-none tracking-[-0.01em] text-ink">{{ __('Recipes') }}</h1>
+        <h1 data-large-title class="font-fraunces text-[28px] lg:text-[32px] font-semibold leading-none tracking-[-0.01em] text-ink">{{ __('Recipes') }}</h1>
         <div class="hidden lg:block flex-1 max-w-[420px]">
             <x-ui.search-input id="recipe-search-desktop" wire:model.live.debounce.250ms="search" :placeholder="__('Search recipe')" />
         </div>
@@ -343,7 +363,8 @@ new #[Layout('layouts::app')] class extends Component {
     </div>
     @endif
 
-    <div class="lg:grid lg:grid-cols-[minmax(340px,420px)_1fr] lg:items-start lg:gap-8 lg:pt-2">
+    <div class="lg:grid lg:grid-cols-[minmax(340px,420px)_1fr] lg:items-start lg:gap-8 lg:pt-2"
+        x-data="longPress('a[data-recipe-id]', 'recipeId', (id) => $wire.openActions(id))">
     {{-- On desktop a row selects the recipe for the right-hand pane instead of opening its page. --}}
     <div class="space-y-3"
         x-data="desktopSelect('a[data-recipe-id]', 'recipeId', (id) => $wire.select(id))"
@@ -396,6 +417,17 @@ new #[Layout('layouts::app')] class extends Component {
         @endif
     </div>
     </div>
+
+    @if ($actionRecipeId && ($actionRecipe = Recipe::find($actionRecipeId)))
+    <x-ui.sheet :title="$actionRecipe->name" close="closeActions">
+        <div class="flex flex-col divide-y divide-divider">
+            <a href="{{ route('recipes.show', $actionRecipe) }}" wire:navigate class="flex min-h-[52px] items-center gap-3 text-[16px] text-ink"><x-icon.book class="size-5 text-ink-soft" />{{ __('Open') }}</a>
+            <a href="{{ route('recipes.edit', $actionRecipe) }}" wire:navigate class="flex min-h-[52px] items-center gap-3 text-[16px] text-ink"><x-icon.pencil class="size-5 text-ink-soft" />{{ __('Edit') }}</a>
+            <button type="button" x-on:click="window.shareOrCopy({ title: @js($actionRecipe->name), url: @js(route('recipes.show', $actionRecipe)) })" class="flex min-h-[52px] items-center gap-3 text-left text-[16px] text-ink"><x-icon.share class="size-5 text-ink-soft" />{{ __('Share') }}</button>
+            <button type="button" wire:click="archiveFromMenu" class="flex min-h-[52px] items-center gap-3 text-left text-[16px] text-terracotta"><x-icon.archive class="size-5" />{{ __('To the archive') }}</button>
+        </div>
+    </x-ui.sheet>
+    @endif
 
     @if ($importOpen)
     <x-ui.sheet :title="__('Import from a link')" close="closeImport">

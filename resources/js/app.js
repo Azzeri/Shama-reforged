@@ -1,5 +1,13 @@
-/** Desktop layout (side menu, split views, side panels) from this width up — Tailwind's `lg`. */
-window.isDesktop = () => window.matchMedia('(min-width: 1024px)').matches;
+// Native-app feel on the iPhone (see the files for details). ES imports run first,
+// so window.isDesktop lives in its own module, imported before the others.
+import './native/env';
+import './native/haptics';
+import './native/transitions';
+import './native/large-title';
+import './native/sheet-drag';
+import './native/pull-to-refresh';
+import './native/gestures';
+import './native/keyboard-share';
 
 /*
  * Split views (recipes, custom lists): on the phone a row is a wire:navigate
@@ -403,6 +411,7 @@ const registerShoppingTile = (Alpine) => Alpine.data('shoppingTile', ({ ids, bou
     startY: 0,
 
     toggle() {
+        window.haptic?.();
         if (this.pending) {
             clearTimeout(this.timer);
             this.pending = false;

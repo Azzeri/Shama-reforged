@@ -393,11 +393,11 @@ new #[Layout('layouts::app')] class extends Component {
 @endphp
 
 {{-- The meals tab follows changes made on the other phone (live sync, see app.js). --}}
-<div @if ($isList) x-data="liveSync(@js(route('live-sync', 'shopping')))" data-sync-version="{{ \App\Support\LiveSync\DataVersion::for('shopping') }}" @endif>
+<div data-pull-refresh @if ($isList) x-data="liveSync(@js(route('live-sync', 'shopping')))" data-sync-version="{{ \App\Support\LiveSync\DataVersion::for('shopping') }}" @endif>
     <div class="space-y-4">
         <div class="space-y-3">
             <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
-                <h1 class="font-fraunces text-[28px] lg:text-[32px] font-semibold leading-none tracking-[-0.01em] text-ink">{{ __('Shopping') }}</h1>
+                <h1 data-large-title class="font-fraunces text-[28px] lg:text-[32px] font-semibold leading-none tracking-[-0.01em] text-ink">{{ __('Shopping') }}</h1>
 
                 <x-ui.segmented :options="$tabs" model="tab" :value="$tab" size="sm" class="order-last w-full lg:order-none lg:w-[440px]" />
 

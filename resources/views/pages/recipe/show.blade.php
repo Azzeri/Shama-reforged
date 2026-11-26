@@ -87,7 +87,12 @@ new #[Layout('layouts::app')] class extends Component {
     @if ($showBackButton && ! $embedded)
     <div class="flex items-center justify-between gap-3">
         <x-ui.back-button href="{{ $this->backUrl }}" :label="__('Recipes')" />
-        <x-ui.pill variant="outline" icon="pencil" :href="route('recipes.edit', $recipe)">{{ __('Edit') }}</x-ui.pill>
+        <div class="flex items-center gap-2">
+            <button type="button" x-data x-on:click="window.shareOrCopy({ title: @js($recipe->name), url: @js(route('recipes.show', $recipe)) })" class="flex size-10 items-center justify-center rounded-full border border-field bg-white text-ink" aria-label="{{ __('Share') }}">
+                <x-icon.share class="size-[18px]" />
+            </button>
+            <x-ui.pill variant="outline" icon="pencil" :href="route('recipes.edit', $recipe)">{{ __('Edit') }}</x-ui.pill>
+        </div>
     </div>
     @endif
 
@@ -99,7 +104,7 @@ new #[Layout('layouts::app')] class extends Component {
             <button type="button" wire:click="archive" class="h-10 rounded-full border border-field bg-white px-4 text-[14px] font-semibold text-ink">{{ __('To the archive') }}</button>
         </div>
         @else
-        <h1 class="font-fraunces text-[26px] lg:text-[32px] font-semibold leading-tight text-ink">{{ $recipe->name }}</h1>
+        <h1 data-large-title class="font-fraunces text-[26px] lg:text-[32px] font-semibold leading-tight text-ink">{{ $recipe->name }}</h1>
         @endif
         <x-recipe.labels :recipe="$recipe" />
         @if ($recipe->isArchived())

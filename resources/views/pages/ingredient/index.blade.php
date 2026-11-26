@@ -359,7 +359,7 @@ new #[Layout('layouts::app')] class extends Component {
 
 <div class="space-y-3" x-on:ingredient-form-opened.window="if (! window.isDesktop()) $dispatch('modal-show', { name: 'ingredient-modal' })">
     <div class="flex items-center gap-3 lg:gap-6">
-        <h1 class="font-fraunces text-[28px] lg:text-[32px] font-semibold leading-none tracking-[-0.01em] text-ink">{{ __('Ingredients') }}</h1>
+        <h1 data-large-title class="font-fraunces text-[28px] lg:text-[32px] font-semibold leading-none tracking-[-0.01em] text-ink">{{ __('Ingredients') }}</h1>
         <div class="hidden lg:block flex-1 max-w-[420px]">
             <x-ui.search-input id="ingredient-search-desktop" wire:model.live.debounce.250ms="search" :placeholder="__('Search ingredient')" />
         </div>

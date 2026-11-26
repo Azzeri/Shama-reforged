@@ -379,7 +379,7 @@ new class extends Component {
     <div class="space-y-5">
     <div>
         <label for="recipe-name" class="{{ $label }}">{{ __('Name') }}</label>
-        <input id="recipe-name" type="text" wire:model="recipeName" class="{{ $field }} h-11" required maxlength="255" />
+        <input id="recipe-name" type="text" enterkeyhint="next" wire:model="recipeName" class="{{ $field }} h-11" required maxlength="255" />
         <x-ui.field-error name="recipeName" />
     </div>
 
@@ -477,7 +477,7 @@ new class extends Component {
                     @endphp
                     <div class="relative flex-1 min-w-0 lg:order-1" @if ($isActive) x-data x-on:click.outside="$wire.closeSuggestions()" x-on:keydown.escape="$wire.closeSuggestions()" @endif>
                         <label for="ingredient-{{ $index }}-name" class="sr-only">{{ __('Ingredient') }}</label>
-                        <input id="ingredient-{{ $index }}-name" type="text" autocomplete="off"
+                        <input id="ingredient-{{ $index }}-name" type="text" autocomplete="off" enterkeyhint="next"
                             wire:model.live.debounce.250ms="recipeIngredients.{{ $index }}.name"
                             @unless ($isActive) wire:focus="focusRow({{ $index }})" @endunless
                             role="combobox" aria-autocomplete="list" aria-expanded="{{ $suggest ? 'true' : 'false' }}" aria-controls="ingredient-{{ $index }}-suggestions"
@@ -517,7 +517,7 @@ new class extends Component {
                 </div>
                 <div class="flex items-center gap-2 lg:contents">
                     <label for="ingredient-{{ $index }}-amount" class="sr-only">{{ __('Amount') }}</label>
-                    <input id="ingredient-{{ $index }}-amount" type="text" inputmode="decimal" wire:model="recipeIngredients.{{ $index }}.amount" placeholder="{{ __('Amount') }}"
+                    <input id="ingredient-{{ $index }}-amount" type="text" inputmode="decimal" enterkeyhint="next" wire:model="recipeIngredients.{{ $index }}.amount" placeholder="{{ __('Amount') }}"
                         class="lg:order-2 w-20 lg:w-full h-10 rounded-[10px] border border-field bg-field-bg px-2.5 text-base text-ink focus:outline-none focus:border-ink focus:ring-1 focus:ring-ink" />
                     <label for="ingredient-{{ $index }}-unit" class="sr-only">{{ __('Unit') }}</label>
                     <select id="ingredient-{{ $index }}-unit" wire:model="recipeIngredients.{{ $index }}.unit" class="lg:order-3 w-[4.75rem] lg:w-full h-10 rounded-[10px] border border-field bg-field-bg px-2 text-base text-ink">

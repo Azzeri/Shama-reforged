@@ -431,7 +431,7 @@ new #[Layout('layouts::app')] class extends Component {
                 {{ __('Saved') }}
             </span>
         </div>
-        <h1 class="font-fraunces text-[26px] font-semibold leading-tight text-ink">{{ $this->title() }}</h1>
+        <h1 data-large-title class="font-fraunces text-[26px] font-semibold leading-tight text-ink">{{ $this->title() }}</h1>
     </div>
 
     <x-meal.week-strip :day="$this->day" route="meals.day.edit" />

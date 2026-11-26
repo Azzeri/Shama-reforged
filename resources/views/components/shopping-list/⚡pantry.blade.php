@@ -234,6 +234,7 @@ new class extends Component {
                         type="button"
                         role="radio"
                         aria-checked="{{ $isOn ? 'true' : 'false' }}"
+                        x-on:click="window.haptic?.()"
                         wire:click="setStatus({{ $item->id }}, '{{ $status }}')"
                         @class([
                             'h-9 w-[46px] rounded-lg text-[13px] font-medium transition-colors',
