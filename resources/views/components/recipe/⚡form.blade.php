@@ -48,7 +48,10 @@ new class extends Component {
 
     public ?string $noteType = null;
 
-    public function mount(?Recipe $recipe = null, ?string $noteDate = null, ?string $noteType = null): void
+    /** Set when the form was filled from a link: host + counts for the banner. */
+    public ?array $importInfo = null;
+
+    public function mount(?Recipe $recipe = null, ?string $noteDate = null, ?string $noteType = null, ?string $importToken = null, ?string $source = null): void
     {
         if ($recipe && $recipe->exists) {
             $this->recipe = $recipe;
@@ -83,9 +86,38 @@ new class extends Component {
             }
         }
 
+        if ($importToken && is_array($draft = session()->pull('recipe-import.' . $importToken))) {
+            $this->fillFromImport($draft);
+        } elseif ($source && filter_var($source, FILTER_VALIDATE_URL)) {
+            $this->recipeUrl = $source;
+        }
+
         if (! $this->recipeIngredients) {
             $this->addIngredient();
         }
+    }
+
+    /** Draft from RecipeImporter: nothing is saved until "Dodaj przepis". */
+    private function fillFromImport(array $draft): void
+    {
+        $this->recipeName = $draft['name'];
+        $this->servings = $draft['servings'] ?? $this->servings;
+        $this->recipeUrl = $draft['link'];
+        $this->recipeContent = implode("\n", $draft['steps']);
+        $this->recipeIngredients = collect($draft['ingredients'])->map(fn (array $row) => [
+            'name' => $row['name'],
+            'amount' => $row['amount'],
+            'unit' => in_array($row['unit'], RecipeIngredientAssignment::UNITS, true) ? $row['unit'] : 'g',
+            'optional' => false,
+            'substitute' => '',
+            'showSubstitute' => false,
+            'original' => $row['original'],
+        ])->all();
+        $this->importInfo = [
+            'host' => $draft['host'],
+            'ingredients' => count($draft['ingredients']),
+            'steps' => count($draft['steps']),
+        ];
     }
 
     private function noteMeal(string $date, string $type): ?Meal
@@ -327,6 +359,17 @@ new class extends Component {
 @endphp
 
 <form id="recipe-form" wire:submit="save" class="space-y-5 pb-24 lg:pb-0 lg:grid lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start lg:gap-x-10 lg:gap-y-5 lg:space-y-0">
+    @if ($importInfo)
+    <div class="lg:col-span-2 flex gap-2.5 rounded-[14px] bg-sage-light px-3.5 py-3 text-[14px] leading-normal text-forest">
+        <x-icon.link class="mt-0.5 size-4" />
+        <p>{{ __('Imported from :host: :ingredients, :steps. Check the data — nothing is saved until you click “Add recipe”.', [
+            'host' => $importInfo['host'],
+            'ingredients' => trans_choice(':count ingredient|:count ingredients', $importInfo['ingredients']),
+            'steps' => trans_choice(':count step|:count steps', $importInfo['steps']),
+        ]) }}</p>
+    </div>
+    @endif
+
     @if ($this->noteContext)
     <div class="lg:col-span-2 rounded-[14px] bg-gold-light px-3.5 py-3 text-[14px] leading-normal text-gold-dark">
         {{ __('You are creating a recipe from the note :note. After saving, the recipe will replace this note in the plan.', ['note' => $this->noteContext]) }}
@@ -501,6 +544,9 @@ new class extends Component {
                     <input id="ingredient-{{ $index }}-substitute-desktop" type="text" wire:model="recipeIngredients.{{ $index }}.substitute" placeholder="{{ __('or') }}: {{ __('substitute') }}"
                         class="w-full h-10 rounded-[10px] border border-field bg-field-bg px-2.5 text-base text-ink placeholder:text-muted focus:outline-none focus:border-ink focus:ring-1 focus:ring-ink" />
                 </div>
+                @endif
+                @if (filled($item['original'] ?? null) && trim((string) $item['amount']) === '')
+                <p class="lg:order-7 lg:col-span-6 text-[12.5px] leading-snug text-muted">{{ __('In the original: “:text” — enter an amount or leave it empty.', ['text' => $item['original']]) }}</p>
                 @endif
                 <div class="lg:order-7 lg:col-span-6"><x-ui.field-error name="recipeIngredients.{{ $index }}.name" /><x-ui.field-error name="recipeIngredients.{{ $index }}.amount" /></div>
             </div>

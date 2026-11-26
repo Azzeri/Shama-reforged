@@ -12,6 +12,14 @@ new #[Layout('layouts::app')] class extends Component {
     #[Url(as: 'note_type')]
     public ?string $noteType = null;
 
+    /** Draft from "Wklej link" (kept in the session under this token). */
+    #[Url(as: 'import')]
+    public ?string $importToken = null;
+
+    /** "Wypełnię ręcznie" after a failed import: the link becomes the source. */
+    #[Url(as: 'source')]
+    public ?string $source = null;
+
     public function render()
     {
         return $this->view()->title(__('New recipe'));
@@ -40,5 +48,5 @@ new #[Layout('layouts::app')] class extends Component {
     </x-ui.sub-header>
     @endif
 
-    <livewire:recipe.form :note-date="$noteDate" :note-type="$noteType" />
+    <livewire:recipe.form :note-date="$noteDate" :note-type="$noteType" :import-token="$importToken" :source="$source" />
 </div>

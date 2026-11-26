@@ -37,6 +37,59 @@ new #[Layout('layouts::app')] class extends Component {
     #[Url(as: 'r')]
     public ?int $selectedId = null;
 
+    /** "Wklej link" sheet: idle | found | failed */
+    public bool $importOpen = false;
+
+    public string $importUrl = '';
+
+    public ?array $importPreview = null;
+
+    public ?string $importToken = null;
+
+    public bool $importFailed = false;
+
+    public function openImport(): void
+    {
+        $this->reset('importUrl', 'importPreview', 'importToken', 'importFailed');
+        $this->resetErrorBag();
+        $this->importOpen = true;
+    }
+
+    public function closeImport(): void
+    {
+        $this->importOpen = false;
+    }
+
+    public function anotherLink(): void
+    {
+        $this->reset('importUrl', 'importPreview', 'importToken', 'importFailed');
+    }
+
+    /** Fetches the page and keeps the draft in the session until the form takes it. Saves nothing. */
+    public function importRecipe(\App\Support\RecipeImport\RecipeImporter $importer): void
+    {
+        $this->validate(['importUrl' => ['required', 'string', 'max:2000']], attributes: ['importUrl' => __('link')]);
+        $this->reset('importPreview', 'importToken', 'importFailed');
+
+        try {
+            $draft = $importer->import($this->importUrl);
+        } catch (\App\Support\RecipeImport\RecipeImportFailed) {
+            $this->importFailed = true;
+
+            return;
+        }
+
+        $this->importToken = \Illuminate\Support\Str::random(16);
+        session()->put('recipe-import.' . $this->importToken, $draft);
+        $this->importPreview = [
+            'name' => $draft['name'],
+            'servings' => $draft['servings'],
+            'ingredients' => count($draft['ingredients']),
+            'steps' => count($draft['steps']),
+            'new' => collect($draft['ingredients'])->where('isNew', true)->count(),
+        ];
+    }
+
     public function select(int $recipeId): void
     {
         $this->selectedId = $recipeId;
@@ -205,7 +258,8 @@ new #[Layout('layouts::app')] class extends Component {
         <div class="hidden lg:block flex-1 max-w-[420px]">
             <x-ui.search-input id="recipe-search-desktop" wire:model.live.debounce.250ms="search" :placeholder="__('Search recipe')" />
         </div>
-        <div class="ml-auto">
+        <div class="ml-auto flex items-center gap-2">
+            <x-ui.pill variant="outline" icon="link" wire:click="openImport" class="border-field! text-ink! border!">{{ __('Paste a link') }}</x-ui.pill>
             <x-ui.pill :href="route('recipes.create')"><span class="lg:hidden">{{ __('New') }}</span><span class="hidden lg:inline">{{ __('New recipe') }}</span></x-ui.pill>
         </div>
     </div>
@@ -342,6 +396,53 @@ new #[Layout('layouts::app')] class extends Component {
         @endif
     </div>
     </div>
+
+    @if ($importOpen)
+    <x-ui.sheet :title="__('Import from a link')" close="closeImport">
+        <form id="import-form" wire:submit="importRecipe" class="space-y-4">
+            <div>
+                <label for="import-url" class="block text-[11px] font-semibold uppercase tracking-[0.09em] text-muted mb-1.5">{{ __('Recipe link') }}</label>
+                <x-ui.text-input id="import-url" type="url" inputmode="url" wire:model="importUrl" placeholder="https://" class="w-full bg-field-bg" autofocus :readonly="$importPreview !== null" />
+                <x-ui.field-error name="importUrl" />
+            </div>
+
+            <p wire:loading wire:target="importRecipe" class="text-[14px] text-muted">{{ __('Fetching the recipe from the page…') }}</p>
+
+            @if ($importPreview)
+            <div class="rounded-[14px] bg-sage-light px-4 py-3">
+                <p class="text-[13px] font-medium text-forest">{{ __('We found') }}</p>
+                <p class="font-fraunces text-[22px] font-semibold leading-tight text-ink">{{ $importPreview['name'] }}</p>
+                <p class="mt-0.5 text-[14px] text-forest">
+                    {{ collect([
+                        $importPreview['servings'] ? Recipe::servingsLabel($importPreview['servings']) : null,
+                        trans_choice(':count ingredient|:count ingredients', $importPreview['ingredients']),
+                        trans_choice(':count step|:count steps', $importPreview['steps']),
+                        $importPreview['new'] ? trans_choice(':count new ingredient|:count new ingredients', $importPreview['new']) : null,
+                    ])->filter()->implode(' · ') }}
+                </p>
+            </div>
+            @elseif ($importFailed)
+            <div role="alert" class="rounded-[14px] bg-today px-4 py-3 text-today-ink">
+                <p class="text-[15px] font-semibold">{{ __('Could not get a recipe from this page') }}</p>
+                <p class="text-[14px]">{{ __('You can enter the recipe by hand. The link will be saved as its source.') }}</p>
+            </div>
+            @endif
+        </form>
+
+        <x-slot:footer>
+            @if ($importPreview)
+            <x-ui.button :href="route('recipes.create', ['import' => $importToken])">{{ __('Check and correct in the form') }}</x-ui.button>
+            @elseif ($importFailed)
+            <div class="grid grid-cols-2 gap-2">
+                <x-ui.button variant="outline" wire:click="anotherLink">{{ __('Another link') }}</x-ui.button>
+                <x-ui.button :href="route('recipes.create', ['source' => $importUrl])">{{ __('I will fill it in by hand') }}</x-ui.button>
+            </div>
+            @else
+            <x-ui.button type="submit" form="import-form" wire:loading.attr="disabled" wire:target="importRecipe">{{ __('Import') }}</x-ui.button>
+            @endif
+        </x-slot:footer>
+    </x-ui.sheet>
+    @endif
 
     <flux:modal name="ingredient-filter-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-white! max-h-[88dvh] overflow-y-auto">
         <div class="space-y-4">

@@ -19,7 +19,7 @@ class IngredientName
     ];
 
     /** Longest first; only stripped when at least 3 letters stay. */
-    private const ENDINGS = ['ami', 'ach', 'owie', 'owi', 'ow', 'om', 'em', 'ie', 'y', 'i', 'a', 'e', 'u', 'o'];
+    private const ENDINGS = ['owie', 'ego', 'emu', 'ych', 'ich', 'ymi', 'imi', 'ami', 'ach', 'owi', 'ow', 'om', 'em', 'ym', 'im', 'ej', 'ia', 'ii', 'ie', 'y', 'i', 'a', 'e', 'u', 'o'];
 
     public static function fold(string $name): string
     {

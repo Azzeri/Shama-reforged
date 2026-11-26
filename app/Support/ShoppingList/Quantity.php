@@ -20,7 +20,7 @@ class Quantity
         'gr' => 'g', 'gram' => 'g', 'gramy' => 'g', 'gramów' => 'g',
         'kilo' => 'kg',
         'szt' => 'pcs', 'szt.' => 'pcs', 'sztuka' => 'pcs', 'sztuki' => 'pcs', 'sztuk' => 'pcs', 'pc' => 'pcs',
-        'opak' => 'pack', 'opak.' => 'pack', 'opakowanie' => 'pack', 'opakowania' => 'pack',
+        'opak' => 'pack', 'opak.' => 'pack', 'op' => 'pack', 'op.' => 'pack', 'opakowanie' => 'pack', 'opakowania' => 'pack',
         'łyżka' => 'tbsp', 'łyżki' => 'tbsp', 'łyżek' => 'tbsp',
         'łyżeczka' => 'tsp', 'łyżeczki' => 'tsp', 'łyżeczek' => 'tsp',
         'szklanka' => 'cup', 'szklanki' => 'cup', 'szklanek' => 'cup',

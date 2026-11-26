@@ -24,6 +24,14 @@ class IngredientMatcher
         return $fold === '' ? null : $this->all()->first(fn (Ingredient $i) => $i->id !== $exceptId && $i->name_key === $fold);
     }
 
+    /** The ingredient with the same key (inflection aside): "pomidory" → Pomidor. */
+    public function sameKey(string $name): ?Ingredient
+    {
+        $key = IngredientName::key($name);
+
+        return $key === '' ? null : $this->all()->first(fn (Ingredient $i) => IngredientName::key($i->name) === $key);
+    }
+
     /**
      * Suggestions while typing: names containing what was typed, plus similar
      * ones ("pomidory" → Pomidor), the closest first.
