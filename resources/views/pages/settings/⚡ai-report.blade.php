@@ -26,6 +26,9 @@ new class extends Component {
 
     public ?array $importResult = null;
 
+    /** The user's prompt template (the default one until they change it). */
+    public string $promptTemplate = '';
+
     public function render()
     {
         return $this->view()->title(__('AI meal plan'));
@@ -36,6 +39,33 @@ new class extends Component {
         $this->historyFrom = now()->subDays(28)->toDateString();
         $this->historyTo = now()->toDateString();
         $this->planFrom = now()->addDay()->toDateString();
+        $this->promptTemplate = auth()->user()->ai_prompt_template ?? BuildMealPlanReport::DEFAULT_TEMPLATE;
+    }
+
+    public function isPromptChanged(): bool
+    {
+        return $this->normalized($this->promptTemplate) !== $this->normalized(BuildMealPlanReport::DEFAULT_TEMPLATE);
+    }
+
+    private function normalized(string $text): string
+    {
+        return trim(str_replace("\r\n", "\n", $text));
+    }
+
+    /** Saved on every edit; the default template is stored as null (follows future code changes). */
+    public function updatedPromptTemplate(): void
+    {
+        $this->validate(['promptTemplate' => ['nullable', 'string', 'max:20000']]);
+
+        auth()->user()->update([
+            'ai_prompt_template' => $this->isPromptChanged() && trim($this->promptTemplate) !== '' ? $this->promptTemplate : null,
+        ]);
+    }
+
+    public function resetPrompt(): void
+    {
+        $this->promptTemplate = BuildMealPlanReport::DEFAULT_TEMPLATE;
+        auth()->user()->update(['ai_prompt_template' => null]);
     }
 
     #[Computed]
@@ -91,6 +121,7 @@ new class extends Component {
             $this->planDays,
             $this->ingredientsToUse,
             $this->extraWishes,
+            auth()->user()->ai_prompt_template,
         );
 
         return $this->report;
@@ -124,7 +155,7 @@ new class extends Component {
 
 <section class="w-full">
     <x-pages::settings.layout :heading="__('AI meal plan')" :subheading="__('Generate a report for an AI assistant, then paste its answer back here.')">
-        <div class="space-y-4">
+        <div class="space-y-3">
             {{-- 1. Report --}}
             <div
                 x-data="{
@@ -156,98 +187,116 @@ new class extends Component {
                         this.busy = false;
                     },
                 }"
-                class="rounded-[22px] border border-line bg-white p-4 space-y-4">
+                class="rounded-[20px] border border-line bg-white p-4 space-y-4">
                 <div class="flex items-center gap-2.5">
-                    <span class="flex items-center justify-center size-7 rounded-full bg-ink font-inter text-[14px] font-semibold text-white">1</span>
-                    <h2 class="font-inter text-[17px] font-semibold text-ink">{{ __('Report for the AI') }}</h2>
+                    <span class="flex items-center justify-center size-7 rounded-full bg-ink text-[14px] font-semibold text-white">1</span>
+                    <h2 class="text-[17px] font-semibold text-ink">{{ __('Report for the AI') }}</h2>
                 </div>
 
-                <div class="rounded-2xl border border-line bg-cream divide-y divide-divider" x-data="{ editHistory: false, editPlan: false }">
-                    <div class="px-3.5 py-3">
-                        <button type="button" x-on:click="editHistory = ! editHistory" class="w-full flex items-center gap-3 text-left">
+                <div class="rounded-2xl border border-line bg-field-bg divide-y divide-line" x-data="{ editHistory: false, editPlan: false }">
+                    <div class="px-3.5 py-2.5">
+                        <button type="button" x-on:click="editHistory = ! editHistory" x-bind:aria-expanded="editHistory" class="w-full flex items-center gap-3 min-h-11 text-left">
                             <span class="flex-1">
-                                <span class="block font-inter text-[13px] text-muted">{{ __('Based on the history') }}</span>
-                                <span class="block font-inter text-[16px] font-semibold text-ink">{{ $this->historyLabel }}</span>
+                                <span class="block text-[13px] text-muted">{{ __('Based on the history') }}</span>
+                                <span class="block text-[16px] font-medium text-ink">{{ $this->historyLabel }}</span>
                             </span>
-                            <flux:icon.calendar class="size-5 text-muted" />
+                            <x-icon.calendar class="size-5 text-ink-soft" />
                         </button>
-                        <div x-show="editHistory" x-collapse class="grid grid-cols-2 gap-2 pt-3">
-                            <input type="date" wire:model.live="historyFrom" aria-label="{{ __('History from') }}" class="w-full rounded-xl border border-line bg-white px-2.5 py-2 font-inter text-base text-ink" />
-                            <input type="date" wire:model.live="historyTo" aria-label="{{ __('History to') }}" class="w-full rounded-xl border border-line bg-white px-2.5 py-2 font-inter text-base text-ink" />
+                        <div x-show="editHistory" x-collapse class="grid grid-cols-2 gap-2 pt-2">
+                            <input type="date" wire:model.live="historyFrom" aria-label="{{ __('History from') }}" class="w-full h-11 rounded-xl border border-field bg-white px-2.5 text-base text-ink" />
+                            <input type="date" wire:model.live="historyTo" aria-label="{{ __('History to') }}" class="w-full h-11 rounded-xl border border-field bg-white px-2.5 text-base text-ink" />
                         </div>
                         <x-ui.field-error name="historyTo" />
                     </div>
 
-                    <div class="px-3.5 py-3">
+                    <div class="px-3.5 py-2.5">
                         <div class="flex items-center gap-3">
-                            <button type="button" x-on:click="editPlan = ! editPlan" class="flex-1 text-left">
-                                <span class="block font-inter text-[13px] text-muted">{{ __('Plan') }}</span>
-                                <span class="block font-inter text-[16px] font-semibold text-ink">{{ $this->planLabel }}</span>
+                            <button type="button" x-on:click="editPlan = ! editPlan" x-bind:aria-expanded="editPlan" class="flex-1 min-h-11 text-left">
+                                <span class="block text-[13px] text-muted">{{ __('Plan for') }}</span>
+                                <span class="block text-[16px] font-medium text-ink">{{ $this->planLabel }}</span>
                             </button>
-                            <div class="flex items-center gap-1 rounded-full border border-line bg-white px-1.5 py-1">
-                                <button type="button" wire:click="changePlanDays(-1)" class="size-8 font-inter text-lg text-muted" aria-label="{{ __('Fewer days') }}">−</button>
-                                <span class="min-w-[52px] text-center font-inter text-[15px] font-semibold text-ink">{{ trans_choice(':count day|:count days', $planDays) }}</span>
-                                <button type="button" wire:click="changePlanDays(1)" class="size-8 font-inter text-lg text-terracotta-dark" aria-label="{{ __('More days') }}">+</button>
-                            </div>
+                            <x-ui.stepper :value="$planDays" :min="1" :max="31" :label="trans_choice(':count day|:count days', $planDays)" decrement="changePlanDays(-1)" increment="changePlanDays(1)" />
                         </div>
-                        <div x-show="editPlan" x-collapse class="pt-3">
-                            <input type="date" wire:model.live="planFrom" aria-label="{{ __('Plan from') }}" class="w-full rounded-xl border border-line bg-white px-2.5 py-2 font-inter text-base text-ink" />
+                        <div x-show="editPlan" x-collapse class="pt-2">
+                            <input type="date" wire:model.live="planFrom" aria-label="{{ __('Plan from') }}" class="w-full h-11 rounded-xl border border-field bg-white px-2.5 text-base text-ink" />
                         </div>
                     </div>
                 </div>
 
                 <div>
-                    <x-ui.eyebrow optional class="normal-case! tracking-normal! text-[14px]! font-semibold! text-ink! mb-1.5!">{{ __('Ingredients to use') }}</x-ui.eyebrow>
-                    <x-ui.textarea wire:model="ingredientsToUse" rows="2" placeholder="{{ __('e.g. zucchini, feta, half a chicken breast') }}" />
+                    <label for="ai-ingredients" class="block mb-1.5 text-[14px] font-semibold text-ink">{{ __('Ingredients to use') }} <span class="font-normal text-muted">· {{ __('optionally') }}</span></label>
+                    <x-ui.textarea id="ai-ingredients" wire:model="ingredientsToUse" rows="2" placeholder="{{ __('e.g. zucchini, feta, half a chicken breast') }}" />
                 </div>
 
                 <div>
-                    <x-ui.eyebrow optional class="normal-case! tracking-normal! text-[14px]! font-semibold! text-ink! mb-1.5!">{{ __('Other wishes') }}</x-ui.eyebrow>
-                    <x-ui.textarea wire:model="extraWishes" rows="2" placeholder="{{ __('e.g. fish twice, quick dinners on weekdays') }}" />
+                    <label for="ai-wishes" class="block mb-1.5 text-[14px] font-semibold text-ink">{{ __('Other wishes') }} <span class="font-normal text-muted">· {{ __('optionally') }}</span></label>
+                    <x-ui.textarea id="ai-wishes" wire:model="extraWishes" rows="2" placeholder="{{ __('e.g. fish twice, quick dinners on weekdays') }}" />
+                </div>
+
+                <div x-data="{ open: false }" class="border-t border-divider pt-3 space-y-2">
+                    <button type="button" x-on:click="open = ! open" x-bind:aria-expanded="open" class="flex w-full items-center gap-2 min-h-11 text-left">
+                        <span class="flex-1 text-[15px] font-semibold text-ink">
+                            {{ __('Prompt for the AI') }}
+                            @if ($this->isPromptChanged())
+                            <span class="ml-1 rounded-full bg-gold-light px-2 py-0.5 text-[11px] font-semibold text-gold-dark">{{ __('changed') }}</span>
+                            @endif
+                        </span>
+                        <span class="text-[14px] text-muted" x-text="open ? @js(__('Collapse')) : @js(__('Preview and edit'))"></span>
+                        <x-icon.chevron-down class="size-4 text-muted transition-transform" x-bind:class="open && 'rotate-180'" />
+                    </button>
+                    <div x-show="open" x-collapse x-cloak class="space-y-2">
+                        <label for="ai-prompt" class="sr-only">{{ __('Prompt for the AI') }}</label>
+                        <textarea id="ai-prompt" wire:model.live.debounce.800ms="promptTemplate" rows="12"
+                            class="w-full rounded-xl border border-field bg-field-bg p-3 font-mono text-[13px] leading-relaxed text-ink focus:outline-none focus:border-ink focus:ring-1 focus:ring-ink"></textarea>
+                        <x-ui.field-error name="promptTemplate" />
+                        <p class="text-[13px] leading-normal text-muted">{{ __('Fields in {braces} are filled in automatically from the form and the history:') }} <span class="font-mono text-[12px]">{{ collect(\App\Actions\MealPlan\BuildMealPlanReport::FIELDS)->map(fn ($field) => '{' . $field . '}')->implode(' ') }}</span></p>
+                        @if ($this->isPromptChanged())
+                        <button type="button" wire:click="resetPrompt" class="inline-flex h-10 items-center gap-1.5 text-[14px] font-semibold text-terracotta">
+                            <x-icon.undo class="size-4" />
+                            {{ __('Restore the default') }}
+                        </button>
+                        @endif
+                    </div>
                 </div>
 
                 <button
                     type="button"
                     x-on:click="generate()"
                     x-bind:disabled="busy"
-                    class="w-full rounded-[16px] bg-terracotta py-4 font-inter text-[16px] font-semibold text-white disabled:opacity-60">
-                    <span x-show="! busy">{{ __('Generate and copy report') }}</span>
+                    x-bind:class="copied ? 'bg-sage' : 'bg-terracotta'"
+                    class="flex w-full h-12 items-center justify-center gap-2 rounded-[14px] text-[15px] font-semibold text-white disabled:opacity-60">
+                    <span x-show="! busy && ! copied">{{ __('Generate and copy report') }}</span>
                     <span x-show="busy" x-cloak>{{ __('Generating…') }}</span>
+                    <span x-show="! busy && copied" x-cloak class="inline-flex items-center gap-1.5"><x-icon.check class="size-4" /> {{ __('Report copied') }}</span>
                 </button>
-
-                <p x-show="copied" x-cloak class="flex items-center gap-1.5 font-inter text-[14px] font-semibold text-forest">
-                    <flux:icon.check-circle class="size-4" />
-                    {{ __('Report copied — paste it into your AI assistant.') }}
-                </p>
 
                 @if ($report !== '')
                 <div x-show="failed" x-cloak class="space-y-2">
-                    <p class="font-inter text-[13.5px] text-muted">{{ __('Could not copy automatically — select and copy the report below.') }}</p>
-                    <textarea readonly rows="8" x-on:focus="$el.select()" class="w-full rounded-xl border border-line bg-cream p-3 font-mono text-xs text-ink">{{ $report }}</textarea>
+                    <p class="text-[13.5px] text-muted">{{ __('Could not copy automatically — select and copy the report below.') }}</p>
+                    <textarea readonly rows="8" x-on:focus="$el.select()" aria-label="{{ __('Report for the AI') }}" class="w-full rounded-xl border border-field bg-field-bg p-3 font-mono text-xs text-ink">{{ $report }}</textarea>
                 </div>
                 @endif
             </div>
 
             {{-- 2. Import --}}
-            <form wire:submit="import" class="rounded-[22px] border border-line bg-white p-4 space-y-3">
+            <form wire:submit="import" class="rounded-[20px] border border-line bg-white p-4 space-y-3">
                 <div class="flex items-center gap-2.5">
-                    <span class="flex items-center justify-center size-7 rounded-full bg-sand font-inter text-[14px] font-semibold text-muted">2</span>
-                    <h2 class="font-inter text-[17px] font-semibold text-ink">{{ __('Import plan') }}</h2>
+                    <span class="flex items-center justify-center size-7 rounded-full bg-sand text-[14px] font-semibold text-ink-soft">2</span>
+                    <h2 class="text-[17px] font-semibold text-ink">{{ __('Import plan') }}</h2>
                 </div>
 
-                <x-ui.textarea wire:model.live.debounce.300ms="importJson" rows="4" placeholder="{{ __('Paste the AI answer or just the JSON') }}" />
+                <label for="ai-import" class="sr-only">{{ __('Paste the AI answer or just the JSON') }}</label>
+                <x-ui.textarea id="ai-import" wire:model.live.debounce.300ms="importJson" rows="4" placeholder="{{ __('Paste the AI answer or just the JSON') }}" />
                 <x-ui.field-error name="importJson" />
-                <p class="font-inter text-[13px] text-muted">{{ __('We only fill empty meals — nothing gets overwritten.') }}</p>
+                <p class="text-[13px] text-muted">{{ __('We only fill empty meals — nothing gets overwritten.') }}</p>
 
-                <button
-                    type="submit"
-                    @disabled(trim($importJson) === '')
-                    class="w-full rounded-[16px] border border-line bg-white py-3.5 font-inter text-[15.5px] font-semibold text-ink disabled:text-ink/35">
+                <button type="submit" @disabled(trim($importJson) === '')
+                    class="w-full h-12 rounded-[14px] bg-terracotta text-[15px] font-semibold text-white disabled:bg-white disabled:border disabled:border-field disabled:text-muted">
                     {{ __('Import plan') }}
                 </button>
 
                 @if ($importResult)
-                <div class="rounded-xl bg-sand p-3 font-inter text-sm text-ink space-y-1">
+                <div role="status" class="rounded-xl bg-sage-light p-3 text-sm text-forest space-y-1">
                     <div>{{ __('Added: :count meals', ['count' => count($importResult['created'])]) }}</div>
                     @if ($importResult['skipped'])
                     <div class="text-muted">{{ __('Skipped (already planned): :list', ['list' => implode(', ', $importResult['skipped'])]) }}</div>
@@ -258,17 +307,17 @@ new class extends Component {
 
             {{-- API --}}
             <div x-data="{ open: false }" class="px-1">
-                <button type="button" x-on:click="open = ! open" class="inline-flex items-center gap-1.5 font-inter text-[14px] font-semibold text-muted">
-                    <flux:icon.code-bracket class="size-4" />
+                <button type="button" x-on:click="open = ! open" x-bind:aria-expanded="open" class="inline-flex h-11 items-center gap-1.5 text-[14px] font-semibold text-ink-soft">
+                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 6-6 6 6 6"/><path d="m16 6 6 6-6 6"/></svg>
                     {{ __('Import via API') }}
-                    <flux:icon.chevron-down class="size-3.5 transition-transform" x-bind:class="open && 'rotate-180'" />
+                    <x-icon.chevron-down class="size-3.5 transition-transform" x-bind:class="open && 'rotate-180'" />
                 </button>
-                <div x-show="open" x-collapse class="pt-2 font-inter text-[13.5px] leading-relaxed text-muted">
+                <div x-show="open" x-collapse class="pt-1 text-[13.5px] leading-relaxed text-muted">
                     {{ __('An AI agent can send the same JSON to') }}
                     <code class="text-xs text-ink">POST {{ url('/api/meal-plan') }}</code>
                     {{ __('with the header') }} <code class="text-xs text-ink">Authorization: Bearer &lt;MEAL_PLAN_API_TOKEN&gt;</code>.
                     @if (blank(config('services.meal_plan_api.token')))
-                    <span class="block mt-1 text-terracotta-dark">{{ __('The API is disabled — MEAL_PLAN_API_TOKEN is not set.') }}</span>
+                    <span class="block mt-1 text-terracotta">{{ __('The API is disabled — MEAL_PLAN_API_TOKEN is not set.') }}</span>
                     @endif
                 </div>
             </div>

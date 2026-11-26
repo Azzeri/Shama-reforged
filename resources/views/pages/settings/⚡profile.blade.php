@@ -4,6 +4,7 @@ use App\Concerns\ProfileValidationRules;
 /* @chisel-email-verification */
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 /* @end-chisel-email-verification */
+use App\Livewire\Actions\Logout;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 use Livewire\Attributes\Computed;
@@ -45,6 +46,25 @@ new class extends Component {
         }
 
         $user->save();
+
+        $this->dispatch('profile-saved');
+    }
+
+    public string $deletePassword = '';
+
+    /**
+     * Deletes only the user's own account (login data). Recipes, the plan and
+     * the shopping list are shared by the household and stay.
+     */
+    public function deleteAccount(Logout $logout): void
+    {
+        $this->validate(['deletePassword' => ['required', 'string', 'current_password']], attributes: ['deletePassword' => __('password')]);
+
+        $user = Auth::user();
+        $logout();
+        $user->delete();
+
+        $this->redirect('/', navigate: true);
     }
 
     /* @chisel-email-verification */
@@ -74,34 +94,34 @@ new class extends Component {
     /* @end-chisel-email-verification */
 }; ?>
 
-<section class="w-full space-y-5">
-    <h1 class="font-fraunces text-[34px] font-semibold leading-none text-ink">{{ __('Account') }}</h1>
+<section class="w-full space-y-4">
+    <x-ui.page-header :title="__('Account')" />
 
     <div>
-        <x-ui.eyebrow>{{ __('Profile') }}</x-ui.eyebrow>
-        <form wire:submit="updateProfileInformation" class="rounded-[18px] border border-line bg-white p-4 space-y-3.5">
+        <x-ui.section-label class="mb-1.5">{{ __('Profile') }}</x-ui.section-label>
+        <form wire:submit="updateProfileInformation" class="rounded-[20px] border border-line bg-white p-4 space-y-3.5">
             <div>
-                <label for="profile-name" class="block mb-1.5 font-inter text-[14px] font-semibold text-ink">{{ __('First name') }}</label>
-                <x-ui.text-input id="profile-name" wire:model="name" class="w-full bg-cream" required autocomplete="name" />
+                <label for="profile-name" class="block mb-1.5 text-[14px] font-medium text-ink">{{ __('First name') }}</label>
+                <x-ui.text-input id="profile-name" wire:model="name" class="w-full bg-field-bg" required autocomplete="name" />
                 <x-ui.field-error name="name" />
             </div>
 
             <div>
-                <label for="profile-email" class="block mb-1.5 font-inter text-[14px] font-semibold text-ink">{{ __('Email') }}</label>
-                <x-ui.text-input id="profile-email" type="email" wire:model="email" class="w-full bg-cream" required autocomplete="email" />
+                <label for="profile-email" class="block mb-1.5 text-[14px] font-medium text-ink">{{ __('Email') }}</label>
+                <x-ui.text-input id="profile-email" type="email" wire:model="email" class="w-full bg-field-bg" required autocomplete="email" />
                 <x-ui.field-error name="email" />
 
                 {{-- @chisel-email-verification --}}
                 @if ($this->hasUnverifiedEmail)
-                <p class="mt-2 font-inter text-[13px] text-muted">
+                <p class="mt-2 text-[13px] text-muted">
                     {{ __('Your email address is unverified.') }}
-                    <button type="button" class="font-semibold text-terracotta-dark" wire:click.prevent="resendVerificationNotification">
+                    <button type="button" class="font-semibold text-terracotta" wire:click.prevent="resendVerificationNotification">
                         {{ __('Click here to re-send the verification email.') }}
                     </button>
                 </p>
 
                 @if (session('status') === 'verification-link-sent')
-                <p class="mt-1 font-inter text-[13px] font-semibold text-forest">
+                <p class="mt-1 text-[13px] font-semibold text-forest">
                     {{ __('A new verification link has been sent to your email address.') }}
                 </p>
                 @endif
@@ -109,39 +129,62 @@ new class extends Component {
                 {{-- @end-chisel-email-verification --}}
             </div>
 
-            <button type="submit" data-test="update-profile-button" class="rounded-[14px] bg-terracotta px-5 py-3 font-inter text-[15px] font-semibold text-white">
-                {{ __('Save') }}
-            </button>
+            <div class="flex items-center gap-3">
+                <button type="submit" data-test="update-profile-button" class="h-12 rounded-[14px] bg-terracotta px-5 text-[15px] font-semibold text-white">
+                    {{ __('Save') }}
+                </button>
+                <span x-data="{ show: false, timer: null }" x-on:profile-saved.window="show = true; clearTimeout(timer); timer = setTimeout(() => show = false, 2000)"
+                    x-show="show" x-transition.opacity x-cloak role="status" class="inline-flex items-center gap-1 text-[14px] font-medium text-forest">
+                    <x-icon.check class="size-4" />
+                    {{ __('Saved') }}
+                </span>
+            </div>
         </form>
     </div>
 
     <div>
-        <x-ui.eyebrow>{{ __('Settings') }}</x-ui.eyebrow>
-        <div class="rounded-[18px] border border-line bg-white divide-y divide-divider overflow-hidden">
-            <a href="{{ route('security.edit') }}" wire:navigate class="flex items-center gap-3.5 px-4 py-3.5">
-                <flux:icon.lock-closed class="size-5 shrink-0 text-muted" />
+        <x-ui.section-label class="mb-1.5">{{ __('Settings') }}</x-ui.section-label>
+        <x-ui.card class="divide-y divide-divider">
+            <a href="{{ route('security.edit') }}" wire:navigate class="flex items-center gap-3.5 px-4 py-3 min-h-[60px]">
+                <svg class="size-5 shrink-0 text-ink-soft" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
                 <span class="flex-1 min-w-0">
-                    <span class="block font-inter text-[16px] font-medium text-ink">{{ __('Security') }}</span>
-                    <span class="block font-inter text-[13px] text-muted">{{ __('Password and sign-in') }}</span>
+                    <span class="block text-[16px] font-medium text-ink">{{ __('Security') }}</span>
+                    <span class="block text-[13px] text-muted">{{ __('Password and sign-in') }}</span>
                 </span>
-                <flux:icon.chevron-right class="size-4 shrink-0 text-ink/35" />
+                <x-ui.chevron-right class="size-4" />
             </a>
-            <a href="{{ route('ai-report.edit') }}" wire:navigate class="flex items-center gap-3.5 px-4 py-3.5">
-                <flux:icon.sparkles class="size-5 shrink-0 text-muted" />
+            <a href="{{ route('ai-report.edit') }}" wire:navigate class="flex items-center gap-3.5 px-4 py-3 min-h-[60px]">
+                <x-icon.sparkle class="size-5 text-ink-soft" />
                 <span class="flex-1 min-w-0">
-                    <span class="block font-inter text-[16px] font-medium text-ink">{{ __('AI meal plan') }}</span>
-                    <span class="block font-inter text-[13px] text-muted">{{ __('Report for an AI assistant and plan import') }}</span>
+                    <span class="block text-[16px] font-medium text-ink">{{ __('AI meal plan') }}</span>
+                    <span class="block text-[13px] text-muted">{{ __('Plan generation preferences') }}</span>
                 </span>
-                <flux:icon.chevron-right class="size-4 shrink-0 text-ink/35" />
+                <x-ui.chevron-right class="size-4" />
             </a>
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
-                <button type="submit" data-test="logout-button" class="w-full flex items-center gap-3.5 px-4 py-3.5 text-left">
-                    <flux:icon.arrow-right-start-on-rectangle class="size-5 shrink-0 text-muted" />
-                    <span class="font-inter text-[16px] font-medium text-ink">{{ __('Log out') }}</span>
+                <button type="submit" data-test="logout-button" class="w-full flex items-center gap-3.5 px-4 min-h-14 text-left">
+                    <svg class="size-5 shrink-0 text-ink-soft" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+                    <span class="text-[16px] font-medium text-ink">{{ __('Log out') }}</span>
                 </button>
             </form>
-        </div>
+        </x-ui.card>
     </div>
 
+    <div x-data="{ open: {{ $errors->has('deletePassword') ? 'true' : 'false' }} }" class="pt-2 space-y-2">
+        <x-ui.section-label>{{ __('Deleting the account') }}</x-ui.section-label>
+        <p class="text-[14px] leading-normal text-muted">{{ __('Deletes your account and sign-in data. Recipes, the plan and shopping lists are shared by the household and stay. This cannot be undone.') }}</p>
+        <button type="button" x-show="! open" x-on:click="open = true" class="h-11 rounded-[14px] border border-today-border bg-white px-4 text-[15px] font-semibold text-terracotta">{{ __('Delete account') }}</button>
+        <form x-show="open" x-cloak wire:submit="deleteAccount" class="rounded-[20px] border border-line bg-white p-4 space-y-3">
+            <div>
+                <label for="delete-password" class="block mb-1.5 text-[14px] font-medium text-ink">{{ __('Confirm with your password') }}</label>
+                <x-ui.text-input id="delete-password" type="password" wire:model="deletePassword" class="w-full bg-field-bg" autocomplete="current-password" />
+                <x-ui.field-error name="deletePassword" />
+            </div>
+            <div class="flex justify-end gap-2">
+                <button type="button" x-on:click="open = false" class="h-11 rounded-full border border-field bg-white px-4 text-[14px] font-semibold text-ink">{{ __('No') }}</button>
+                <button type="submit" class="h-11 rounded-full bg-terracotta px-4 text-[14px] font-semibold text-white">{{ __('Delete account') }}</button>
+            </div>
+        </form>
+    </div>
 </section>

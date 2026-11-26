@@ -48,9 +48,9 @@ test('user can delete their account', function () {
 
     $this->actingAs($user);
 
-    $response = Livewire::test('pages::settings.delete-user-modal')
-        ->set('password', 'password')
-        ->call('deleteUser');
+    $response = Livewire::test('pages::settings.profile')
+        ->set('deletePassword', 'password')
+        ->call('deleteAccount');
 
     $response
         ->assertHasNoErrors()
@@ -65,11 +65,11 @@ test('correct password must be provided to delete account', function () {
 
     $this->actingAs($user);
 
-    $response = Livewire::test('pages::settings.delete-user-modal')
-        ->set('password', 'wrong-password')
-        ->call('deleteUser');
+    $response = Livewire::test('pages::settings.profile')
+        ->set('deletePassword', 'wrong-password')
+        ->call('deleteAccount');
 
-    $response->assertHasErrors(['password']);
+    $response->assertHasErrors(['deletePassword']);
 
     expect($user->fresh())->not->toBeNull();
 });
