@@ -13,9 +13,11 @@ class Tag extends Model
     use HasFactory;
 
     public const NAME_COLUMN = 'name';
+
     public const CATEGORY_COLUMN = 'category';
 
     public const MEAL_TYPE = 'meal_type';
+
     public const DIET_TYPE = 'diet_type';
 
     public function recipes(): BelongsToMany

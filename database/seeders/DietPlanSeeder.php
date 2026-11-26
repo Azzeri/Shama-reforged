@@ -453,7 +453,7 @@ class DietPlanSeeder extends Seeder
                 ],
                 'dessert' => [
                     'name' => 'Big milk + owoce',
-                    'content' => "1. Zjedz loda i owoce na przekąskę. Smacznego!",
+                    'content' => '1. Zjedz loda i owoce na przekąskę. Smacznego!',
                     'ingredients' => [
                         'Big milk' => ['me' => 57, 'wife' => 57],
                         'Borówki amerykańskie' => ['me' => 50, 'wife' => 50],
@@ -530,7 +530,7 @@ class DietPlanSeeder extends Seeder
                 ],
                 'dessert' => [
                     'name' => 'Smoothie malinowe',
-                    'content' => "1. Wszystkie składniki koktajlu blendujemy na gładką masę. W razie potrzeby dolewamy wody, aby uzyskać preferowaną konsystencję.",
+                    'content' => '1. Wszystkie składniki koktajlu blendujemy na gładką masę. W razie potrzeby dolewamy wody, aby uzyskać preferowaną konsystencję.',
                     'ingredients' => [
                         'Maliny świeże lub mrożone' => ['me' => 80, 'wife' => 80],
                         'Mleko 1,5%' => ['me' => 150, 'wife' => 150],
@@ -680,7 +680,7 @@ class DietPlanSeeder extends Seeder
                 ],
                 'dessert' => [
                     'name' => 'Mieszanka orzechów',
-                    'content' => "1. Orzechy zjadamy na przekąskę.",
+                    'content' => '1. Orzechy zjadamy na przekąskę.',
                     'ingredients' => [
                         'Mieszanka orzechów' => ['me' => 15, 'wife' => 15],
                     ],
@@ -749,7 +749,7 @@ class DietPlanSeeder extends Seeder
                 ],
                 'dessert' => [
                     'name' => 'Borówki',
-                    'content' => "1. Spożywamy jako przekąskę po posiłku lub w ciągu dnia.",
+                    'content' => '1. Spożywamy jako przekąskę po posiłku lub w ciągu dnia.',
                     'ingredients' => [
                         'Borówki amerykańskie' => ['me' => 200, 'wife' => 200],
                     ],
@@ -897,7 +897,7 @@ class DietPlanSeeder extends Seeder
                 ],
                 'dessert' => [
                     'name' => 'Bób',
-                    'content' => "1. Bób gotujemy w osolonej wodzie przez, ok 20 minut aż stanie się miękki (należy sprawdzać podczas gotowania).",
+                    'content' => '1. Bób gotujemy w osolonej wodzie przez, ok 20 minut aż stanie się miękki (należy sprawdzać podczas gotowania).',
                     'ingredients' => [
                         'Bób świeży' => ['me' => 150, 'wife' => 150],
                         'Sól' => ['me' => 0.25, 'wife' => 0.25],

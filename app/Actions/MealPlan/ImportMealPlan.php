@@ -8,6 +8,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Imports an AI-generated meal plan. Only fills empty slots: a (date, type)
@@ -18,7 +19,7 @@ class ImportMealPlan
     /**
      * @return array{created: list<string>, skipped: list<string>}
      *
-     * @throws \Illuminate\Validation\ValidationException
+     * @throws ValidationException
      */
     public function __invoke(array $payload): array
     {

@@ -13,18 +13,18 @@ return new class extends Migration
     {
         // 1. Słownik mapowania polskich nazw (małe litery) na angielskie (z Wielkiej litery)
         $dictionary = [
-            'deser'            => 'Dessert',
-            'kolacja'          => 'Supper',
-            'lunch'          => 'Lunch',
-            'obiad'            => 'Dinner',
-            'sniadanie'        => 'Breakfast',
-            'śniadanie'        => 'Breakfast',
-            'kurczak'          => 'Chicken',
-            'owoce morza'      => 'Seafood',
-            'ryba'             => 'Fish',
-            'wieprzowina'        => 'Pork',
-            'wołowina'         => 'Beef',
-            'wege'             => 'Vegetarian',
+            'deser' => 'Dessert',
+            'kolacja' => 'Supper',
+            'lunch' => 'Lunch',
+            'obiad' => 'Dinner',
+            'sniadanie' => 'Breakfast',
+            'śniadanie' => 'Breakfast',
+            'kurczak' => 'Chicken',
+            'owoce morza' => 'Seafood',
+            'ryba' => 'Fish',
+            'wieprzowina' => 'Pork',
+            'wołowina' => 'Beef',
+            'wege' => 'Vegetarian',
         ];
 
         $tags = DB::table('tags')->get();
@@ -35,7 +35,7 @@ return new class extends Migration
         foreach ($tags as $tag) {
             $normalizedOriginal = mb_strtolower(trim($tag->name));
 
-            // Jeśli jest w słowniku, bierzemy tłumaczenie. 
+            // Jeśli jest w słowniku, bierzemy tłumaczenie.
             // Jeśli nie, robimy pierwszą litery wielką (np. "makaron" -> "Makaron")
             $targetName = $dictionary[$normalizedOriginal] ?? Str::ucfirst($normalizedOriginal);
 
