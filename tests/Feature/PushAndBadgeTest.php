@@ -76,3 +76,37 @@ test('the notifications switch shows in the account only when push is configured
     config(['services.webpush.public_key' => 'pub', 'services.webpush.private_key' => 'priv']);
     Livewire::test('pages::settings.profile')->assertSee('Powiadomienia');
 });
+
+test('push notifications can be turned off for the whole account', function () {
+    config(['services.webpush.public_key' => 'pub', 'services.webpush.private_key' => 'priv']);
+    [$me, $partner] = User::factory()->count(2)->create();
+    PushSubscription::query()->create(['user_id' => $partner->id, 'endpoint' => 'https://push.test/partner', 'endpoint_hash' => hash('sha256', 'https://push.test/partner'), 'public_key' => 'k', 'auth_token' => 'a']);
+
+    $this->actingAs($partner);
+    Livewire::test('pages::settings.profile')
+        ->assertSee('Powiadomienia push')
+        ->assertSee('Na tym urządzeniu')
+        ->set('pushEnabled', false)
+        ->assertSee('Wyłączone na wszystkich Twoich urządzeniach')
+        ->assertDontSee('Na tym urządzeniu');
+
+    expect($partner->fresh()->push_enabled)->toBeFalse();
+
+    $sent = [];
+    app()->instance(PushNotifier::class, new class($sent) extends PushNotifier
+    {
+        public function __construct(private array &$sent) {}
+
+        public function send(iterable $subscriptions, array $payload): void
+        {
+            foreach ($subscriptions as $subscription) {
+                $this->sent[] = $subscription->endpoint;
+            }
+        }
+    });
+
+    $this->actingAs($me);
+    Livewire::test('pages::shopping-list.index')->set('newItemName', 'Chleb')->call('addItem');
+
+    expect($sent)->toBe([]);
+});

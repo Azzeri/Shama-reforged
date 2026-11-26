@@ -31,7 +31,10 @@ class PushNotifier
 
         dispatch(function () use ($actor, $title, $body, $url) {
             app(self::class)->send(
-                PushSubscription::query()->where('user_id', '!=', $actor->id)->get(),
+                PushSubscription::query()
+                    ->where('user_id', '!=', $actor->id)
+                    ->whereHas('user', fn ($query) => $query->where('push_enabled', true))
+                    ->get(),
                 ['title' => $title, 'body' => $body, 'url' => $url, 'badge' => ShoppingListCount::get()],
             );
         })->afterResponse();
