@@ -2,13 +2,21 @@
 
 namespace App\Models;
 
+use App\Support\ShoppingList\Quantity;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 
+/**
+ * An ingredient of a recipe. `amount` is for the whole recipe (all of its
+ * servings). The old per-person columns (amount_me / amount_wife) are kept
+ * in the DB but no longer shown or edited.
+ */
 class RecipeIngredientAssignment extends Pivot
 {
     protected $table = 'recipe_ingredient_assignments';
 
-    protected $fillable = ['recipe_id', 'ingredient_id', 'quantity', 'amount_me', 'amount_wife', 'unit'];
+    public $incrementing = true;
+
+    protected $fillable = ['recipe_id', 'ingredient_id', 'quantity', 'amount', 'amount_me', 'amount_wife', 'unit', 'is_optional', 'substitute'];
 
     /**
      * Units a shopping list total can be summed in. A plain list (not a DB
@@ -23,29 +31,23 @@ class RecipeIngredientAssignment extends Pivot
     protected function casts(): array
     {
         return [
+            'amount' => 'float',
             'amount_me' => 'float',
             'amount_wife' => 'float',
+            'is_optional' => 'boolean',
         ];
     }
 
-    public function displayQuantityFor(string $profile): ?string
-    {
-        $amount = $this->{"amount_{$profile}"};
-
-        if ($amount !== null && $this->unit) {
-            return $this->formatAmount($amount) . " {$this->unit}";
-        }
-
-        return $this->quantity ?: null;
-    }
-
     /**
-     * Combined amount needed to cover both people's portions — what the
-     * shopping list actually needs to buy. Null when neither profile has an
-     * amount recorded (falls back to the free-text quantity upstream).
+     * Amount for the whole recipe. Falls back to the per-person sum for rows
+     * written before the switch to servings.
      */
     public function totalAmount(): ?float
     {
+        if ($this->amount !== null) {
+            return $this->amount;
+        }
+
         if ($this->amount_me === null && $this->amount_wife === null) {
             return null;
         }
@@ -53,8 +55,15 @@ class RecipeIngredientAssignment extends Pivot
         return ($this->amount_me ?? 0) + ($this->amount_wife ?? 0);
     }
 
-    private function formatAmount(float $amount): string
+    /** "150 g" scaled by $factor (e.g. 3 of 2 servings = 1.5), or the free-text quantity. */
+    public function displayQuantity(float $factor = 1.0): ?string
     {
-        return rtrim(rtrim(number_format($amount, 2, '.', ''), '0'), '.');
+        $amount = $this->totalAmount();
+
+        if ($amount !== null && $this->unit) {
+            return Quantity::format(round($amount * $factor, 2), $this->unit);
+        }
+
+        return filled($this->quantity) ? $this->quantity : null;
     }
 }

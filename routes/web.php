@@ -22,6 +22,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('/meals/day/{date}', 'pages::meal.day')->name('meals.day');
 
     Route::livewire('/shopping-list', 'pages::shopping-list.index')->name('shopping-list.index');
+    Route::livewire('/shopping-list/lists/{customList}', 'pages::shopping-list.custom-list')->name('shopping-list.custom');
 });
 
 require __DIR__ . '/settings.php';

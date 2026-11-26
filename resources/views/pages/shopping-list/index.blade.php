@@ -1,6 +1,10 @@
 <?php
 
 use App\Models\Ingredient;
+use App\Models\Meal;
+use App\Models\PantryItem;
+use App\Models\Recipe;
+use App\Models\RecipeMealAssignment;
 use App\Models\ShoppingList;
 use App\Models\ShoppingListItem;
 use App\Support\ShoppingList\Quantity;
@@ -20,7 +24,9 @@ new #[Layout('layouts::app')] class extends Component {
     /** Unbought rows for dates this far in the past are deleted on visit. */
     private const PURGE_STALE_AFTER_DAYS = 7;
 
-    /** "list" or "cards" (loyalty cards). */
+    public const TABS = ['list', 'pantry', 'lists', 'cards'];
+
+    /** list (from meals) | pantry | lists (custom lists) | cards (loyalty cards). */
     #[Url(except: 'list')]
     public string $tab = 'list';
 
@@ -57,19 +63,67 @@ new #[Layout('layouts::app')] class extends Component {
 
     public function render()
     {
+        if (! in_array($this->tab, self::TABS, true)) {
+            $this->tab = 'list';
+        }
+
         return $this->view()->title(__('Shopping'));
     }
 
+    /** Household supplies marked low / out — shown in the "Zapasy domowe" group. */
     #[Computed]
-    public function cardsCount(): int
+    public function pantryToBuy(): Collection
     {
-        return \App\Models\LoyaltyCard::query()->count();
+        return PantryItem::query()->toBuy()->orderBy('name')->get();
     }
 
-    #[On('cards-changed')]
-    public function cardsChanged(): void
+    #[On('pantry-changed')]
+    public function pantryChanged(): void
     {
-        unset($this->cardsCount);
+        unset($this->pantryToBuy);
+    }
+
+    /** Ticking a household product off the list means it's back in stock. */
+    public function restock(int $id): void
+    {
+        PantryItem::query()->whereKey($id)->update(['status' => PantryItem::STATUS_OK]);
+        unset($this->pantryToBuy);
+    }
+
+    /**
+     * Recipes cooked whole on the days shown, so a day's header can say
+     * "cały przepis na 6 porcji". date => [recipe_id => servings].
+     */
+    #[Computed]
+    public function fullCookingByDate(): array
+    {
+        $dates = collect($this->list['days'])->map(fn (array $day) => $day['date']->toDateString());
+
+        if ($dates->isEmpty()) {
+            return [];
+        }
+
+        return RecipeMealAssignment::query()
+            ->where('mode', RecipeMealAssignment::MODE_FULL)
+            ->with(['meal:id,date', 'recipe:id,servings'])
+            ->whereHas('meal', fn ($query) => $query->where(fn ($query) => $dates->each(fn (string $date) => $query->orWhereDate(Meal::DATE_COLUMN, $date))))
+            ->get()
+            ->groupBy(fn (RecipeMealAssignment $assignment) => $assignment->meal->date->toDateString())
+            ->map(fn ($assignments) => $assignments->mapWithKeys(fn ($assignment) => [$assignment->recipe_id => $assignment->recipe->servings])->all())
+            ->all();
+    }
+
+    /** "21.11 · Pierogi ruskie, cały przepis na 6 porcji" */
+    public function daySubtitle(array $day): string
+    {
+        $full = $this->fullCookingByDate[$day['date']->toDateString()] ?? [];
+        $recipes = $day['recipes']->map(function ($recipe) use ($full) {
+            return isset($full[$recipe->id])
+                ? $recipe->name . ', ' . __('whole recipe for :servings', ['servings' => Recipe::servingsLabel($full[$recipe->id])])
+                : $recipe->name;
+        });
+
+        return collect([$day['date']->format('d.m'), $recipes->implode(' · ')])->filter()->implode(' · ');
     }
 
     #[Computed]
@@ -153,7 +207,7 @@ new #[Layout('layouts::app')] class extends Component {
 
     private function refreshList(): void
     {
-        unset($this->items, $this->list, $this->rangeLabel, $this->openGroupData);
+        unset($this->items, $this->list, $this->rangeLabel, $this->openGroupData, $this->fullCookingByDate);
     }
 
     /** Ids from the client, restricted to rows of the shopping list. */
@@ -307,101 +361,132 @@ new #[Layout('layouts::app')] class extends Component {
 ?>
 
 @php
-    $isList = $tab !== 'cards';
+    $isList = $tab === 'list';
     $list = $isList ? $this->list : null;
-    $progress = $list['progress'] ?? null;
+    $pantry = $isList ? $this->pantryToBuy : collect();
+    $progress = $list ? [
+        'bought' => $list['progress']['bought'],
+        'total' => $list['progress']['total'] + $pantry->count(),
+    ] : null;
+    $tabs = ['list' => __('Meals'), 'pantry' => __('Supplies'), 'lists' => __('Custom'), 'cards' => __('Cards')];
 @endphp
 
-{{-- Polls so changes made by someone else on another phone show up live. --}}
-<div wire:poll.5s>
-    <div class="space-y-5">
-        <div>
-            <div class="flex items-center justify-between gap-3">
-                <h1 class="font-fraunces text-[34px] font-semibold leading-none text-ink">{{ __('Shopping') }}</h1>
+{{-- The meals tab polls so changes made by someone else on another phone show up live. --}}
+<div @if ($isList) wire:poll.5s @endif>
+    <div class="space-y-4">
+        <div class="space-y-3">
+            <x-ui.page-header :title="__('Shopping')">
+                @switch($tab)
+                @case('pantry')
+                <x-ui.pill wire:click="$dispatch('pantry-new')">{{ __('Product') }}</x-ui.pill>
+                @break
+                @case('lists')
+                <x-ui.pill wire:click="$dispatch('list-new')">{{ __('List') }}</x-ui.pill>
+                @break
+                @case('cards')
+                <x-ui.pill wire:click="$dispatch('card-new')">{{ __('Card') }}</x-ui.pill>
+                @break
+                @default
+                <flux:modal.trigger name="add-item-modal">
+                    <x-ui.pill wire:click="resetNewItemForm">{{ __('Add') }}</x-ui.pill>
+                </flux:modal.trigger>
 
-                @if (! $isList)
-                <button type="button" wire:click="$dispatch('card-new')" class="inline-flex items-center gap-1.5 rounded-full bg-terracotta px-4 py-2.5 font-inter text-[15px] font-semibold text-white shadow-[0_6px_14px_rgba(193,68,45,0.3)]">
-                    <flux:icon.plus class="size-4" />
-                    {{ __('Card') }}
-                </button>
-                @else
-                <div class="flex items-center gap-2">
-                    <flux:modal.trigger name="add-item-modal">
-                        <button type="button" wire:click="resetNewItemForm" class="inline-flex items-center gap-1.5 rounded-full bg-terracotta px-4 py-2.5 font-inter text-[15px] font-semibold text-white shadow-[0_6px_14px_rgba(193,68,45,0.3)]">
-                            <flux:icon.plus class="size-4" />
-                            {{ __('Add') }}
-                        </button>
-                    </flux:modal.trigger>
+                <flux:dropdown position="bottom" align="end">
+                    <button type="button" class="flex items-center justify-center size-10 rounded-full border border-field bg-white text-ink" aria-label="{{ __('More') }}">
+                        <x-icon.dots class="size-5" />
+                    </button>
+                    <flux:menu>
+                        <flux:menu.item icon="calendar-days" :href="route('meals.index')" wire:navigate>{{ __('Generate from the meal plan') }}</flux:menu.item>
+                        <flux:menu.item icon="check-circle" wire:click="clearBought">{{ __('Clear bought items') }}</flux:menu.item>
+                        <flux:modal.trigger name="clear-list-modal">
+                            <flux:menu.item icon="trash" variant="danger">{{ __('Clear the whole list') }}</flux:menu.item>
+                        </flux:modal.trigger>
+                    </flux:menu>
+                </flux:dropdown>
+                @endswitch
+            </x-ui.page-header>
 
-                    <flux:dropdown position="bottom" align="end">
-                        <button type="button" class="flex items-center justify-center size-11 rounded-full border border-line bg-white text-ink" aria-label="{{ __('More') }}">
-                            <flux:icon.ellipsis-horizontal class="size-5" />
-                        </button>
-                        <flux:menu>
-                            <flux:menu.item icon="calendar-days" :href="route('meals.index')" wire:navigate>{{ __('Generate from the meal plan') }}</flux:menu.item>
-                            <flux:menu.item icon="check-circle" wire:click="clearBought">{{ __('Clear bought items') }}</flux:menu.item>
-                            <flux:modal.trigger name="clear-list-modal">
-                                <flux:menu.item icon="trash" variant="danger">{{ __('Clear the whole list') }}</flux:menu.item>
-                            </flux:modal.trigger>
-                        </flux:menu>
-                    </flux:dropdown>
-                </div>
-                @endif
-            </div>
-
-            <div class="mt-4 grid grid-cols-2 gap-1 rounded-2xl bg-sand p-1">
-                @foreach (['list' => __('List'), 'cards' => __('Cards')] as $key => $label)
-                <button type="button" wire:click="$set('tab', '{{ $key }}')" @class([
-                    'rounded-xl py-2.5 font-inter text-[15px] font-semibold text-ink transition-colors',
-                    'bg-white shadow-sm' => ($key === 'cards') === ! $isList,
-                ])>
-                    {{ $label }}
-                    @if ($key === 'cards' && $this->cardsCount > 0)
-                    <span class="ml-1 font-semibold text-muted">{{ $this->cardsCount }}</span>
-                    @endif
-                </button>
-                @endforeach
-            </div>
+            <x-ui.segmented :options="$tabs" model="tab" :value="$tab" size="sm" />
 
             @if ($isList && $progress['total'] > 0)
-            <div class="mt-4 flex items-center justify-between font-inter text-[13.5px] text-muted">
-                <span>{{ __('Bought :bought of :total', $progress) }}</span>
-                @if ($this->rangeLabel)
-                <span>{{ $this->rangeLabel }}</span>
-                @endif
-            </div>
-            <div class="mt-1.5 h-1.5 rounded-full bg-ink/10 overflow-hidden">
-                <div class="h-full rounded-full bg-forest transition-all" style="width: {{ round($progress['bought'] / $progress['total'] * 100) }}%"></div>
+            <div>
+                <div class="flex items-center justify-between text-[13px] text-muted">
+                    <span>{{ __('Bought :bought of :total', $progress) }}</span>
+                    @if ($this->rangeLabel)
+                    <span>{{ $this->rangeLabel }}</span>
+                    @endif
+                </div>
+                <div class="mt-1.5 h-1.5 rounded-full bg-sand overflow-hidden" role="progressbar" aria-valuemin="0" aria-valuemax="{{ $progress['total'] }}" aria-valuenow="{{ $progress['bought'] }}">
+                    <div class="h-full rounded-full bg-sage transition-all" style="width: {{ round($progress['bought'] / $progress['total'] * 100) }}%"></div>
+                </div>
             </div>
             @endif
         </div>
 
-        @if (! $isList)
+        @switch($tab)
+        @case('pantry')
+        <livewire:shopping-list.pantry />
+        @break
+        @case('lists')
+        <livewire:shopping-list.custom-lists />
+        @break
+        @case('cards')
         <livewire:shopping-list.cards />
-        @else
+        @break
+        @default
         @if ($progress['total'] === 0)
-        <div class="rounded-[22px] border border-dashed border-field px-5 py-10 text-center space-y-3">
-            <p class="font-inter text-[15px] text-muted">{{ __('The shopping list is empty.') }}</p>
-            <a href="{{ route('meals.index') }}" wire:navigate class="inline-flex items-center gap-1.5 font-inter text-[15px] font-semibold text-terracotta-dark">
-                <flux:icon.calendar-days class="size-4" />
+        <div class="rounded-[20px] border border-dashed border-field px-5 py-10 text-center space-y-3">
+            <p class="text-[15px] text-muted">{{ __('The shopping list is empty.') }}</p>
+            <a href="{{ route('meals.index') }}" wire:navigate class="inline-flex items-center gap-1.5 text-[15px] font-semibold text-terracotta">
+                <x-icon.calendar class="size-4" />
                 {{ __('Generate from the meal plan') }}
             </a>
         </div>
         @endif
 
-        @if ($list['weekly']['count'] > 0)
-        <section x-data="{ open: $persist(true).as('shopping-weekly-open') }">
-            <button type="button" x-on:click="open = ! open" class="w-full flex items-center gap-2 text-left">
-                <span class="font-fraunces text-[22px] font-semibold text-ink">{{ __('For the whole week') }}</span>
-                <span class="font-inter text-[13px] text-muted">{{ __('buy right away') }}</span>
-                <span class="ml-auto font-inter text-[14px] font-semibold text-muted">{{ $list['weekly']['count'] }}</span>
-                <flux:icon.chevron-down class="size-4 text-muted transition-transform" x-bind:class="open || '-rotate-90'" />
+        @if ($list['upcoming']['count'] > 0 || $pantry->isNotEmpty())
+        <section x-data="{ open: $persist(true).as('shopping-upcoming-open') }">
+            <button type="button" x-on:click="open = ! open" x-bind:aria-expanded="open" class="w-full flex items-start gap-2 text-left">
+                <span class="flex-1 min-w-0">
+                    <span class="block font-fraunces text-[22px] font-semibold leading-tight text-ink">{{ __('Upcoming shopping') }}</span>
+                    <span class="block text-[12.5px] text-muted">{{ __('today, tomorrow and for the whole week') }}</span>
+                </span>
+                <span class="pt-1.5 text-[14px] text-muted">{{ $list['upcoming']['count'] + $pantry->count() }}</span>
+                <x-icon.chevron-down class="mt-2 size-4 text-muted transition-transform" x-bind:class="open || '-rotate-90'" />
             </button>
 
-            <div x-show="open" x-collapse class="mt-3 space-y-4">
-                @foreach ($list['weekly']['categories'] as $category)
-                <x-shopping-list.category :category="$category" wire:key="weekly-{{ $category['category'] }}" />
+            <div x-show="open" x-collapse class="mt-2 space-y-3">
+                @foreach ($list['upcoming']['categories'] as $category)
+                <x-shopping-list.category :category="$category" wire:key="upcoming-{{ $category['category'] }}" />
                 @endforeach
+
+                @if ($pantry->isNotEmpty())
+                <div wire:key="upcoming-pantry">
+                    <x-ui.section-label class="mb-1.5">{{ __('Household supplies') }}</x-ui.section-label>
+                    <div class="rounded-2xl border border-line overflow-hidden divide-y divide-divider bg-white">
+                        @foreach ($pantry as $pantryItem)
+                        <div wire:key="pantry-row-{{ $pantryItem->id }}" x-data="{ checked: false }" class="flex items-center gap-3 px-3.5 py-2.5 min-h-[52px]">
+                            <button
+                                type="button"
+                                x-on:click="checked = true; setTimeout(() => $wire.restock({{ $pantryItem->id }}), 250)"
+                                aria-label="{{ __('Bought') }}: {{ $pantryItem->name }}"
+                                class="shrink-0 -m-2.5 p-2.5">
+                                <span class="size-[22px] rounded-[7px] border-[1.5px] flex items-center justify-center transition-colors" :class="checked ? 'bg-sage border-sage' : 'border-field bg-white'">
+                                    <x-icon.check class="size-3.5 text-white" x-show="checked" />
+                                </span>
+                            </button>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-[15px] font-medium text-ink truncate" :class="checked && 'line-through text-muted'">{{ $pantryItem->name }}</span>
+                                    <span class="shrink-0 rounded-full bg-sage-light px-1.5 py-px text-[11px] font-semibold text-forest">{{ __('pantry') }}</span>
+                                </div>
+                                <div class="text-[12.5px] text-muted">{{ $pantryItem->status === \App\Models\PantryItem::STATUS_OUT ? __('none at home') : __('running low') }}</div>
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
             </div>
         </section>
         @endif
@@ -409,42 +494,36 @@ new #[Layout('layouts::app')] class extends Component {
         @foreach ($list['days'] as $day)
         @php $dateKey = $day['date']->toDateString(); @endphp
         <section wire:key="day-{{ $dateKey }}" x-data="{ open: true }">
-            <button type="button" x-on:click="open = ! open" class="w-full flex items-baseline gap-2 text-left">
-                <span class="font-fraunces text-[22px] font-semibold {{ $day['date']->isToday() ? 'text-terracotta-dark' : 'text-ink' }}">{{ $this->dayName($day['date']) }}</span>
-                <span class="font-inter text-[13px] text-muted">{{ $day['date']->isToday() ? __('today') : $day['date']->format('d.m') }}</span>
-                @if ($day['date']->lt(today()))
-                <span class="font-inter text-[12px] font-semibold text-terracotta-dark">{{ __('overdue') }}</span>
-                @endif
-                <span class="ml-auto font-inter text-[14px] font-semibold text-muted">{{ $day['count'] }}</span>
-                <flux:icon.chevron-down class="size-4 self-center text-muted transition-transform" x-bind:class="open || '-rotate-90'" />
+            <button type="button" x-on:click="open = ! open" x-bind:aria-expanded="open" class="w-full flex items-start gap-2 text-left">
+                <span class="flex-1 min-w-0">
+                    <span class="block font-fraunces text-[22px] font-semibold leading-tight text-ink">{{ $this->dayName($day['date']) }}</span>
+                    <span class="block text-[12.5px] text-muted">{{ $this->daySubtitle($day) }}</span>
+                </span>
+                <span class="pt-1.5 text-[14px] text-muted">{{ $day['count'] }}</span>
+                <x-icon.chevron-down class="mt-2 size-4 text-muted transition-transform" x-bind:class="open || '-rotate-90'" />
             </button>
 
-            <div x-show="open" x-collapse class="mt-3 space-y-4">
+            <div x-show="open" x-collapse class="mt-2 space-y-3">
                 @foreach ($day['categories'] as $category)
                 <x-shopping-list.category :category="$category" can-move-earlier wire:key="day-{{ $dateKey }}-{{ $category['category'] }}" />
                 @endforeach
-
-                @if ($day['coveredCount'] > 0)
-                <p class="flex items-start gap-1.5 font-inter text-[13px] text-muted">
-                    <flux:icon.check-badge class="size-4 shrink-0 mt-px" />
-                    {{ trans_choice(':count product for this day is already in the For the whole week section|:count products for this day are already in the For the whole week section', $day['coveredCount']) }}
-                </p>
-                @endif
             </div>
         </section>
         @endforeach
 
         @if ($list['bought']['count'] > 0)
         <section x-data="{ open: $persist(false).as('shopping-bought-open') }">
-            <button type="button" x-on:click="open = ! open" class="w-full flex items-center gap-2 text-left">
-                <span class="font-fraunces text-[22px] font-semibold text-ink">{{ __('Bought') }}</span>
-                <span class="font-inter text-[13px] text-muted">{{ __('last 7 days') }}</span>
-                <span class="ml-auto font-inter text-[14px] font-semibold text-muted">{{ $list['bought']['count'] }}</span>
-                <flux:icon.chevron-down class="size-4 text-muted transition-transform" x-bind:class="open || '-rotate-90'" />
+            <button type="button" x-on:click="open = ! open" x-bind:aria-expanded="open" class="w-full flex items-start gap-2 text-left">
+                <span class="flex-1 min-w-0">
+                    <span class="block font-fraunces text-[22px] font-semibold leading-tight text-ink">{{ __('Bought') }}</span>
+                    <span class="block text-[12.5px] text-muted">{{ __('this week') }}</span>
+                </span>
+                <span class="pt-1.5 text-[14px] text-muted">{{ $list['bought']['count'] }}</span>
+                <x-icon.chevron-down class="mt-2 size-4 text-muted transition-transform" x-bind:class="open || '-rotate-90'" />
             </button>
 
-            <div x-show="open" x-collapse class="mt-3">
-                <div class="rounded-[18px] border border-line overflow-hidden divide-y divide-divider bg-white">
+            <div x-show="open" x-collapse class="mt-2">
+                <div class="rounded-2xl border border-line overflow-hidden divide-y divide-divider bg-white">
                     @foreach ($list['bought']['groups'] as $group)
                     <x-shopping-list.item-tile :group="$group" bought />
                     @endforeach
@@ -452,32 +531,32 @@ new #[Layout('layouts::app')] class extends Component {
             </div>
         </section>
         @endif
-        @endif
+        @endswitch
     </div>
 
-    <flux:modal name="add-item-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
-        <form wire:submit="addItem" class="space-y-5">
-            <div class="flex items-start justify-between gap-2">
-                <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Add item') }}</h3>
+    <flux:modal name="add-item-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-white! max-h-[88dvh] overflow-y-auto">
+        <form wire:submit="addItem" class="space-y-4">
+            <div class="flex items-center justify-between gap-2">
+                <h2 class="font-fraunces text-[20px] font-semibold text-ink">{{ __('Add item') }}</h2>
                 <flux:modal.close>
-                    <button type="button" class="text-ink/25 hover:text-muted p-1.5 text-lg leading-none">✕</button>
+                    <button type="button" class="-mr-2.5 flex size-11 items-center justify-center text-ink" aria-label="{{ __('Close') }}"><x-icon.x class="size-[18px]" /></button>
                 </flux:modal.close>
             </div>
 
             <div>
-                <x-ui.eyebrow>{{ __('Product name') }}</x-ui.eyebrow>
-                <x-ui.text-input wire:model="newItemName" class="w-full" required autofocus />
+                <label for="new-item-name" class="block text-[13px] font-medium text-muted mb-1.5">{{ __('Product name') }}</label>
+                <x-ui.text-input id="new-item-name" wire:model="newItemName" class="w-full bg-field-bg" required autofocus />
                 <x-ui.field-error name="newItemName" />
             </div>
 
             <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <x-ui.eyebrow optional>{{ __('Quantity') }}</x-ui.eyebrow>
-                    <x-ui.text-input wire:model="newItemQuantity" placeholder="{{ __('e.g. 500 g') }}" class="w-full" />
+                    <label for="new-item-qty" class="block text-[13px] font-medium text-muted mb-1.5">{{ __('Quantity') }} <span class="font-normal">· {{ __('optional') }}</span></label>
+                    <x-ui.text-input id="new-item-qty" wire:model="newItemQuantity" placeholder="{{ __('e.g. 500 g') }}" class="w-full bg-field-bg" />
                 </div>
                 <div>
-                    <x-ui.eyebrow optional>{{ __('For when') }}</x-ui.eyebrow>
-                    <select wire:model="newItemDate" class="w-full border-[1.5px] border-field bg-white rounded-2xl px-3.5 py-[13px] font-inter text-base sm:text-sm text-ink">
+                    <label for="new-item-date" class="block text-[13px] font-medium text-muted mb-1.5">{{ __('For when') }}</label>
+                    <select id="new-item-date" wire:model="newItemDate" class="w-full h-11 border border-field bg-field-bg rounded-xl px-3 text-base text-ink">
                         <option value="">{{ __('Whole week') }}</option>
                         @foreach ($this->dateOptions as $option)
                         <option value="{{ $option['value'] }}">{{ $option['label'] }}</option>
@@ -487,46 +566,44 @@ new #[Layout('layouts::app')] class extends Component {
             </div>
 
             <div>
-                <x-ui.eyebrow optional>{{ __('Note') }}</x-ui.eyebrow>
-                <x-ui.text-input wire:model="newItemNotes" class="w-full" />
+                <label for="new-item-notes" class="block text-[13px] font-medium text-muted mb-1.5">{{ __('Note') }} <span class="font-normal">· {{ __('optional') }}</span></label>
+                <x-ui.text-input id="new-item-notes" wire:model="newItemNotes" class="w-full bg-field-bg" />
             </div>
 
-            <button type="submit" class="w-full bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-[14px] py-3.5 font-inter text-sm font-semibold">
-                + {{ __('Add') }}
-            </button>
+            <x-ui.button type="submit">{{ __('Add') }}</x-ui.button>
         </form>
     </flux:modal>
 
-    <flux:modal name="item-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
+    <flux:modal name="item-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-white! max-h-[88dvh] overflow-y-auto">
         @if ($group = $this->openGroupData)
-        <div class="space-y-5">
+        <div class="space-y-4">
             <div class="flex items-start justify-between gap-2">
-                <div>
-                    <h3 class="font-fraunces text-xl font-semibold text-ink">{{ $group['name'] }}</h3>
+                <div class="min-w-0">
+                    <h2 class="font-fraunces text-[20px] font-semibold text-ink">{{ $group['name'] }}</h2>
                     @if ($group['total'])
-                    <div class="font-inter text-[14px] text-muted">{{ __('Total') }}: {{ $group['total'] }}</div>
+                    <div class="text-[14px] text-muted">{{ __('Total') }}: {{ $group['total'] }}</div>
                     @endif
                 </div>
                 <flux:modal.close>
-                    <button type="button" class="text-ink/25 hover:text-muted p-1.5 text-lg leading-none">✕</button>
+                    <button type="button" class="-mr-2.5 flex size-11 items-center justify-center text-ink" aria-label="{{ __('Close') }}"><x-icon.x class="size-[18px]" /></button>
                 </flux:modal.close>
             </div>
 
             @if ($group['single'])
             <form wire:submit="saveItem" class="space-y-4">
                 <div>
-                    <x-ui.eyebrow>{{ __('Product name') }}</x-ui.eyebrow>
-                    <x-ui.text-input wire:model="editName" class="w-full" required />
+                    <label for="edit-item-name" class="block text-[13px] font-medium text-muted mb-1.5">{{ __('Product name') }}</label>
+                    <x-ui.text-input id="edit-item-name" wire:model="editName" class="w-full bg-field-bg" required />
                     <x-ui.field-error name="editName" />
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <x-ui.eyebrow optional>{{ __('Quantity') }}</x-ui.eyebrow>
-                        <x-ui.text-input wire:model="editQuantity" class="w-full" />
+                        <label for="edit-item-qty" class="block text-[13px] font-medium text-muted mb-1.5">{{ __('Quantity') }}</label>
+                        <x-ui.text-input id="edit-item-qty" wire:model="editQuantity" class="w-full bg-field-bg" />
                     </div>
                     <div>
-                        <x-ui.eyebrow optional>{{ __('For when') }}</x-ui.eyebrow>
-                        <select wire:model="editDate" class="w-full border-[1.5px] border-field bg-white rounded-2xl px-3.5 py-[13px] font-inter text-base sm:text-sm text-ink">
+                        <label for="edit-item-date" class="block text-[13px] font-medium text-muted mb-1.5">{{ __('For when') }}</label>
+                        <select id="edit-item-date" wire:model="editDate" class="w-full h-11 border border-field bg-field-bg rounded-xl px-3 text-base text-ink">
                             <option value="">{{ __('Whole week') }}</option>
                             @if ($editDate && ! $this->dateOptions->contains('value', $editDate))
                             <option value="{{ $editDate }}">{{ $this->dayName(Carbon::parse($editDate)) }} {{ Carbon::parse($editDate)->format('d.m') }}</option>
@@ -538,65 +615,60 @@ new #[Layout('layouts::app')] class extends Component {
                     </div>
                 </div>
                 <div>
-                    <x-ui.eyebrow optional>{{ __('Note') }}</x-ui.eyebrow>
-                    <x-ui.text-input wire:model="editNotes" class="w-full" />
+                    <label for="edit-item-notes" class="block text-[13px] font-medium text-muted mb-1.5">{{ __('Note') }} <span class="font-normal">· {{ __('optional') }}</span></label>
+                    <x-ui.text-input id="edit-item-notes" wire:model="editNotes" class="w-full bg-field-bg" />
                 </div>
                 @if ($recipe = $group['items'][0]->recipe)
-                <p class="font-inter text-[13px] text-muted">{{ __('From recipe') }}: {{ $recipe->name }}</p>
+                <p class="text-[13px] text-muted">{{ __('From recipe') }}: {{ $recipe->name }}</p>
                 @endif
-                <button type="submit" class="w-full bg-terracotta hover:bg-terracotta-dark transition-colors text-white rounded-[14px] py-3.5 font-inter text-sm font-semibold">
-                    {{ __('Save') }}
-                </button>
+                <x-ui.button type="submit">{{ __('Save') }}</x-ui.button>
             </form>
             @else
             <div class="rounded-2xl border border-line bg-white divide-y divide-divider">
                 @foreach ($group['items'] as $row)
-                <div wire:key="open-row-{{ $row->id }}" class="flex items-center gap-3 px-3.5 py-2.5">
+                <div wire:key="open-row-{{ $row->id }}" class="flex items-center gap-3 px-3.5 py-2">
                     <div class="flex-1 min-w-0">
-                        <div class="font-inter text-[14px] font-semibold text-ink truncate">{{ $row->recipe?->name ?? $row->name }}</div>
-                        <div class="font-inter text-[12px] text-muted">
+                        <div class="text-[14px] font-semibold text-ink truncate">{{ $row->recipe?->name ?? $row->name }}</div>
+                        <div class="text-[12px] text-muted">
                             {{ $row->needed_on ? $this->dayName($row->needed_on) . ' ' . $row->needed_on->format('d.m') : __('Whole week') }}
                         </div>
                     </div>
+                    <label class="sr-only" for="row-qty-{{ $row->id }}">{{ __('Quantity') }}</label>
                     <input
+                        id="row-qty-{{ $row->id }}"
                         type="text"
                         value="{{ $row->displayQuantity() }}"
                         x-on:change="$wire.updateRowQuantity({{ $row->id }}, $event.target.value)"
-                        class="w-24 rounded-xl border border-field bg-cream px-2.5 py-1.5 text-right font-inter text-base sm:text-sm text-ink" />
-                    <button type="button" wire:click="deleteItems([{{ $row->id }}])" class="text-ink/40 p-1" aria-label="{{ __('Delete') }}">
-                        <flux:icon.x-mark class="size-4" />
+                        class="w-24 h-10 rounded-xl border border-field bg-field-bg px-2.5 text-right text-base text-ink focus:outline-none focus:border-ink" />
+                    <button type="button" wire:click="deleteItems([{{ $row->id }}])" class="flex size-10 items-center justify-center text-muted" aria-label="{{ __('Delete') }}">
+                        <x-icon.x class="size-4" />
                     </button>
                 </div>
                 @endforeach
             </div>
             @endif
 
-            <div class="grid grid-cols-2 gap-2">
+            <x-ui.delete-footer :name="$group['name']" action="deleteItems({{ \Illuminate\Support\Js::from($openIds) }})">
                 @if ($group['canMoveEarlier'])
-                <button type="button" wire:click="moveEarlier({{ \Illuminate\Support\Js::from($openIds) }})" class="rounded-[14px] border border-line bg-white py-3 font-inter text-sm font-semibold text-ink">
+                <button type="button" wire:click="moveEarlier({{ \Illuminate\Support\Js::from($openIds) }})" class="h-11 rounded-full border border-field bg-white px-4 text-[14px] font-semibold text-ink">
                     {{ __('Buy a day earlier') }}
                 </button>
                 @endif
-                <flux:modal.close>
-                    <button type="button" wire:click="deleteItems({{ \Illuminate\Support\Js::from($openIds) }})" class="w-full rounded-[14px] py-3 font-inter text-sm font-semibold text-terracotta-dark">
-                        {{ __('Delete') }}
-                    </button>
-                </flux:modal.close>
-            </div>
+            </x-ui.delete-footer>
         </div>
         @endif
     </flux:modal>
 
-    <flux:modal name="clear-list-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-cream! max-h-[88dvh] overflow-y-auto">
-        <div class="space-y-5">
-            <h3 class="font-fraunces text-xl font-semibold text-ink">{{ __('Clear the whole list?') }}</h3>
-            <p class="font-inter text-sm text-muted">{{ __('All items will be removed, including bought ones. This cannot be undone.') }}</p>
+    <flux:modal name="clear-list-modal" variant="flyout" position="bottom" :closable="false" class="rounded-t-[24px] bg-white! max-h-[88dvh] overflow-y-auto">
+        <div class="space-y-4">
+            <h2 class="font-fraunces text-[20px] font-semibold text-ink">{{ __('Clear the whole list?') }}</h2>
+            <p class="text-[14px] text-muted">{{ __('All items will be removed, including bought ones. This cannot be undone.') }}</p>
             <div class="flex gap-2 justify-end">
                 <flux:modal.close>
-                    <button type="button" class="font-inter text-sm font-semibold text-muted px-4 py-2.5">{{ __('Cancel') }}</button>
+                    <button type="button" class="h-11 rounded-full border border-field bg-white px-4 text-[14px] font-semibold text-ink">{{ __('No') }}</button>
                 </flux:modal.close>
                 <flux:modal.close>
-                    <button type="button" wire:click="clearAll" class="bg-terracotta text-white rounded-2xl px-5 py-2.5 font-inter text-sm font-semibold">{{ __('Clear list') }}</button>
+                    <button type="button" wire:click="clearAll" class="h-11 rounded-full bg-terracotta px-4 text-[14px] font-semibold text-white">{{ __('Clear list') }}</button>
                 </flux:modal.close>
             </div>
         </div>

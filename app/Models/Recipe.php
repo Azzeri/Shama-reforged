@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Str;
 
 #[Fillable([
-    'name', 'content', 'link',
+    'name', 'content', 'link', 'servings', 'rating', 'packable', 'archived_at',
     'calories_me', 'protein_me', 'fat_me', 'carbs_me',
     'calories_wife', 'protein_wife', 'fat_wife', 'carbs_wife',
 ])]
@@ -19,6 +19,70 @@ class Recipe extends Model
     use HasFactory;
 
     public const NAME_COLUMN = 'name';
+
+    public const RATING_HEALTHY = 'healthy';
+
+    public const RATING_MEDIUM = 'medium';
+
+    public const RATING_UNHEALTHY = 'unhealthy';
+
+    public const RATINGS = [self::RATING_HEALTHY, self::RATING_MEDIUM, self::RATING_UNHEALTHY];
+
+    public static function ratingLabel(string $rating): string
+    {
+        return match ($rating) {
+            self::RATING_HEALTHY => __('healthy'),
+            self::RATING_MEDIUM => __('medium'),
+            self::RATING_UNHEALTHY => __('unhealthy'),
+            default => $rating,
+        };
+    }
+
+    /** Tailwind background class of the rating dot. */
+    public static function ratingDotClass(string $rating): string
+    {
+        return match ($rating) {
+            self::RATING_HEALTHY => 'bg-sage',
+            self::RATING_MEDIUM => 'bg-gold',
+            default => 'bg-terracotta',
+        };
+    }
+
+    /** Servings one planned meal uses up (see config/meals.php). */
+    public static function servingsPerMeal(): int
+    {
+        return max(1, (int) config('meals.servings_per_meal', 2));
+    }
+
+    /** "2 porcje" */
+    public static function servingsLabel(int $servings): string
+    {
+        return trans_choice(':count serving|:count servings', $servings);
+    }
+
+    /**
+     * How many days after the cooking day a recipe cooked whole still feeds
+     * the household (servings left after the cooking-day meal).
+     */
+    public function maxLeftoverDays(): int
+    {
+        return max(0, intdiv((int) $this->servings, self::servingsPerMeal()) - 1);
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->whereNull('archived_at');
+    }
+
+    public function scopeArchived($query)
+    {
+        return $query->whereNotNull('archived_at');
+    }
 
     public const NUTRITION_PROFILES = ['me', 'wife'];
 
@@ -34,6 +98,9 @@ class Recipe extends Model
     protected function casts(): array
     {
         return [
+            'servings' => 'integer',
+            'packable' => 'boolean',
+            'archived_at' => 'datetime',
             'calories_me' => 'integer',
             'protein_me' => 'float',
             'fat_me' => 'float',
@@ -131,7 +198,7 @@ class Recipe extends Model
     {
         return $this->belongsToMany(Ingredient::class, 'recipe_ingredient_assignments')
             ->using(RecipeIngredientAssignment::class)
-            ->withPivot('quantity', 'amount_me', 'amount_wife', 'unit')
+            ->withPivot('id', 'quantity', 'amount', 'amount_me', 'amount_wife', 'unit', 'is_optional', 'substitute')
             ->withTimestamps();
     }
 
@@ -139,6 +206,7 @@ class Recipe extends Model
     {
         return $this->belongsToMany(Meal::class, 'recipe_meal_assignments')
             ->using(RecipeMealAssignment::class)
+            ->withPivot('id', 'mode', 'cooked_from_id')
             ->withTimestamps();
     }
 

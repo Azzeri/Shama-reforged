@@ -3,6 +3,7 @@
 namespace App\Actions\ShoppingList;
 
 use App\Models\Meal;
+use App\Models\RecipeMealAssignment;
 use App\Models\ShoppingList;
 use App\Models\ShoppingListItem;
 use App\Support\ShoppingList\Quantity;
@@ -16,6 +17,10 @@ use Illuminate\Support\Facades\DB;
  * updates the list instead of doubling it), while anything already bought
  * stays and isn't added again. Manually added items are never touched.
  * Ingredients marked "skip on the shopping list" (salt, water...) are left out.
+ *
+ * Amounts follow the plan entry's mode: one meal = servingsPerMeal of the
+ * recipe's servings, a recipe cooked whole = full amounts on the cooking
+ * day, leftovers = nothing.
  */
 class GenerateShoppingList
 {
@@ -63,6 +68,12 @@ class GenerateShoppingList
 
             foreach ($meals as $meal) {
                 foreach ($meal->recipes as $recipe) {
+                    $factor = RecipeMealAssignment::shoppingFactor($recipe->pivot->mode, (int) $recipe->servings);
+
+                    if ($factor <= 0) {
+                        continue;
+                    }
+
                     foreach ($recipe->ingredients as $ingredient) {
                         if ($ingredient->skip_shopping) {
                             continue;
@@ -76,13 +87,16 @@ class GenerateShoppingList
 
                         $pivot = $ingredient->pivot;
                         $quantity = trim((string) ($pivot->quantity ?? ''));
-                        [$amount, $unit] = Quantity::normalize($pivot->totalAmount(), $pivot->unit);
+                        $total = $pivot->totalAmount();
+                        [$amount, $unit] = Quantity::normalize($total !== null ? round($total * $factor, 2) : null, $pivot->unit);
 
                         $shoppingList->items()->create([
                             'name' => $ingredient->name,
                             'quantity' => $amount === null && $quantity !== '' ? $quantity : null,
                             'amount' => $amount,
                             'unit' => $amount !== null ? $unit : null,
+                            'is_optional' => (bool) $pivot->is_optional,
+                            'substitute' => filled($pivot->substitute) ? $pivot->substitute : null,
                             'is_checked' => false,
                             'needed_on' => $meal->date->toDateString(),
                             'recipe_id' => $recipe->id,

@@ -25,7 +25,7 @@
             type="button"
             wire:click="moveEarlier({{ $idsJs }})"
             x-on:click="close()"
-            class="w-[74px] flex items-center justify-center bg-gold text-white font-inter text-[12px] font-semibold">
+            class="w-[74px] flex items-center justify-center bg-gold text-ink text-[12px] font-semibold">
             {{ __('Day earlier') }}
         </button>
         @endif
@@ -44,25 +44,41 @@
         x-on:click="tapRow"
         :style="`transform: translateX(${dx}px)`"
         :class="dragging && 'transition-none'"
-        class="relative flex items-center gap-3.5 px-3.5 py-3 select-none cursor-pointer transition-transform {{ $bought ? 'bg-[#FBF9F4]' : 'bg-white' }}">
+        class="relative flex items-center gap-3 px-3.5 py-2.5 min-h-[52px] select-none cursor-pointer transition-transform {{ $bought ? 'bg-field-bg' : 'bg-white' }}">
         <button
             type="button"
             x-on:click.stop="toggle()"
-            aria-label="{{ __('Bought') }}"
-            class="shrink-0 size-[26px] rounded-[8px] border-[1.5px] flex items-center justify-center transition-colors"
-            :class="checked ? 'bg-forest border-forest' : 'border-field bg-white'">
-            <flux:icon.check class="size-4 text-white" variant="mini" x-show="checked" />
+            aria-label="{{ __('Bought') }}: {{ $group['name'] }}"
+            x-bind:aria-pressed="checked ? 'true' : 'false'"
+            class="shrink-0 -m-2.5 p-2.5">
+            <span class="size-[22px] rounded-[7px] border-[1.5px] flex items-center justify-center transition-colors"
+                :class="checked ? 'bg-sage border-sage' : 'border-field bg-white'">
+                <x-icon.check class="size-3.5 text-white" x-show="checked" />
+            </span>
         </button>
 
         <div class="flex-1 min-w-0">
-            <div class="font-inter text-[16px] font-medium leading-snug truncate" :class="checked ? 'text-ink/40 line-through' : 'text-ink'">{{ $group['name'] }}</div>
+            <div class="flex items-center gap-1.5 min-w-0">
+                <span class="text-[15px] font-medium leading-snug truncate" :class="checked ? 'text-muted line-through' : 'text-ink'">{{ $group['name'] }}</span>
+                @if (($group['when'] ?? null) === 'today')
+                <span class="shrink-0 rounded-full bg-today px-1.5 py-px text-[11px] font-semibold text-today-ink">{{ __('today') }}</span>
+                @elseif (($group['when'] ?? null) === 'tomorrow')
+                <span class="shrink-0 rounded-full bg-gold-light px-1.5 py-px text-[11px] font-semibold text-gold-dark">{{ __('tomorrow') }}</span>
+                @endif
+                @if ($group['optional'] ?? false)
+                <span class="shrink-0 rounded-full border border-dashed border-faint px-1.5 text-[11px] font-medium text-muted">{{ __('optional') }}</span>
+                @endif
+            </div>
             @if ($group['subtitle'])
-            <div class="font-inter text-[12.5px] text-muted truncate">{{ $group['subtitle'] }}</div>
+            <div class="text-[12.5px] text-muted truncate">{{ $group['subtitle'] }}</div>
+            @endif
+            @if ($group['substitute'] ?? null)
+            <div class="text-[12.5px] text-muted truncate">{{ __('or') }}: {{ $group['substitute'] }}</div>
             @endif
         </div>
 
         @if ($group['quantity'])
-        <span class="shrink-0 max-w-[45%] text-right font-inter text-[15px]" :class="checked ? 'text-ink/35 line-through' : 'text-muted'">{{ $group['quantity'] }}</span>
+        <span class="shrink-0 max-w-[40%] text-right text-[14px] tabular-nums" :class="checked ? 'text-muted line-through' : 'text-ink'">{{ $group['quantity'] }}</span>
         @endif
     </div>
 </div>
