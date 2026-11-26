@@ -292,9 +292,8 @@ new #[Layout('layouts::app')] class extends Component {
     <div class="lg:grid lg:grid-cols-[minmax(340px,420px)_1fr] lg:items-start lg:gap-8 lg:pt-2">
     {{-- On desktop a row selects the recipe for the right-hand pane instead of opening its page. --}}
     <div class="space-y-3"
-        x-data
-        x-init="if (window.isDesktop() && ! $wire.selectedId && {{ $recipes->first()?->id ?? 'null' }}) $wire.select({{ $recipes->first()?->id ?? 'null' }})"
-        x-on:click.capture="if (window.isDesktop()) { const row = $event.target.closest('a[data-recipe-id]'); if (row) { $event.preventDefault(); $event.stopPropagation(); $wire.select(Number(row.dataset.recipeId)) } }">
+        x-data="desktopSelect('a[data-recipe-id]', 'recipeId', (id) => $wire.select(id))"
+        x-init="if (window.isDesktop() && ! $wire.selectedId && {{ $recipes->first()?->id ?? 'null' }}) $wire.select({{ $recipes->first()?->id ?? 'null' }})">
     @if ($filtersActive)
     <div class="flex items-center justify-between pt-1">
         <span class="text-[14px] text-muted">{{ trans_choice(':count recipe|:count recipes', $recipes->count()) }}</span>

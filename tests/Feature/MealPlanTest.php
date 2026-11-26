@@ -151,3 +151,22 @@ test('a planned meal of a recipe for 4 puts half of it on the shopping list', fu
 
     expect(ShoppingListItem::query()->sole()->amount)->toBe(400.0);
 });
+
+test('a recipe can be previewed from the picker and chosen from the preview', function () {
+    $recipe = Recipe::query()->create(['name' => 'Zupa pomidorowa', 'servings' => 2, 'content' => "Pokrój pomidory.\nGotuj 20 minut."]);
+
+    Livewire::test('pages::meal.day-edit', ['date' => '2026-11-18'])
+        ->call('openRecipePicker', 'lunch')
+        ->call('previewRecipe', $recipe->id)
+        ->assertSee('Wróć do listy')
+        ->assertSee('Gotuj 20 minut.')
+        ->assertSee('Wybierz ten przepis')
+        ->call('closePreview')
+        ->assertSet('previewRecipeId', null)
+        ->call('previewRecipe', $recipe->id)
+        ->call('chooseRecipe', $recipe->id)
+        ->assertSet('pickingType', null)
+        ->assertSet('previewRecipeId', null);
+
+    expect(mpEntries('2026-11-18'))->toBe([['lunch', 'Zupa pomidorowa', 'single']]);
+});

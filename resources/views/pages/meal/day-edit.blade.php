@@ -47,6 +47,9 @@ new #[Layout('layouts::app')] class extends Component {
 
     public string $recipeSearch = '';
 
+    /** Recipe previewed inside the sheet before choosing it. */
+    public ?int $previewRecipeId = null;
+
     /** Step 2 of the sheet: the chosen recipe. */
     public ?int $chosenRecipeId = null;
 
@@ -223,7 +226,17 @@ new #[Layout('layouts::app')] class extends Component {
 
     public function closeRecipePicker(): void
     {
-        $this->reset('pickingType', 'recipeSearch', 'chosenRecipeId', 'leftoverDates');
+        $this->reset('pickingType', 'recipeSearch', 'chosenRecipeId', 'leftoverDates', 'previewRecipeId');
+    }
+
+    public function previewRecipe(int $recipeId): void
+    {
+        $this->previewRecipeId = Recipe::query()->whereKey($recipeId)->exists() ? $recipeId : null;
+    }
+
+    public function closePreview(): void
+    {
+        $this->previewRecipeId = null;
     }
 
     /**
@@ -249,6 +262,7 @@ new #[Layout('layouts::app')] class extends Component {
         $this->chosenRecipeId = $recipe->id;
         $this->chosenMode = RecipeMealAssignment::MODE_SINGLE;
         $this->leftoverDates = [];
+        $this->previewRecipeId = null;
         unset($this->chosenRecipe);
     }
 
@@ -512,7 +526,21 @@ new #[Layout('layouts::app')] class extends Component {
     @if ($pickingType !== null)
     @php $sheetTitle = __('Add to: :meal', ['meal' => Meal::typeLabel($pickingType)]); @endphp
     <x-ui.sheet :title="$sheetTitle" close="closeRecipePicker">
-        @if (! $this->chosenRecipe)
+        @if ($previewRecipeId && ! $this->chosenRecipe)
+        <div class="space-y-3">
+            <button type="button" wire:click="closePreview" class="-ml-2 inline-flex h-10 items-center gap-1 px-2 text-[15px] font-medium text-ink">
+                <x-icon.chevron-left class="size-5" />
+                {{ __('Back to the list') }}
+            </button>
+            <livewire:pages::recipe.show :recipe="Recipe::find($previewRecipeId)" :show-back-button="false" :key="'picker-preview-'.$previewRecipeId" />
+            @php $previewAdded = in_array($previewRecipeId, $this->recipeIdsOf($pickingType), true); @endphp
+            <div class="sticky bottom-0 -mx-4 border-t border-divider bg-white px-4 pt-3 pb-1">
+                <x-ui.button wire:click="chooseRecipe({{ $previewRecipeId }})" :disabled="$previewAdded">
+                    {{ $previewAdded ? __('Already added') : __('Choose this recipe') }}
+                </x-ui.button>
+            </div>
+        </div>
+        @elseif (! $this->chosenRecipe)
         <div class="space-y-3">
             <x-ui.search-input id="recipe-search" wire:model.live.debounce.200ms="recipeSearch" :placeholder="__('Search recipe')" bg="field" />
 
@@ -522,20 +550,23 @@ new #[Layout('layouts::app')] class extends Component {
                 <div class="flex flex-col">
                     @foreach ($section['recipes'] as $pickerRecipe)
                     @php $already = in_array($pickerRecipe->id, $this->recipeIdsOf($pickingType), true); @endphp
-                    <button
-                        type="button"
-                        wire:key="picker-recipe-{{ $section['label'] }}-{{ $pickerRecipe->id }}"
-                        wire:click="chooseRecipe({{ $pickerRecipe->id }})"
-                        @disabled($already)
-                        class="flex items-center gap-2 min-h-[52px] px-1 border-b border-divider text-left text-[15px] {{ $already ? 'text-muted' : 'text-ink' }}">
-                        <span class="flex-1 min-w-0">{{ $pickerRecipe->name }}</span>
-                        @if ($already)
-                        <span class="text-[12px] text-muted">{{ __('added') }}</span>
-                        @else
-                        <span class="shrink-0 text-[12px] text-muted">{{ Recipe::servingsLabel((int) $pickerRecipe->servings) }}</span>
-                        <x-ui.chevron-right class="size-4" />
-                        @endif
-                    </button>
+                    <div wire:key="picker-recipe-{{ $section['label'] }}-{{ $pickerRecipe->id }}" class="flex items-center gap-1 min-h-[52px] border-b border-divider">
+                        <button
+                            type="button"
+                            wire:click="chooseRecipe({{ $pickerRecipe->id }})"
+                            @disabled($already)
+                            class="flex flex-1 min-w-0 items-center gap-2 self-stretch px-1 text-left text-[15px] {{ $already ? 'text-muted' : 'text-ink' }}">
+                            <span class="flex-1 min-w-0">{{ $pickerRecipe->name }}</span>
+                            @if ($already)
+                            <span class="text-[12px] text-muted">{{ __('added') }}</span>
+                            @else
+                            <span class="shrink-0 text-[12px] text-muted">{{ Recipe::servingsLabel((int) $pickerRecipe->servings) }}</span>
+                            @endif
+                        </button>
+                        <button type="button" wire:click="previewRecipe({{ $pickerRecipe->id }})" class="flex size-11 shrink-0 items-center justify-center rounded-full text-ink-soft hover:bg-sand" aria-label="{{ __('Preview: :name', ['name' => $pickerRecipe->name]) }}" title="{{ __('Preview') }}">
+                            <x-icon.eye class="size-[18px]" />
+                        </button>
+                    </div>
                     @endforeach
                 </div>
             </div>

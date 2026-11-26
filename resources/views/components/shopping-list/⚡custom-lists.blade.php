@@ -74,8 +74,7 @@ new class extends Component {
     x-init="if (window.isDesktop() && ! $wire.selectedId && {{ $this->lists->first()?->id ?? 'null' }}) $wire.select({{ $this->lists->first()?->id ?? 'null' }})"
     x-on:custom-list-created.window="window.isDesktop() ? $wire.select($event.detail.id) : window.Livewire.navigate($event.detail.url)"
     class="lg:grid lg:grid-cols-[minmax(300px,380px)_1fr] lg:items-start lg:gap-8">
-<div class="space-y-3"
-    x-on:click.capture="if (window.isDesktop()) { const card = $event.target.closest('a[data-list-id]'); if (card) { $event.preventDefault(); $event.stopPropagation(); $wire.select(Number(card.dataset.listId)) } }">
+<div class="space-y-3" x-data="desktopSelect('a[data-list-id]', 'listId', (id) => $wire.select(id))">
     @foreach ($this->lists as $customList)
     @php
         $total = $customList->items->count();

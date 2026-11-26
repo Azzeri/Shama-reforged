@@ -1,6 +1,53 @@
 /** Desktop layout (side menu, split views, side panels) from this width up — Tailwind's `lg`. */
 window.isDesktop = () => window.matchMedia('(min-width: 1024px)').matches;
 
+/*
+ * Split views (recipes, custom lists): on the phone a row is a wire:navigate
+ * link to its own page; on the desktop the same row only selects the item
+ * for the pane next to the list. Livewire starts navigating on mousedown /
+ * Enter (not on click), so all three are caught in the capture phase, before
+ * they reach the link.
+ *
+ * Usage on the list container: x-data="desktopSelect('a[data-recipe-id]', 'recipeId', (id) => $wire.select(id))"
+ */
+const registerDesktopSelect = (Alpine) => Alpine.data('desktopSelect', (selector, dataKey, select) => ({
+        init() {
+            const row = (event) => (window.isDesktop() ? event.target.closest?.(selector) : null);
+
+            this.$el.addEventListener('mousedown', (event) => {
+                if (row(event)) {
+                    event.stopPropagation();
+                }
+            }, true);
+
+            this.$el.addEventListener('keydown', (event) => {
+                const link = event.key === 'Enter' ? row(event) : null;
+
+                if (link) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    select(Number(link.dataset[dataKey]));
+                }
+            }, true);
+
+            this.$el.addEventListener('click', (event) => {
+                const link = row(event);
+
+                if (link) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    select(Number(link.dataset[dataKey]));
+                }
+            }, true);
+        },
+}));
+
+if (window.Alpine) {
+    registerDesktopSelect(window.Alpine);
+} else {
+    document.addEventListener('alpine:init', () => registerDesktopSelect(window.Alpine));
+}
+
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
