@@ -4,7 +4,6 @@ use App\Concerns\ProfileValidationRules;
 /* @chisel-email-verification */
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 /* @end-chisel-email-verification */
-use App\Livewire\Actions\Logout;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 use Livewire\Attributes\Computed;
@@ -50,22 +49,6 @@ new class extends Component {
         $this->dispatch('profile-saved');
     }
 
-    public string $deletePassword = '';
-
-    /**
-     * Deletes only the user's own account (login data). Recipes, the plan and
-     * the shopping list are shared by the household and stay.
-     */
-    public function deleteAccount(Logout $logout): void
-    {
-        $this->validate(['deletePassword' => ['required', 'string', 'current_password']], attributes: ['deletePassword' => __('password')]);
-
-        $user = Auth::user();
-        $logout();
-        $user->delete();
-
-        $this->redirect('/', navigate: true);
-    }
 
     /* @chisel-email-verification */
     /**
@@ -171,20 +154,4 @@ new class extends Component {
         </x-ui.card>
     </div>
 
-    <div x-data="{ open: {{ $errors->has('deletePassword') ? 'true' : 'false' }} }" class="pt-2 space-y-2">
-        <x-ui.section-label>{{ __('Deleting the account') }}</x-ui.section-label>
-        <p class="text-[14px] leading-normal text-muted">{{ __('Deletes your account and sign-in data. Recipes, the plan and shopping lists are shared by the household and stay. This cannot be undone.') }}</p>
-        <button type="button" x-show="! open" x-on:click="open = true" class="h-11 rounded-[14px] border border-today-border bg-white px-4 text-[15px] font-semibold text-terracotta">{{ __('Delete account') }}</button>
-        <form x-show="open" x-cloak wire:submit="deleteAccount" class="rounded-[20px] border border-line bg-white p-4 space-y-3">
-            <div>
-                <label for="delete-password" class="block mb-1.5 text-[14px] font-medium text-ink">{{ __('Confirm with your password') }}</label>
-                <x-ui.text-input id="delete-password" type="password" wire:model="deletePassword" class="w-full bg-field-bg" autocomplete="current-password" />
-                <x-ui.field-error name="deletePassword" />
-            </div>
-            <div class="flex justify-end gap-2">
-                <button type="button" x-on:click="open = false" class="h-11 rounded-full border border-field bg-white px-4 text-[14px] font-semibold text-ink">{{ __('No') }}</button>
-                <button type="submit" class="h-11 rounded-full bg-terracotta px-4 text-[14px] font-semibold text-white">{{ __('Delete account') }}</button>
-            </div>
-        </form>
-    </div>
 </section>

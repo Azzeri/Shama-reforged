@@ -1,7 +1,13 @@
 <?php
 
-test('returns a successful response', function () {
-    $response = $this->get(route('home'));
+use App\Models\User;
 
-    $response->assertOk();
+test('the home page sends guests to the login screen', function () {
+    $this->get(route('home'))->assertRedirect(route('login'));
+});
+
+test('the home page sends signed-in users to the meal plan', function () {
+    $this->actingAs(User::factory()->create())
+        ->get(route('home'))
+        ->assertRedirect(route('meals.index'));
 });
