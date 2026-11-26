@@ -43,7 +43,7 @@ fi
 
 # 4. Generowanie assetów (Vite / NPM) za pomocą jednorazowego kontenera
 echo "🌐 Kompilacja plików frontendu (Vite)..."
-sudo docker run --rm -v "$(pwd)":/app -w /app node:20 sh -c "npm install && npm run build"
+sudo docker run --rm -v "$(pwd)":/app -w /app node:26 sh -c "npm ci && npm run build"
 
 # 5. Nadanie uprawnień do plików dla Dockera i Nginxa
 echo "🔒 Ustawianie uprawnień do folderów..."

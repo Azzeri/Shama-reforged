@@ -1,7 +1,9 @@
 services:
   # Kontener PHP
   app:
-    image: php:8.5-fpm
+    # Own name for the built image (not php:8.x-fpm, which would make the next
+    # build start FROM its own previous result instead of the official image).
+    image: shama-app:php8.6
     container_name: laravel-app
     restart: unless-stopped
     working_dir: /var/www
@@ -16,13 +18,14 @@ services:
     build:
       context: ../
       dockerfile_inline: |
-        FROM php:8.5-fpm
-        RUN apt-get update && apt-get install -y libpng-dev libjpeg-dev libfreetype6-dev zip git unzip tzdata \
+        FROM php:8.6-fpm
+        # PHP 8.6 images no longer ship mbstring (Laravel needs it): libonig + ext.
+        RUN apt-get update && apt-get install -y libpng-dev libjpeg-dev libfreetype6-dev libonig-dev zip git unzip tzdata \
             && ln -snf /usr/share/zoneinfo/Europe/Warsaw /etc/localtime && echo "Europe/Warsaw" > /etc/timezone \
             && docker-php-ext-configure gd --with-freetype --with-jpeg \
-            && docker-php-ext-install pdo_mysql gd
+            && docker-php-ext-install pdo_mysql gd mbstring
         RUN echo "date.timezone=Europe/Warsaw" > /usr/local/etc/php/conf.d/timezone.ini
-        # OPcache (built into PHP 8.5, enabled by default): without it PHP would
+        # OPcache (built into PHP 8.5+, enabled by default): without it PHP would
         # recompile the whole framework on every request.
         # Code only changes on deploy (which restarts PHP-FPM), so timestamps
         # aren't re-checked.
