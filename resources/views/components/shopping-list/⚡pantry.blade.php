@@ -27,6 +27,66 @@ new class extends Component {
 
     public string $newGroupName = '';
 
+    /** "To ten sam produkt co składnik" (optional). */
+    public ?int $ingredientId = null;
+
+    public string $ingredientSearch = '';
+
+    /** recipe count per ingredient id, for "używany w N przepisach" */
+    #[Computed]
+    public function recipeCounts(): array
+    {
+        return \App\Models\RecipeIngredientAssignment::query()
+            ->selectRaw('ingredient_id, COUNT(DISTINCT recipe_id) as aggregate')
+            ->groupBy('ingredient_id')
+            ->pluck('aggregate', 'ingredient_id')
+            ->map(fn ($count) => (int) $count)
+            ->all();
+    }
+
+    public function usedInLabel(?int $ingredientId): ?string
+    {
+        return $ingredientId ? trans_choice('used in :count recipe|used in :count recipes', $this->recipeCounts[$ingredientId] ?? 0) : null;
+    }
+
+    #[Computed]
+    public function linkedIngredient(): ?\App\Models\Ingredient
+    {
+        return $this->ingredientId ? \App\Models\Ingredient::query()->find($this->ingredientId) : null;
+    }
+
+    /** "Masz składnik X. Powiązać?" when the product's name is an existing ingredient. */
+    #[Computed]
+    public function linkProposal(): ?\App\Models\Ingredient
+    {
+        if ($this->ingredientId || trim($this->name) === '') {
+            return null;
+        }
+
+        $matcher = app(\App\Support\Ingredients\IngredientMatcher::class);
+
+        return $matcher->same($this->name) ?? $matcher->sameKey($this->name);
+    }
+
+    #[Computed]
+    public function ingredientResults(): Collection
+    {
+        return trim($this->ingredientSearch) === ''
+            ? collect()
+            : app(\App\Support\Ingredients\IngredientMatcher::class)->suggest($this->ingredientSearch, 6)->pluck('ingredient');
+    }
+
+    public function linkIngredient(int $id): void
+    {
+        $this->ingredientId = \App\Models\Ingredient::query()->whereKey($id)->exists() ? $id : null;
+        $this->ingredientSearch = '';
+    }
+
+    public function unlinkIngredient(): void
+    {
+        $this->ingredientId = null;
+    }
+
     #[Computed]
     public function groups(): Collection
     {
@@ -69,6 +129,7 @@ new class extends Component {
         $this->editingId = $item->id;
         $this->name = $item->name;
         $this->groupId = $item->pantry_group_id;
+        $this->ingredientId = $item->ingredient_id;
         $this->sheetOpen = true;
     }
 
@@ -99,6 +160,7 @@ new class extends Component {
             'name' => ['required', 'string', 'max:100'],
             'groupId' => [Rule::requiredIf(! $this->newGroup), 'nullable', Rule::exists('pantry_groups', 'id')],
             'newGroupName' => [Rule::requiredIf($this->newGroup), 'nullable', 'string', 'max:60'],
+            'ingredientId' => ['nullable', Rule::exists('ingredients', 'id')],
         ], attributes: [
             'name' => __('name'),
             'groupId' => __('group'),
@@ -110,9 +172,9 @@ new class extends Component {
             : $this->groupId;
 
         if ($this->editingId) {
-            PantryItem::query()->findOrFail($this->editingId)->update(['name' => $this->name, 'pantry_group_id' => $groupId]);
+            PantryItem::query()->findOrFail($this->editingId)->update(['name' => $this->name, 'pantry_group_id' => $groupId, 'ingredient_id' => $this->ingredientId]);
         } else {
-            PantryItem::query()->create(['name' => $this->name, 'pantry_group_id' => $groupId, 'status' => PantryItem::STATUS_OK]);
+            PantryItem::query()->create(['name' => $this->name, 'pantry_group_id' => $groupId, 'ingredient_id' => $this->ingredientId, 'status' => PantryItem::STATUS_OK]);
         }
 
         PantryGroup::pruneEmpty();
@@ -130,7 +192,7 @@ new class extends Component {
 
     private function resetForm(): void
     {
-        $this->reset('editingId', 'name', 'groupId', 'newGroup', 'newGroupName');
+        $this->reset('editingId', 'name', 'groupId', 'newGroup', 'newGroupName', 'ingredientId', 'ingredientSearch');
         $this->resetErrorBag();
     }
 
@@ -161,6 +223,8 @@ new class extends Component {
                     <span class="block text-[15px] text-ink truncate">{{ $item->name }}</span>
                     @if ($item->needsBuying())
                     <span class="block text-[12.5px] text-forest">{{ __('on the shopping list') }}</span>
+                    @elseif ($item->ingredient_id)
+                    <span class="block text-[12.5px] text-muted">{{ $this->usedInLabel($item->ingredient_id) }}</span>
                     @endif
                 </button>
                 <div role="radiogroup" aria-label="{{ __('Stock of :name', ['name' => $item->name]) }}" class="flex shrink-0 rounded-[10px] bg-sand p-0.5">
@@ -217,6 +281,37 @@ new class extends Component {
                 <x-ui.field-error name="groupId" />
                 <x-ui.field-error name="newGroupName" />
             </fieldset>
+
+            <div>
+                <label for="pantry-ingredient" class="block text-[11px] font-semibold uppercase tracking-[0.09em] text-muted mb-1.5">{{ __('The same product as the ingredient') }} <span class="normal-case tracking-normal font-normal">· {{ __('optional') }}</span></label>
+                @if ($linked = $this->linkedIngredient)
+                <div class="flex items-center gap-2 rounded-[14px] border border-sage/40 bg-sage-light pl-3.5 pr-1.5 py-2">
+                    <span class="flex-1 min-w-0">
+                        <span class="block text-[16px] text-ink">{{ $linked->name }}</span>
+                        <span class="block text-[13px] text-forest">{{ $this->usedInLabel($linked->id) }}</span>
+                    </span>
+                    <button type="button" wire:click="unlinkIngredient" class="flex size-10 items-center justify-center text-ink" aria-label="{{ __('Remove the link') }}"><x-icon.x class="size-4" /></button>
+                </div>
+                @else
+                @if ($proposal = $this->linkProposal)
+                <div class="mb-2 flex items-center gap-2 rounded-[12px] bg-gold-light px-3 py-2.5 text-[14px] text-gold-dark">
+                    <span class="flex-1">{{ __('You have the ingredient :name. Link it?', ['name' => $proposal->name]) }}</span>
+                    <button type="button" wire:click="linkIngredient({{ $proposal->id }})" class="font-semibold">{{ __('Link') }}</button>
+                </div>
+                @endif
+                <x-ui.search-input id="pantry-ingredient" wire:model.live.debounce.250ms="ingredientSearch" :placeholder="__('Search ingredient')" bg="field" />
+                @if ($this->ingredientResults->isNotEmpty())
+                <div class="mt-1 rounded-[14px] border border-line bg-white divide-y divide-divider overflow-hidden">
+                    @foreach ($this->ingredientResults as $result)
+                    <button type="button" wire:key="pantry-ingredient-{{ $result->id }}" wire:click="linkIngredient({{ $result->id }})" class="block w-full px-3 py-2 text-left hover:bg-field-bg">
+                        <span class="block text-[15px] text-ink">{{ $result->name }}</span>
+                        <span class="block text-[12px] text-muted">{{ $this->usedInLabel($result->id) }}</span>
+                    </button>
+                    @endforeach
+                </div>
+                @endif
+                @endif
+            </div>
         </form>
 
         <x-slot:footer>

@@ -7,6 +7,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::livewire('settings/profile', 'pages::settings.profile')->name('profile.edit');
     Route::livewire('settings/ai-report', 'pages::settings.ai-report')->name('ai-report.edit');
+    Route::livewire('settings/store-sections', 'pages::settings.store-sections')->name('store-sections.edit');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {

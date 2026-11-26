@@ -3,6 +3,7 @@
 namespace App\Support\ShoppingList;
 
 use App\Models\Ingredient;
+use App\Models\PantryItem;
 use App\Models\ShoppingListItem;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
@@ -20,6 +21,10 @@ use Illuminate\Support\Collection;
  *  - "days": fresh ingredients for the days after tomorrow, one section per
  *    day, merged per ingredient within the day.
  *  - "bought": rows ticked off in the last BOUGHT_VISIBLE_DAYS days.
+ *  - "household" ("Zapasy domowe"): household products marked low / out —
+ *    one row each, with the amounts of the recipe ingredients linked to it.
+ *  - "atHome" ("Pewnie masz w domu"): recipe ingredients linked to a
+ *    household product that is in stock — not bought unless "Kupię jednak".
  *
  * Amounts are summed per unit after normalising kg→g and l→ml; if one
  * ingredient ends up in several units and the ingredient has unit weights,
@@ -32,8 +37,9 @@ class ShoppingListBuilder
 
     /**
      * @param  Collection<int, ShoppingListItem>  $items  with ingredient + recipe loaded
+     * @param  Collection<int, PantryItem>|null  $pantry  household products that are low / out or linked to an ingredient
      */
-    public function build(Collection $items, CarbonInterface $today): array
+    public function build(Collection $items, CarbonInterface $today, ?Collection $pantry = null): array
     {
         $today = Carbon::parse($today)->startOfDay();
         $tomorrow = $today->copy()->addDay();
@@ -43,6 +49,22 @@ class ShoppingListBuilder
         $items = $items->reject(fn (ShoppingListItem $item) => $item->meal_id && $item->ingredient?->skip_shopping);
 
         $unchecked = $items->where(ShoppingListItem::IS_CHECKED_COLUMN, false);
+
+        // Recipe ingredients that are the same product as a household one.
+        $pantry ??= collect();
+        $linked = $pantry->whereNotNull('ingredient_id')->keyBy('ingredient_id');
+        $isLinked = fn (ShoppingListItem $item) => $item->ingredient_id && $linked->has($item->ingredient_id) && ! $item->buy_anyway;
+        $linkedItems = $unchecked->filter($isLinked);
+        $unchecked = $unchecked->reject($isLinked);
+
+        $atHome = $this->sortGroups($this->mergeAll(
+            $linkedItems->filter(fn (ShoppingListItem $item) => ! $linked[$item->ingredient_id]->needsBuying())
+        )->map(fn (array $group) => [...$group, 'pantryItemId' => $linked[$group['items'][0]->ingredient_id]->id]));
+
+        $household = $pantry->filter(fn (PantryItem $product) => $product->needsBuying())
+            ->sortBy(fn (PantryItem $product) => mb_strtolower($product->name))
+            ->map(fn (PantryItem $product) => $this->householdRow($product, $linkedItems->where('ingredient_id', $product->ingredient_id)->values()))
+            ->values();
 
         $isUpcoming = fn (ShoppingListItem $item) => $this->isWeekly($item) || $item->needed_on->lte($tomorrow);
 
@@ -74,7 +96,7 @@ class ShoppingListBuilder
             ->sortByDesc(fn (array $group) => $group['checkedAt'])
             ->values();
 
-        $activeCount = $upcomingGroups->count() + $days->sum('count');
+        $activeCount = $upcomingGroups->count() + $days->sum('count') + $household->count();
 
         return [
             'upcoming' => [
@@ -86,11 +108,29 @@ class ShoppingListBuilder
                 'count' => $boughtGroups->count(),
                 'groups' => $boughtGroups,
             ],
+            'household' => $household,
+            'atHome' => $atHome,
             'progress' => [
                 'bought' => $boughtGroups->count(),
                 'total' => $activeCount + $boughtGroups->count(),
             ],
             'range' => $this->range($unchecked->concat($boughtItems)),
+        ];
+    }
+
+    /** One "Zapasy domowe" row: the product, plus what the recipes need of it. */
+    private function householdRow(PantryItem $product, Collection $items): array
+    {
+        $recipes = $items->pluck('recipe')->filter()->unique('id')->pluck('name');
+        $status = $product->status === PantryItem::STATUS_OUT ? __('none at home') : __('running low');
+
+        return [
+            'key' => "p{$product->id}",
+            'pantryItemId' => $product->id,
+            'name' => $product->name,
+            'ids' => $items->pluck('id')->all(),
+            'quantity' => $items->isNotEmpty() ? $this->quantityLabel($items, $items->first()->ingredient) : null,
+            'subtitle' => $recipes->isNotEmpty() ? $status.' · '.$recipes->implode(', ') : $status,
         ];
     }
 
@@ -251,7 +291,7 @@ class ShoppingListBuilder
     {
         $byCategory = $groups->groupBy('category');
 
-        return collect(Ingredient::CATEGORIES)
+        return collect(array_values(array_diff(Ingredient::sectionOrder(), [Ingredient::SECTION_HOUSEHOLD])))
             ->filter(fn (string $category) => $byCategory->has($category))
             ->map(fn (string $category) => [
                 'category' => $category,

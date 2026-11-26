@@ -70,24 +70,48 @@ new #[Layout('layouts::app')] class extends Component {
         return $this->view()->title(__('Shopping'));
     }
 
-    /** Household supplies marked low / out — shown in the "Zapasy domowe" group. */
+    /** Household products the list needs: low / out ones and those linked to an ingredient. */
     #[Computed]
-    public function pantryToBuy(): Collection
+    public function pantry(): Collection
     {
-        return PantryItem::query()->toBuy()->orderBy('name')->get();
+        return PantryItem::query()
+            ->where(fn ($query) => $query->toBuy()->orWhereNotNull('ingredient_id'))
+            ->get();
     }
 
     #[On('pantry-changed')]
     public function pantryChanged(): void
     {
-        unset($this->pantryToBuy);
+        $this->refreshList();
     }
 
-    /** Ticking a household product off the list means it's back in stock. */
-    public function restock(int $id): void
+    /**
+     * Ticking a household product off: it's back in stock, and the recipe
+     * amounts that were folded into its row count as bought.
+     */
+    public function restock(int $id, array $ids = []): void
     {
         PantryItem::query()->whereKey($id)->update(['status' => PantryItem::STATUS_OK]);
-        unset($this->pantryToBuy);
+
+        if ($ids) {
+            $this->toggle($ids, true);
+        }
+
+        $this->refreshList();
+    }
+
+    /** "Kupię jednak": back to its aisle on this list; the household product stays as it is. */
+    public function buyAnyway(array $ids): void
+    {
+        $this->rows($ids)->update(['buy_anyway' => true]);
+        $this->refreshList();
+    }
+
+    /** "Skończyło się": the household product is out, so the row moves to "Zapasy domowe". */
+    public function ranOut(int $pantryItemId): void
+    {
+        PantryItem::query()->whereKey($pantryItemId)->update(['status' => PantryItem::STATUS_OUT]);
+        $this->refreshList();
     }
 
     /**
@@ -137,7 +161,7 @@ new #[Layout('layouts::app')] class extends Component {
     #[Computed]
     public function list(): array
     {
-        return app(ShoppingListBuilder::class)->build($this->items, today());
+        return app(ShoppingListBuilder::class)->build($this->items, today(), $this->pantry);
     }
 
     #[Computed]
@@ -207,7 +231,7 @@ new #[Layout('layouts::app')] class extends Component {
 
     private function refreshList(): void
     {
-        unset($this->items, $this->list, $this->rangeLabel, $this->openGroupData, $this->fullCookingByDate);
+        unset($this->items, $this->list, $this->rangeLabel, $this->openGroupData, $this->fullCookingByDate, $this->pantry);
     }
 
     /** Ids from the client, restricted to rows of the shopping list. */
@@ -363,11 +387,8 @@ new #[Layout('layouts::app')] class extends Component {
 @php
     $isList = $tab === 'list';
     $list = $isList ? $this->list : null;
-    $pantry = $isList ? $this->pantryToBuy : collect();
-    $progress = $list ? [
-        'bought' => $list['progress']['bought'],
-        'total' => $list['progress']['total'] + $pantry->count(),
-    ] : null;
+    $progress = $list['progress'] ?? null;
+    $categoriesBySection = $list ? collect($list['upcoming']['categories'])->keyBy('category') : collect();
     $tabs = ['list' => __('Meals'), 'pantry' => __('Supplies'), 'lists' => __('Custom'), 'cards' => __('Cards')];
 @endphp
 
@@ -448,32 +469,31 @@ new #[Layout('layouts::app')] class extends Component {
         </div>
         @endif
 
-        @if ($list['upcoming']['count'] > 0 || $pantry->isNotEmpty())
+        @if ($list['upcoming']['count'] > 0 || $list['household']->isNotEmpty() || $list['atHome']->isNotEmpty())
         <section x-data="{ open: $persist(true).as('shopping-upcoming-open') }">
             <button type="button" x-on:click="open = ! open" x-bind:aria-expanded="open" class="w-full flex items-start gap-2 text-left">
                 <span class="flex-1 min-w-0">
                     <span class="block font-fraunces text-[22px] font-semibold leading-tight text-ink">{{ __('Upcoming shopping') }}</span>
                     <span class="block text-[12.5px] text-muted">{{ __('today, tomorrow and for the whole week') }}</span>
                 </span>
-                <span class="pt-1.5 text-[14px] text-muted">{{ $list['upcoming']['count'] + $pantry->count() }}</span>
+                <span class="pt-1.5 text-[14px] text-muted">{{ $list['upcoming']['count'] + $list['household']->count() }}</span>
                 <x-icon.chevron-down class="mt-2 size-4 text-muted transition-transform" x-bind:class="open || '-rotate-90'" />
             </button>
 
             <div x-show="open" x-collapse class="mt-2 space-y-3 lg:space-y-0 lg:columns-3 lg:gap-5">
-                @foreach ($list['upcoming']['categories'] as $category)
-                <x-shopping-list.category :category="$category" wire:key="upcoming-{{ $category['category'] }}" />
-                @endforeach
-
-                @if ($pantry->isNotEmpty())
-                <div wire:key="upcoming-pantry" class="break-inside-avoid lg:mb-5">
+                {{-- Sections in the household's store order (Konto › Kolejność działów). --}}
+                @foreach (\App\Models\Ingredient::sectionOrder() as $section)
+                @if ($section === \App\Models\Ingredient::SECTION_HOUSEHOLD)
+                @if ($list['household']->isNotEmpty())
+                <div wire:key="upcoming-household" class="break-inside-avoid lg:mb-5">
                     <x-ui.section-label class="mb-1.5">{{ __('Household supplies') }}</x-ui.section-label>
                     <div class="rounded-2xl border border-line overflow-hidden divide-y divide-divider bg-white">
-                        @foreach ($pantry as $pantryItem)
-                        <div wire:key="pantry-row-{{ $pantryItem->id }}" x-data="{ checked: false }" class="flex items-center gap-3 px-3.5 py-2.5 min-h-[52px]">
+                        @foreach ($list['household'] as $row)
+                        <div wire:key="household-{{ $row['key'] }}-{{ implode('-', $row['ids']) }}" x-data="{ checked: false }" class="flex items-center gap-3 px-3.5 py-2.5 min-h-[52px]">
                             <button
                                 type="button"
-                                x-on:click="checked = true; setTimeout(() => $wire.restock({{ $pantryItem->id }}), 250)"
-                                aria-label="{{ __('Bought') }}: {{ $pantryItem->name }}"
+                                x-on:click="checked = true; setTimeout(() => $wire.restock({{ $row['pantryItemId'] }}, @js($row['ids'])), 250)"
+                                aria-label="{{ __('Bought') }}: {{ $row['name'] }}"
                                 class="shrink-0 -m-2.5 p-2.5">
                                 <span class="size-[22px] rounded-[7px] border-[1.5px] flex items-center justify-center transition-colors" :class="checked ? 'bg-sage border-sage' : 'border-field bg-white'">
                                     <x-icon.check class="size-3.5 text-white" x-show="checked" />
@@ -481,17 +501,60 @@ new #[Layout('layouts::app')] class extends Component {
                             </button>
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center gap-1.5">
-                                    <span class="text-[15px] font-medium text-ink truncate" :class="checked && 'line-through text-muted'">{{ $pantryItem->name }}</span>
+                                    <span class="text-[15px] font-medium text-ink truncate" :class="checked && 'line-through text-muted'">{{ $row['name'] }}</span>
                                     <span class="shrink-0 rounded-full bg-sage-light px-1.5 py-px text-[11px] font-semibold text-forest">{{ __('pantry') }}</span>
                                 </div>
-                                <div class="text-[12.5px] text-muted">{{ $pantryItem->status === \App\Models\PantryItem::STATUS_OUT ? __('none at home') : __('running low') }}</div>
+                                <div class="text-[12.5px] text-muted truncate">{{ $row['subtitle'] }}</div>
                             </div>
+                            @if ($row['quantity'])
+                            <span class="shrink-0 text-right text-[14px] tabular-nums text-ink">{{ $row['quantity'] }}</span>
+                            @endif
                         </div>
                         @endforeach
                     </div>
                 </div>
                 @endif
+                @elseif ($category = $categoriesBySection->get($section))
+                <x-shopping-list.category :category="$category" wire:key="upcoming-{{ $category['category'] }}" />
+                @endif
+                @endforeach
             </div>
+
+            @if ($list['atHome']->isNotEmpty())
+            {{-- Recipe ingredients that are probably at home (linked household product in stock). --}}
+            <div x-show="open" x-data="{ expanded: $persist(false).as('shopping-at-home-open') }" class="mt-3 rounded-2xl border border-dashed border-faint bg-field-bg lg:max-w-[560px]">
+                <button type="button" x-on:click="expanded = ! expanded" x-bind:aria-expanded="expanded" class="flex w-full items-center gap-2.5 px-3.5 min-h-12 text-left">
+                    <svg class="size-[18px] text-ink-soft" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/></svg>
+                    <span class="flex-1 text-[15px] font-semibold text-ink">{{ __('Probably at home') }}</span>
+                    <span class="text-[14px] text-muted">{{ $list['atHome']->count() }}</span>
+                    <x-icon.chevron-down class="size-4 text-muted transition-transform" x-bind:class="expanded && 'rotate-180'" />
+                </button>
+                <div x-show="expanded" x-collapse class="divide-y divide-divider border-t border-line">
+                    @foreach ($list['atHome'] as $group)
+                    <div wire:key="at-home-{{ $group['key'] }}" class="px-3.5 py-3 space-y-2.5">
+                        <div class="flex items-start gap-2">
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-[15px] font-medium text-ink">{{ $group['name'] }}</span>
+                                    <span class="shrink-0 rounded-full bg-sage-light px-1.5 py-px text-[11px] font-semibold text-forest">{{ __('pantry') }}</span>
+                                </div>
+                                @if ($group['subtitle'])
+                                <div class="text-[12.5px] text-muted">{{ $group['subtitle'] }}</div>
+                                @endif
+                            </div>
+                            @if ($group['quantity'])
+                            <span class="shrink-0 text-[14px] tabular-nums text-ink">{{ $group['quantity'] }}</span>
+                            @endif
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button type="button" wire:click="buyAnyway(@js($group['ids']))" class="h-10 rounded-[12px] border border-field bg-white text-[14px] font-semibold text-ink">{{ __('I will buy it anyway') }}</button>
+                            <button type="button" wire:click="ranOut({{ $group['pantryItemId'] }})" class="h-10 rounded-[12px] border border-today-border bg-white text-[14px] font-semibold text-terracotta">{{ __('Ran out') }}</button>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+            @endif
         </section>
         @endif
 

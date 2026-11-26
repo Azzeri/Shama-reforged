@@ -146,6 +146,14 @@ new class extends Component {
                 </span>
                 <x-ui.chevron-right class="size-4" />
             </a>
+            <a href="{{ route('store-sections.edit') }}" wire:navigate class="flex items-center gap-3.5 px-4 py-3 min-h-[60px]">
+                <x-icon.cart class="size-5 text-ink-soft" />
+                <span class="flex-1 min-w-0">
+                    <span class="block text-[16px] font-medium text-ink">{{ __('Store section order') }}</span>
+                    <span class="block text-[13px] text-muted">{{ __('Order of the sections on the shopping list') }}</span>
+                </span>
+                <x-ui.chevron-right class="size-4" />
+            </a>
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
                 <button type="submit" data-test="logout-button" class="w-full flex items-center gap-3.5 px-4 min-h-14 text-left">

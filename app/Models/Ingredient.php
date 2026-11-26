@@ -58,7 +58,8 @@ class Ingredient extends Model
     /**
      * Grocery aisle grouping used to organize the shopping list. A plain
      * string (not a DB enum) for the same reason as purchase timing — new
-     * categories can be added here later without a migration. Order here
+     * categories can be added here later without a migration. Order here (via
+     * defaultSectionOrder(); the household can rearrange it, see sectionOrder())
      * doubles as the display order on the shopping list, with uncategorized
      * always last since it's a catch-all rather than a real aisle.
      */
@@ -94,6 +95,33 @@ class Ingredient extends Model
         self::CATEGORY_FROZEN,
         self::CATEGORY_UNCATEGORIZED,
     ];
+
+    /** Not an ingredient category: the "Zapasy domowe" group of the shopping list, placed by the same order. */
+    public const SECTION_HOUSEHOLD = 'household';
+
+    public const SECTION_ORDER_SETTING = 'store_section_order';
+
+    /** Default order of store sections on the shopping list (household supplies before "uncategorized"). */
+    public static function defaultSectionOrder(): array
+    {
+        $order = array_values(array_diff(self::CATEGORIES, [self::CATEGORY_UNCATEGORIZED]));
+
+        return [...$order, self::SECTION_HOUSEHOLD, self::CATEGORY_UNCATEGORIZED];
+    }
+
+    /** The household's order (shared by everyone), new sections appended in their default place. */
+    public static function sectionOrder(): array
+    {
+        $default = self::defaultSectionOrder();
+        $saved = array_values(array_intersect((array) Setting::get(self::SECTION_ORDER_SETTING, []), $default));
+
+        return [...$saved, ...array_values(array_diff($default, $saved))];
+    }
+
+    public static function sectionLabel(string $section): string
+    {
+        return $section === self::SECTION_HOUSEHOLD ? __('Household supplies') : self::categoryLabel($section);
+    }
 
     public static function categoryLabel(string $category): string
     {
