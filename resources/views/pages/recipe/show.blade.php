@@ -231,7 +231,7 @@ new #[Layout('layouts::app')] class extends Component {
             @foreach ($this->steps as $step)
             <li class="flex gap-2.5">
                 <span class="w-5 shrink-0 font-fraunces text-[16px] font-semibold text-muted tabular-nums">{{ $loop->iteration }}.</span>
-                <span class="font-fraunces italic text-[16px] leading-relaxed text-prose">{{ $step }}</span>
+                <span class="text-[15px] leading-relaxed text-prose">{{ $step }}</span>
             </li>
             @endforeach
         </ol>

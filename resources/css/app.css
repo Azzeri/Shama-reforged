@@ -76,6 +76,12 @@
     --color-gold: #DCA53D;
     --color-gold-light: #F6EBD3;
     --color-gold-dark: #7A5A12;
+    --color-nav: #E6DCCD;            /* desktop side menu */
+    --color-tabbar: #EFE7DB;         /* phone bottom tab bar */
+    --color-nav-line: #CFC4B3;       /* edge of the side menu / tab bar */
+    --color-nav-icon: #3A332B;       /* inactive nav icon (phone: label too) */
+    --color-on-ink: #FFFFFF;         /* text/icon on an ink pill (active nav item) */
+    --color-letter: #F3EDE3;         /* letter header in long lists */
 
     --color-accent: var(--color-terracotta);
     --color-accent-content: var(--color-terracotta-dark);
@@ -114,6 +120,12 @@
         --color-gold: #DDA94A;
         --color-gold-light: #3A3020;
         --color-gold-dark: #EBCB82;
+        --color-nav: #1D1915;
+        --color-tabbar: #1D1915;
+        --color-nav-line: #39322B;
+        --color-nav-icon: #D8CFC3;
+        --color-on-ink: #161310;
+        --color-letter: #2A2520;
 
         --color-accent: var(--color-terracotta);
         --color-accent-content: var(--color-terracotta-dark);

@@ -15,6 +15,7 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('/recipes', 'pages::recipe.index')->name('recipes.index');
     Route::livewire('/recipes/create', 'pages::recipe.create')->name('recipes.create');
+    Route::livewire('/recipes/to-fill-in', 'pages::recipe.incomplete')->name('recipes.incomplete');
     Route::livewire('/recipes/{recipe}', 'pages::recipe.show')->name('recipes.show');
     Route::livewire('/recipes/{recipe}/edit', 'pages::recipe.edit')->name('recipes.edit');
 

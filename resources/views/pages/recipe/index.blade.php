@@ -107,7 +107,7 @@ new #[Layout('layouts::app')] class extends Component {
     {
         Recipe::query()->whereKey($this->actionRecipeId)->update(['archived_at' => now()]);
         $this->actionRecipeId = null;
-        unset($this->recipes, $this->archivedRecipes);
+        unset($this->recipes, $this->archivedRecipes, $this->incompleteCount);
     }
 
     public function select(int $recipeId): void
@@ -120,7 +120,7 @@ new #[Layout('layouts::app')] class extends Component {
     public function recipeArchived(): void
     {
         $this->selectedId = null;
-        unset($this->recipes, $this->archivedRecipes);
+        unset($this->recipes, $this->archivedRecipes, $this->incompleteCount);
     }
 
     public string $ingredientSearch = '';
@@ -138,10 +138,17 @@ new #[Layout('layouts::app')] class extends Component {
     {
         $search = trim($this->search);
 
-        return $this->filtered(Recipe::query()->active())
-            ->with('tags')
-            ->orderBy('name')
-            ->get();
+        return \App\Support\Alphabet::sort(
+            $this->filtered(Recipe::query()->active())->with('tags')->get(),
+            fn (Recipe $recipe) => $recipe->name,
+        );
+    }
+
+    /** Recipes missing a meal, main ingredient, rating or "for packing" (link to the "to fill in" page). */
+    #[Computed]
+    public function incompleteCount(): int
+    {
+        return Recipe::query()->incomplete()->count();
     }
 
     #[Computed]
@@ -209,7 +216,7 @@ new #[Layout('layouts::app')] class extends Component {
     public function restore(int $recipeId): void
     {
         Recipe::query()->whereKey($recipeId)->update(['archived_at' => null]);
-        unset($this->recipes, $this->archivedRecipes);
+        unset($this->recipes, $this->archivedRecipes, $this->incompleteCount);
     }
 
     #[Computed]
@@ -270,6 +277,7 @@ new #[Layout('layouts::app')] class extends Component {
 @php
     $recipes = $this->recipes;
     $filtersActive = $this->hasFilters();
+    $letters = \App\Support\Alphabet::letters($recipes, fn ($recipe) => $recipe->name);
 @endphp
 
 <div class="space-y-3">
@@ -322,6 +330,9 @@ new #[Layout('layouts::app')] class extends Component {
             <x-icon.filter class="size-4" />
             {{ __('Filters') }}@if ($this->panelFilterCount) ({{ $this->panelFilterCount }})@endif
         </button>
+        @if (count($letters) > 1)
+        <x-ui.letter-button />
+        @endif
         @foreach ($this->mealTags as $tag)
         <x-ui.chip wire:key="meal-chip-{{ $tag->id }}" color="gold" :active="in_array($tag->id, $tagIds)" wire:click="toggleTag({{ $tag->id }})">{{ $tag->label() }}</x-ui.chip>
         @endforeach
@@ -376,38 +387,56 @@ new #[Layout('layouts::app')] class extends Component {
     </div>
     @endif
 
+    @if ($this->archivedRecipes->isNotEmpty() || $this->incompleteCount > 0)
+    <div>
+    <div class="-my-1 flex flex-wrap items-center gap-x-[18px]">
+        @if ($this->archivedRecipes->isNotEmpty())
+        <button type="button" wire:click="$toggle('archiveOpen')" aria-expanded="{{ $archiveOpen ? 'true' : 'false' }}" class="inline-flex h-11 items-center gap-2 px-1 text-[14px] font-semibold text-ink-soft">
+            <x-icon.archive class="size-[18px]" />
+            {{ __('Archive') }} ({{ $this->archivedRecipes->count() }})
+            <x-icon.chevron-down class="size-4 transition-transform {{ $archiveOpen ? 'rotate-180' : '' }}" />
+        </button>
+        @endif
+        @if ($this->incompleteCount > 0)
+        <a href="{{ route('recipes.incomplete') }}" wire:navigate class="inline-flex h-11 items-center gap-2 px-1 text-[14px] font-semibold text-ink-soft">
+            <x-icon.tag class="size-[18px]" />
+            {{ __('To fill in') }} ({{ $this->incompleteCount }})
+        </a>
+        @endif
+    </div>
+    @if ($archiveOpen)
+    <div class="mt-1 rounded-[20px] border border-dashed border-faint bg-surface/60 divide-y divide-divider overflow-hidden">
+        @foreach ($this->archivedRecipes as $archived)
+        <div wire:key="archived-{{ $archived->id }}" class="flex items-center gap-3 px-4 py-2.5 min-h-14">
+            <a href="{{ route('recipes.show', $archived) }}" wire:navigate class="flex-1 min-w-0 font-fraunces text-[16px] font-semibold text-ink-soft truncate">{{ $archived->name }}</a>
+            <button type="button" wire:click="restore({{ $archived->id }})" class="h-9 shrink-0 rounded-full border border-field bg-surface px-3 text-[13px] font-semibold text-ink">{{ __('Restore') }}</button>
+        </div>
+        @endforeach
+    </div>
+    @endif
+    </div>
+    @endif
+
     @if ($recipes->isEmpty())
     <div class="rounded-[20px] border border-dashed border-field px-5 py-10 text-center text-[15px] text-muted">
         {{ $filtersActive ? __('No recipes match the filters.') : __('No recipes yet.') }}
     </div>
     @else
-    <x-ui.card class="divide-y divide-divider">
+    <x-ui.letter-bar :letters="$letters" prefix="rl" box="recipe-list-box" />
+    <div id="recipe-list-box" x-data="fitHeight" class="bg-surface border border-line rounded-[20px] overflow-hidden lg:overflow-y-auto overscroll-contain divide-y divide-divider">
+        @php $previousLetter = null; @endphp
         @foreach ($recipes as $recipe)
+        @php $letter = \App\Support\Alphabet::letter($recipe->name); @endphp
+        @if ($letter !== $previousLetter)
+        <x-ui.letter-header :letter="$letter" prefix="rl" wire:key="rl-head-{{ $letter }}" />
+        @php $previousLetter = $letter; @endphp
+        @endif
         <x-recipe.row :recipe="$recipe" :selected="$selectedId === $recipe->id" data-recipe-id="{{ $recipe->id }}" wire:key="recipe-{{ $recipe->id }}" />
         @endforeach
-    </x-ui.card>
-    @endif
-
-    @if ($this->archivedRecipes->isNotEmpty())
-    <div class="pt-1">
-        <button type="button" wire:click="$toggle('archiveOpen')" aria-expanded="{{ $archiveOpen ? 'true' : 'false' }}" class="inline-flex h-11 items-center gap-2 px-1 text-[15px] font-semibold text-ink-soft">
-            <x-icon.archive class="size-[18px]" />
-            {{ __('Archive') }} ({{ $this->archivedRecipes->count() }})
-            <x-icon.chevron-down class="size-4 transition-transform {{ $archiveOpen ? 'rotate-180' : '' }}" />
-        </button>
-
-        @if ($archiveOpen)
-        <div class="mt-1 rounded-[20px] border border-dashed border-faint bg-surface/60 divide-y divide-divider overflow-hidden">
-            @foreach ($this->archivedRecipes as $archived)
-            <div wire:key="archived-{{ $archived->id }}" class="flex items-center gap-3 px-4 py-2.5 min-h-14">
-                <a href="{{ route('recipes.show', $archived) }}" wire:navigate class="flex-1 min-w-0 font-fraunces text-[16px] font-semibold text-ink-soft truncate">{{ $archived->name }}</a>
-                <button type="button" wire:click="restore({{ $archived->id }})" class="h-9 shrink-0 rounded-full border border-field bg-surface px-3 text-[13px] font-semibold text-ink">{{ __('Restore') }}</button>
-            </div>
-            @endforeach
-        </div>
-        @endif
     </div>
+    <x-ui.letter-sheet :letters="$letters" prefix="rl" />
     @endif
+
 
     </div>
 

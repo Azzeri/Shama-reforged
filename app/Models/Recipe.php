@@ -23,7 +23,7 @@ class Recipe extends Model
     /** Same defaults as the DB columns, so a freshly created model knows them. */
     protected $attributes = [
         'servings' => 2,
-        'packable' => false,
+        'packable' => null,
     ];
 
     public const NAME_COLUMN = 'name';
@@ -75,6 +75,77 @@ class Recipe extends Model
     public function maxLeftoverDays(): int
     {
         return max(0, intdiv((int) $this->servings, self::servingsPerMeal()) - 1);
+    }
+
+    /** Labels a recipe should have; the "to fill in" page lists recipes missing any. */
+    public const FIELD_MEAL = 'meal';
+
+    public const FIELD_MAIN_INGREDIENT = 'main_ingredient';
+
+    public const FIELD_RATING = 'rating';
+
+    public const FIELD_PACKABLE = 'packable';
+
+    public const LABEL_FIELDS = [self::FIELD_MEAL, self::FIELD_MAIN_INGREDIENT, self::FIELD_RATING, self::FIELD_PACKABLE];
+
+    /** "Meal", "Main ingredient"… — filter chips and sheet headings. */
+    public static function labelFieldName(string $field): string
+    {
+        return match ($field) {
+            self::FIELD_MEAL => __('Meal'),
+            self::FIELD_MAIN_INGREDIENT => __('Main ingredient'),
+            self::FIELD_RATING => __('Rating'),
+            self::FIELD_PACKABLE => __('For packing'),
+            default => $field,
+        };
+    }
+
+    /** "meal", "main ingredient"… — "Missing: …" and the "+ …" placeholders. */
+    public static function labelFieldShort(string $field): string
+    {
+        return match ($field) {
+            self::FIELD_MEAL => __('meal'),
+            self::FIELD_MAIN_INGREDIENT => __('main ingredient'),
+            self::FIELD_RATING => __('rating'),
+            self::FIELD_PACKABLE => __('for packing'),
+            default => $field,
+        };
+    }
+
+    /** Active recipes missing the given label field (or any of them when null). */
+    public function scopeIncomplete($query, ?string $field = null)
+    {
+        $conditions = [
+            self::FIELD_MEAL => fn ($q) => $q->whereDoesntHave('tags', fn ($t) => $t->where('category', Tag::MEAL_TYPE)),
+            self::FIELD_MAIN_INGREDIENT => fn ($q) => $q->whereDoesntHave('tags', fn ($t) => $t->where('category', Tag::DIET_TYPE)),
+            self::FIELD_RATING => fn ($q) => $q->whereNull('rating'),
+            self::FIELD_PACKABLE => fn ($q) => $q->whereNull('packable'),
+        ];
+
+        if ($field !== null) {
+            return $query->active()->where($conditions[$field]);
+        }
+
+        return $query->active()->where(function ($q) use ($conditions) {
+            foreach ($conditions as $condition) {
+                $q->orWhere($condition);
+            }
+        });
+    }
+
+    /**
+     * Label fields this recipe has not got yet (tags must be loaded).
+     *
+     * @return list<string>
+     */
+    public function missingLabels(): array
+    {
+        return array_values(array_filter(self::LABEL_FIELDS, fn (string $field) => match ($field) {
+            self::FIELD_MEAL => ! $this->tags->contains(fn (Tag $tag) => $tag->isMealType()),
+            self::FIELD_MAIN_INGREDIENT => ! $this->tags->contains(fn (Tag $tag) => $tag->isDietType()),
+            self::FIELD_RATING => $this->rating === null,
+            self::FIELD_PACKABLE => $this->packable === null,
+        }));
     }
 
     public function isArchived(): bool

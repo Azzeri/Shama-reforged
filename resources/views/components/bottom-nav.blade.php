@@ -26,9 +26,9 @@ $isActive = fn (array $paths) => collect($paths)->contains(fn ($p) => $currentPa
         },
     }"
     x-on:livewire:navigated.window="path = window.location.pathname"
-    class="lg:hidden fixed inset-x-0 bottom-0 z-40 bg-surface border-t border-line select-none"
+    class="lg:hidden fixed inset-x-0 bottom-0 z-40 bg-tabbar border-t border-nav-line select-none"
     style="padding-bottom: env(safe-area-inset-bottom)">
-    <div class="max-w-xl mx-auto grid grid-cols-5 px-1 pt-1.5 pb-1">
+    <div class="max-w-xl mx-auto grid grid-cols-5 gap-0.5 px-1.5 pt-2 pb-1">
         @foreach ($items as $item)
         <a
             href="{{ route($item['route']) }}"
@@ -38,7 +38,7 @@ $isActive = fn (array $paths) => collect($paths)->contains(fn ($p) => $currentPa
             @if ($isActive($item['paths'])) data-active aria-current="page" @endif
             x-bind:data-active="isActive({{ Js::from($item['paths']) }})"
             x-bind:aria-current="isActive({{ Js::from($item['paths']) }}) ? 'page' : null"
-            class="flex h-[52px] flex-col items-center justify-center gap-1 min-w-0 text-muted font-medium data-active:text-terracotta data-active:font-semibold">
+            class="flex h-[52px] flex-col items-center justify-center gap-1 min-w-0 rounded-[14px] text-nav-icon font-medium data-active:bg-ink data-active:text-on-ink data-active:font-semibold">
             <x-dynamic-component :component="'icon.' . $item['icon']" class="size-[22px]" />
             <span class="text-[11px] truncate max-w-full px-1">{{ $item['label'] }}</span>
         </a>

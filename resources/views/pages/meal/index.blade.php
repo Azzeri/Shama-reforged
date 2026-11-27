@@ -346,7 +346,7 @@ new #[Layout('layouts::app')] class extends Component {
                     @endforeach
 
                     @if (filled($meal->note))
-                    <span class="py-2.5 text-[14px] leading-[1.4] italic text-ink-soft">{{ $meal->note }}</span>
+                    <span class="py-2.5 text-[14px] leading-[1.4] text-ink-soft">{{ $meal->note }}</span>
                     @endif
                 </div>
             </div>

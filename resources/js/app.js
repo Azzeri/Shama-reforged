@@ -10,6 +10,7 @@ import './native/gestures';
 import './native/keyboard-share';
 import './native/badge-push';
 import './native/offline';
+import './native/letter-jump';
 
 /*
  * Split views (recipes, custom lists): on the phone a row is a wire:navigate

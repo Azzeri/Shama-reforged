@@ -35,7 +35,8 @@ new class extends Component {
 
     public ?string $rating = null;
 
-    public bool $packable = false;
+    /** null = not set yet (the recipe stays on the "to fill in" page). */
+    public ?bool $packable = null;
 
     /** @var list<array{name: string, amount: string, unit: string, optional: bool, substitute: string, showSubstitute: bool}> */
     public array $recipeIngredients = [];
@@ -58,7 +59,7 @@ new class extends Component {
             $this->recipeName = $recipe->name;
             $this->servings = max(1, (int) $recipe->servings);
             $this->rating = $recipe->rating;
-            $this->packable = (bool) $recipe->packable;
+            $this->packable = $recipe->packable;
             $this->recipeUrl = $recipe->link ?? '';
             $this->recipeContent = $recipe->content ?? '';
             $this->recipeTags = $recipe->tags()->pluck('tags.id')->all();
@@ -248,6 +249,12 @@ new class extends Component {
         $this->rating = $this->rating === $rating || ! in_array($rating, Recipe::RATINGS, true) ? null : $rating;
     }
 
+    /** Tapping the selected chip again clears it (back to "not set"). */
+    public function setPackable(bool $packable): void
+    {
+        $this->packable = $this->packable === $packable ? null : $packable;
+    }
+
     public function toggleTag(int $tagId): void
     {
         $this->recipeTags = in_array($tagId, $this->recipeTags)
@@ -421,17 +428,22 @@ new class extends Component {
         </div>
     </fieldset>
 
-    <div class="rounded-2xl border border-line bg-surface px-3.5 py-1.5">
-        <label class="flex items-center gap-3 min-h-11 cursor-pointer">
-            <x-icon.bag class="size-[18px] text-ink-soft" />
-            <span class="flex-1 min-w-0">
-                <span class="block text-[15px] font-medium text-ink">{{ __('For packing') }}</span>
-                <span class="block text-[12.5px] text-muted">{{ __('Can be taken to work or on a trip') }}</span>
-            </span>
-            <input type="checkbox" role="switch" wire:model.live="packable" class="peer sr-only" />
-            <span class="relative h-7 w-12 shrink-0 rounded-full bg-field transition-colors peer-checked:bg-sage peer-focus-visible:ring-2 peer-focus-visible:ring-ink after:absolute after:left-0.5 after:top-0.5 after:size-6 after:rounded-full after:bg-surface after:shadow after:transition-transform peer-checked:after:translate-x-5"></span>
-        </label>
-    </div>
+    <fieldset>
+        <legend class="{{ $label }}">{{ __('For packing') }}</legend>
+        <div class="flex flex-wrap gap-2">
+            <x-ui.chip :active="$packable === true" wire:click="setPackable(true)">{{ __('Yes, can be taken along') }}</x-ui.chip>
+            <x-ui.chip :active="$packable === false" wire:click="setPackable(false)">{{ __('No') }}</x-ui.chip>
+        </div>
+        <p @class(['mt-1.5 text-[12.5px] leading-snug', 'text-gold-dark' => $packable === null, 'text-muted' => $packable !== null])>
+            @if ($packable === null)
+            {{ __('Not set: the recipe will be on the “To fill in” list.') }}
+            @elseif ($packable)
+            {{ __('Shows up with the “for packing” filter.') }}
+            @else
+            {{ __('Not suitable for taking along.') }}
+            @endif
+        </p>
+    </fieldset>
 
     <div class="hidden lg:block space-y-5 border-t border-line pt-5">
     <div>

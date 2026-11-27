@@ -25,7 +25,7 @@ $isActive = fn (array $paths) => collect($paths)->contains(fn ($p) => $currentPa
         },
     }"
     x-on:livewire:navigated.window="path = window.location.pathname"
-    class="hidden lg:flex fixed inset-y-0 left-0 z-40 w-[232px] flex-col border-r border-line bg-field-bg px-3.5 pt-6 pb-5 select-none">
+    class="hidden lg:flex fixed inset-y-0 left-0 z-40 w-[232px] flex-col border-r border-nav-line bg-nav px-3.5 pt-6 pb-5 select-none">
     <a href="{{ route('meals.index') }}" wire:navigate data-nav-root class="mb-5 flex items-center gap-2.5 px-2">
         <span class="flex size-8 items-center justify-center rounded-[9px] bg-terracotta overflow-hidden"><x-app-logo-icon class="size-6" /></span>
         <span class="font-fraunces text-[22px] font-semibold text-ink">Shama</span>
@@ -44,8 +44,8 @@ $isActive = fn (array $paths) => collect($paths)->contains(fn ($p) => $currentPa
         @if ($isActive($item['paths'])) data-active aria-current="page" @endif
         x-bind:data-active="isActive({{ Js::from($item['paths']) }})"
         x-bind:aria-current="isActive({{ Js::from($item['paths']) }}) ? 'page' : null"
-        class="group flex h-11 items-center gap-3 rounded-xl px-3 text-[15px] font-medium text-ink hover:bg-sand/60 data-active:bg-sand data-active:font-semibold">
-        <x-dynamic-component :component="'icon.' . $item['icon']" class="size-5 text-ink-soft group-data-active:text-terracotta" />
+        class="group flex h-11 items-center gap-3 rounded-xl px-3 text-[15px] font-medium text-ink hover:bg-ink/5 data-active:bg-ink data-active:text-on-ink data-active:font-semibold">
+        <x-dynamic-component :component="'icon.' . $item['icon']" class="size-5 text-nav-icon group-data-active:text-on-ink" />
         {{ $item['label'] }}
     </a>
     @endforeach

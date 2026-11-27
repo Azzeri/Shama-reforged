@@ -77,13 +77,12 @@ new #[Layout('layouts::app')] class extends Component {
     {
         $search = trim($this->search);
 
-        return Ingredient::query()
+        return \App\Support\Alphabet::sort(Ingredient::query()
             ->when($search !== '', fn ($query) => $query->where(Ingredient::NAME_COLUMN, 'like', "%{$search}%"))
             ->when($this->filter === self::FILTER_ADVANCE, fn ($query) => $query->where(Ingredient::PURCHASE_TIMING_COLUMN, Ingredient::PURCHASE_TIMING_ADVANCE))
             ->when($this->filter === self::FILTER_SKIPPED, fn ($query) => $query->where(Ingredient::SKIP_SHOPPING_COLUMN, true))
             ->when(in_array($this->filter, Ingredient::CATEGORIES, true), fn ($query) => $query->where(Ingredient::CATEGORY_COLUMN, $this->filter))
-            ->orderBy(Ingredient::NAME_COLUMN)
-            ->get();
+            ->get(), fn (Ingredient $ingredient) => $ingredient->name);
     }
 
     /** Filter chips: all, "for the whole week", then aisles that have ingredients. */
@@ -355,6 +354,7 @@ new #[Layout('layouts::app')] class extends Component {
 @php
     $label = 'block text-[11px] font-semibold uppercase tracking-[0.09em] text-muted mb-1.5';
     $filledWeights = collect($unitWeights)->filter(fn ($grams) => trim((string) $grams) !== '')->count();
+    $letters = $filter === 'duplicates' ? [] : \App\Support\Alphabet::letters($this->ingredients, fn ($ingredient) => $ingredient->name);
 @endphp
 
 <div class="space-y-3" x-on:ingredient-form-opened.window="if (! window.isDesktop()) $dispatch('modal-show', { name: 'ingredient-modal' })">
@@ -373,6 +373,9 @@ new #[Layout('layouts::app')] class extends Component {
     </div>
 
     <div class="-mx-4 px-4 flex gap-2 overflow-x-auto no-scrollbar lg:mx-0 lg:px-0 lg:flex-wrap lg:overflow-visible">
+        @if (count($letters) > 1)
+        <x-ui.letter-button />
+        @endif
         @foreach ($this->filters as $key => $filterLabel)
         <x-ui.chip wire:key="filter-{{ $key }}" :active="$filter === $key" wire:click="setFilter('{{ $key }}')" @class(['border-gold! bg-gold-light! text-gold-dark!' => $key === 'duplicates' && $filter !== $key])>{{ $filterLabel }}</x-ui.chip>
         @endforeach
@@ -401,8 +404,15 @@ new #[Layout('layouts::app')] class extends Component {
     @elseif ($this->ingredients->isEmpty())
     <div class="rounded-[20px] border border-dashed border-field px-5 py-10 text-center text-[15px] text-muted">{{ __('No ingredients found.') }}</div>
     @else
+    <x-ui.letter-sheet :letters="$letters" prefix="il" />
     <x-ui.card class="divide-y divide-divider lg:hidden">
+        @php $previousLetter = null; @endphp
         @foreach ($this->ingredients as $ingredient)
+        @php $letter = \App\Support\Alphabet::letter($ingredient->name); @endphp
+        @if ($letter !== $previousLetter)
+        <x-ui.letter-header :letter="$letter" prefix="il" wire:key="il-head-{{ $letter }}" />
+        @php $previousLetter = $letter; @endphp
+        @endif
         <button type="button" wire:key="ingredient-{{ $ingredient->id }}" wire:click="openEdit({{ $ingredient->id }})" class="flex w-full items-center gap-3 px-4 py-2.5 min-h-14 text-left">
             <span class="flex-1 min-w-0">
                 <span class="block text-[15px] text-ink truncate">{{ $ingredient->name }}</span>
@@ -422,10 +432,11 @@ new #[Layout('layouts::app')] class extends Component {
     </x-ui.card>
 
     {{-- Desktop: a table; the selected row opens in the panel on the right. --}}
-    <div class="hidden lg:block rounded-[20px] border border-line bg-surface overflow-hidden">
+    <x-ui.letter-bar :letters="$letters" prefix="dil" box="ingredient-list-box" class="mb-3" />
+    <div id="ingredient-list-box" x-data="fitHeight" class="hidden lg:block rounded-[20px] border border-line bg-surface overflow-y-auto overscroll-contain">
         <table class="w-full text-left">
-            <thead>
-                <tr class="border-b border-line text-[13px] font-semibold text-ink-soft">
+            <thead class="sticky top-0 z-[1] bg-field-bg">
+                <tr class="text-[13px] font-semibold text-ink-soft shadow-[inset_0_-1px_0_var(--color-line)]">
                     <th scope="col" class="px-4 py-3 font-semibold">{{ __('Name') }}</th>
                     <th scope="col" class="px-4 py-3 font-semibold">{{ __('Store section') }}</th>
                     <th scope="col" class="px-4 py-3 font-semibold whitespace-nowrap">{{ __('When to buy') }}</th>
@@ -433,7 +444,13 @@ new #[Layout('layouts::app')] class extends Component {
                 </tr>
             </thead>
             <tbody class="divide-y divide-divider">
+                @php $previousLetter = null; @endphp
                 @foreach ($this->ingredients as $ingredient)
+                @php $letter = \App\Support\Alphabet::letter($ingredient->name); @endphp
+                @if ($letter !== $previousLetter)
+                <tr wire:key="dil-head-{{ $letter }}"><td colspan="4" class="p-0"><x-ui.letter-header :letter="$letter" prefix="dil" class="px-4" /></td></tr>
+                @php $previousLetter = $letter; @endphp
+                @endif
                 @php $isSelected = $panelOpen && $editingId === $ingredient->id; @endphp
                 <tr wire:key="ingredient-row-{{ $ingredient->id }}" wire:click="openEdit({{ $ingredient->id }})" @class(['cursor-pointer hover:bg-field-bg', 'relative bg-selected [&>td:first-child]:shadow-[inset_3px_0_0_var(--color-terracotta)]' => $isSelected])>
                     <td class="px-4 py-3 text-[15px] text-ink">

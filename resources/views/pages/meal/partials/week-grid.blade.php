@@ -59,7 +59,7 @@
             </a>
             @endforeach
             @if (filled($meal->note))
-            <p class="text-[14px] leading-snug italic text-ink-soft">{{ $meal->note }}</p>
+            <p class="text-[14px] leading-snug text-ink-soft">{{ $meal->note }}</p>
             @endif
             @else
             <button type="button" wire:click="openDay('{{ $dateString }}')" aria-label="{{ __('Plan') }}: {{ \App\Models\Meal::typeLabel($type) }}, {{ $dayData['date']->format('j') }}"
