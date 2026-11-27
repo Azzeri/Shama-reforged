@@ -114,7 +114,7 @@ new #[Layout('layouts::app')] class extends Component {
 
     public function insert(int $recipeId, string $card): void
     {
-        $recipe = Recipe::query()->active()->with('tags')->find($recipeId);
+        $recipe = Recipe::query()->plannable()->with('tags')->find($recipeId);
 
         if (! $recipe || in_array($recipeId, array_column($this->inserted, 'id'), true)) {
             return;

@@ -5,7 +5,11 @@
     $mealOrder = array_flip(\App\Models\Meal::orderedTagNames());
     $tags = $recipe->tags->sortBy(fn ($tag) => [$tag->isMealType() ? 0 : 1, $mealOrder[$tag->name] ?? 99]);
 @endphp
-@if ($tags->isNotEmpty() || $recipe->rating || $recipe->packable)
+@if ($recipe->is_semi_product)
+<span {{ $attributes->merge(['class' => 'flex flex-wrap items-center gap-1.5']) }}>
+    <span class="rounded-full bg-divider px-2 py-0.5 text-[12px] font-semibold text-ink-soft">{{ __('semi-product') }}</span>
+</span>
+@elseif ($tags->isNotEmpty() || $recipe->rating || $recipe->packable)
 <span {{ $attributes->merge(['class' => 'flex flex-wrap items-center gap-1.5']) }}>
     @foreach ($tags as $tag)
     <span @class(['rounded-full px-2 py-0.5 text-[12px] font-semibold', 'bg-gold-light text-gold-dark' => $tag->isMealType(), 'bg-sage-light text-forest' => ! $tag->isMealType()])>{{ $tag->label() }}</span>

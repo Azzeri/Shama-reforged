@@ -102,6 +102,7 @@ new #[Layout('layouts::app')] class extends Component {
     {
         return \App\Models\Recipe::query()
             ->where(fn ($query) => $query->whereNull('archived_at')->when($this->semiRecipeId, fn ($query) => $query->orWhere('id', $this->semiRecipeId)))
+            ->orderByDesc('is_semi_product')
             ->orderBy('name')
             ->get(['id', 'name']);
     }

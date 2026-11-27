@@ -160,7 +160,7 @@ new #[Layout('layouts::app')] class extends Component {
             ->take(8)
             ->values();
 
-        $recipes = Recipe::query()->active()->whereKey($ids)->get(['id', 'name', 'servings'])->keyBy('id');
+        $recipes = Recipe::query()->plannable()->whereKey($ids)->get(['id', 'name', 'servings'])->keyBy('id');
 
         return $ids->map(fn (int $id) => $recipes->get($id))->filter()->values();
     }
@@ -183,7 +183,7 @@ new #[Layout('layouts::app')] class extends Component {
         if ($search !== '') {
             return [[
                 'label' => __('Results'),
-                'recipes' => Recipe::query()->active()
+                'recipes' => Recipe::query()->plannable()
                     ->where('name', 'like', '%' . $search . '%')
                     ->orderBy('name')
                     ->get(['id', 'name', 'servings']),
@@ -193,7 +193,7 @@ new #[Layout('layouts::app')] class extends Component {
         $recent = $this->recentRecipes;
         $type = $this->pickingType;
 
-        $matching = Recipe::query()->active()
+        $matching = Recipe::query()->plannable()
             ->whereNotIn('id', $recent->pluck('id'))
             ->whereHas('tags', fn ($query) => $query->where('category', Tag::MEAL_TYPE)->where('name', Meal::tagName($type)))
             ->orderBy('name')
@@ -277,7 +277,7 @@ new #[Layout('layouts::app')] class extends Component {
      */
     public function chooseRecipe(int $recipeId): void
     {
-        $recipe = Recipe::query()->active()->find($recipeId);
+        $recipe = Recipe::query()->plannable()->find($recipeId);
 
         if (! $recipe || $this->pickingType === null || in_array($recipeId, $this->recipeIdsOf($this->pickingType), true)) {
             return;

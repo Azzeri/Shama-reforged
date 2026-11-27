@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
 use Livewire\Livewire;
 
 #[Fillable([
-    'name', 'content', 'link', 'servings', 'rating', 'packable', 'archived_at',
+    'name', 'content', 'link', 'servings', 'rating', 'packable', 'is_semi_product', 'archived_at',
     'calories_me', 'protein_me', 'fat_me', 'carbs_me',
     'calories_wife', 'protein_wife', 'fat_wife', 'carbs_wife',
 ])]
@@ -122,11 +122,14 @@ class Recipe extends Model
             self::FIELD_PACKABLE => fn ($q) => $q->whereNull('packable'),
         ];
 
+        // Semi-products are never planned, so they need no labels.
+        $query->active()->where('is_semi_product', false);
+
         if ($field !== null) {
-            return $query->active()->where($conditions[$field]);
+            return $query->where($conditions[$field]);
         }
 
-        return $query->active()->where(function ($q) use ($conditions) {
+        return $query->where(function ($q) use ($conditions) {
             foreach ($conditions as $condition) {
                 $q->orWhere($condition);
             }
@@ -140,6 +143,10 @@ class Recipe extends Model
      */
     public function missingLabels(): array
     {
+        if ($this->is_semi_product) {
+            return [];
+        }
+
         return array_values(array_filter(self::LABEL_FIELDS, fn (string $field) => match ($field) {
             self::FIELD_MEAL => ! $this->tags->contains(fn (Tag $tag) => $tag->isMealType()),
             self::FIELD_MAIN_INGREDIENT => ! $this->tags->contains(fn (Tag $tag) => $tag->isDietType()),
@@ -156,6 +163,12 @@ class Recipe extends Model
     public function scopeActive($query)
     {
         return $query->whereNull('archived_at');
+    }
+
+    /** Recipes that can be put in the meal plan: active and not a mere semi-product. */
+    public function scopePlannable($query)
+    {
+        return $query->active()->where('is_semi_product', false);
     }
 
     public function scopeArchived($query)
@@ -179,6 +192,7 @@ class Recipe extends Model
         return [
             'servings' => 'integer',
             'packable' => 'boolean',
+            'is_semi_product' => 'boolean',
             'archived_at' => 'datetime',
             'calories_me' => 'integer',
             'protein_me' => 'float',

@@ -192,3 +192,32 @@ test('a bought row of the home-made stock stays bought when the list is generate
     expect(ShoppingListItem::query()->where('name', 'Marchew')->orderBy('amount')->get()->map(fn ($item) => [$item->amount, $item->is_checked])->all())
         ->toBe([[100.0, false], [140.0, true]]);
 });
+
+it('marks a recipe as a semi-product in the recipe form', function () {
+    Livewire::test('recipe.form', ['recipe' => $this->stockRecipe])
+        ->assertSee('Posiłek')
+        ->set('semiProduct', true)
+        ->assertSee('Nie da się go dodać do planu posiłków')
+        ->assertDontSee('Na wynos')
+        ->call('save');
+
+    expect($this->stockRecipe->fresh()->is_semi_product)->toBeTrue();
+});
+
+it('keeps a recipe marked as a semi-product out of planning and of the "to fill in" list', function () {
+    $this->stockRecipe->update(['is_semi_product' => true]);
+
+    Livewire::test('pages::meal.day-edit', ['date' => '2026-11-18'])
+        ->call('openRecipePicker', 'dinner')
+        ->set('recipeSearch', 'bulion')
+        ->assertDontSee('Domowy bulion warzywny')
+        ->call('chooseRecipe', $this->stockRecipe->id)
+        ->assertSet('chosenRecipeId', null);
+
+    expect(RecipeMealAssignment::query()->count())->toBe(0)
+        ->and(Recipe::query()->incomplete()->pluck('name')->all())->toBe(['Zupa pomidorowa'])
+        ->and($this->stockRecipe->fresh()->load('tags')->missingLabels())->toBe([]);
+
+    // It still works as the home-made source of the ingredient.
+    $this->get(route('recipes.index'))->assertOk()->assertSee('półprodukt');
+});

@@ -166,7 +166,7 @@ class BuildWeekReview
         $lastPlanned = $this->lastPlannedBefore($start);
 
         // Active recipes not in this week: longest not eaten first, never planned last.
-        $candidates = Recipe::query()->active()
+        $candidates = Recipe::query()->plannable()
             ->whereNotIn('id', $entries->pluck('recipe.id')->unique())
             ->with('tags')
             ->get()

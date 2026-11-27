@@ -680,5 +680,9 @@
     "making it myself": "robię sam",
     "already have it": "mam już",
     "Unlink the recipe": "Odłącz przepis",
-    "No recipe with that name.": "Brak przepisu o tej nazwie."
+    "No recipe with that name.": "Brak przepisu o tej nazwie.",
+    "Semi-product": "Półprodukt",
+    "This is a semi-product": "To jest półprodukt",
+    "It cannot be added to the meal plan and needs no labels. Link it to an ingredient to use it in other recipes.": "Nie da się go dodać do planu posiłków i nie potrzebuje etykiet. Powiąż go ze składnikiem, żeby używać go w innych przepisach.",
+    "Mark it for a sauce, dough or stock that is only used in other recipes.": "Zaznacz dla sosu, ciasta czy bulionu, który służy tylko jako część innych przepisów."
 }

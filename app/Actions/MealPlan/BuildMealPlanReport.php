@@ -150,7 +150,7 @@ TXT;
     {
         $lines = ['Format: `id` | nazwa | rodzaje posiłku | główny składnik | porcje | ocena | do spakowania | składniki', ''];
 
-        $recipes = Recipe::query()->active()->with(['tags', 'ingredients'])->orderBy('name')->get();
+        $recipes = Recipe::query()->plannable()->with(['tags', 'ingredients'])->orderBy('name')->get();
 
         foreach ($recipes as $recipe) {
             $mealTypes = $recipe->tags->where('category', Tag::MEAL_TYPE)->pluck('name')->implode(', ');

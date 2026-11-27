@@ -38,6 +38,9 @@ new class extends Component {
     /** null = not set yet (the recipe stays on the "to fill in" page). */
     public ?bool $packable = null;
 
+    /** Only used inside other recipes: not planned as a meal, needs no labels. */
+    public bool $semiProduct = false;
+
     /** @var list<array{name: string, amount: string, unit: string, optional: bool, substitute: string, showSubstitute: bool}> */
     public array $recipeIngredients = [];
 
@@ -60,6 +63,7 @@ new class extends Component {
             $this->servings = max(1, (int) $recipe->servings);
             $this->rating = $recipe->rating;
             $this->packable = $recipe->packable;
+            $this->semiProduct = (bool) $recipe->is_semi_product;
             $this->recipeUrl = $recipe->link ?? '';
             $this->recipeContent = $recipe->content ?? '';
             $this->recipeTags = $recipe->tags()->pluck('tags.id')->all();
@@ -321,6 +325,7 @@ new class extends Component {
             $recipe->servings = $this->servings;
             $recipe->rating = $this->rating;
             $recipe->packable = $this->packable;
+            $recipe->is_semi_product = $this->semiProduct;
             $recipe->link = trim($this->recipeUrl) ?: null;
             $recipe->content = trim($this->recipeContent) ?: null;
             $recipe->save();
@@ -399,6 +404,21 @@ new class extends Component {
     </div>
 
     <fieldset>
+        <legend class="{{ $label }}">{{ __('Semi-product') }}</legend>
+        <div class="flex flex-wrap gap-2">
+            <x-ui.chip :active="$semiProduct" wire:click="$toggle('semiProduct')">{{ __('This is a semi-product') }}</x-ui.chip>
+        </div>
+        <p class="mt-1.5 text-[12.5px] leading-snug text-muted">
+            @if ($semiProduct)
+            {{ __('It cannot be added to the meal plan and needs no labels. Link it to an ingredient to use it in other recipes.') }}
+            @else
+            {{ __('Mark it for a sauce, dough or stock that is only used in other recipes.') }}
+            @endif
+        </p>
+    </fieldset>
+
+    @if (! $semiProduct)
+    <fieldset>
         <legend class="{{ $label }}">{{ __('Meal') }}</legend>
         <div class="flex flex-wrap gap-2">
             @foreach ($this->mealTags as $tag)
@@ -444,6 +464,7 @@ new class extends Component {
             @endif
         </p>
     </fieldset>
+    @endif
 
     <div class="hidden lg:block space-y-5 border-t border-line pt-5">
     <div>

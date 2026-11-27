@@ -28,7 +28,7 @@ class ImportMealPlan
             'meals.*.date' => ['required', 'date_format:Y-m-d'],
             'meals.*.type' => ['required', Rule::in(Meal::TYPES)],
             'meals.*.recipe_ids' => ['present', 'array'],
-            'meals.*.recipe_ids.*' => ['integer', 'distinct', Rule::exists(Recipe::class, 'id')],
+            'meals.*.recipe_ids.*' => ['integer', 'distinct', Rule::exists(Recipe::class, 'id')->where('is_semi_product', false)],
             'meals.*.note' => ['nullable', 'string', 'max:255'],
         ])->validate();
 
