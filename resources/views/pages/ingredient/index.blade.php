@@ -53,6 +53,17 @@ new #[Layout('layouts::app')] class extends Component {
 
     public bool $skipShopping = false;
 
+    /** Semi-product: the recipe that makes this ingredient (null = an ordinary ingredient). */
+    public ?int $semiRecipeId = null;
+
+    /** Semi-product default: usually made at home rather than bought ready. */
+    public bool $homemadeDefault = false;
+
+    /** Semi-product: how much the linked recipe makes, as typed ("1500" + "ml"). */
+    public string $yieldAmount = '';
+
+    public string $yieldUnit = 'ml';
+
     /** unit => grams per 1 unit, as typed */
     public array $unitWeights = [];
 
@@ -83,6 +94,16 @@ new #[Layout('layouts::app')] class extends Component {
             ->when($this->filter === self::FILTER_SKIPPED, fn ($query) => $query->where(Ingredient::SKIP_SHOPPING_COLUMN, true))
             ->when(in_array($this->filter, Ingredient::CATEGORIES, true), fn ($query) => $query->where(Ingredient::CATEGORY_COLUMN, $this->filter))
             ->get(), fn (Ingredient $ingredient) => $ingredient->name);
+    }
+
+    /** Recipes an ingredient can be linked to: active ones plus the one already linked. */
+    #[Computed]
+    public function semiRecipeOptions(): Collection
+    {
+        return \App\Models\Recipe::query()
+            ->where(fn ($query) => $query->whereNull('archived_at')->when($this->semiRecipeId, fn ($query) => $query->orWhere('id', $this->semiRecipeId)))
+            ->orderBy('name')
+            ->get(['id', 'name']);
     }
 
     /** Filter chips: all, "for the whole week", then aisles that have ingredients. */
@@ -276,6 +297,10 @@ new #[Layout('layouts::app')] class extends Component {
             ? $ingredient->category
             : Ingredient::CATEGORY_UNCATEGORIZED;
         $this->skipShopping = (bool) $ingredient->skip_shopping;
+        $this->semiRecipeId = $ingredient->recipe_id;
+        $this->homemadeDefault = (bool) $ingredient->homemade_default;
+        $this->yieldAmount = $ingredient->recipe_yield_amount !== null ? Quantity::number($ingredient->recipe_yield_amount) : '';
+        $this->yieldUnit = $ingredient->recipe_yield_unit ?? 'ml';
         $this->unitWeights = collect(Ingredient::WEIGHABLE_UNITS)
             ->mapWithKeys(fn (string $unit) => [$unit => isset($ingredient->unit_weights[$unit]) ? Quantity::number((float) $ingredient->unit_weights[$unit]) : ''])
             ->all();
@@ -286,7 +311,8 @@ new #[Layout('layouts::app')] class extends Component {
 
     private function resetForm(): void
     {
-        $this->reset('editingId', 'name', 'purchaseTiming', 'category', 'skipShopping', 'confirmingDelete', 'similarDismissed');
+        $this->reset('editingId', 'name', 'purchaseTiming', 'category', 'skipShopping', 'confirmingDelete', 'similarDismissed', 'semiRecipeId', 'homemadeDefault', 'yieldAmount', 'yieldUnit');
+        unset($this->semiRecipeOptions);
         $this->unitWeights = array_fill_keys(Ingredient::WEIGHABLE_UNITS, '');
         unset($this->editingRecipeCount);
         $this->resetErrorBag();
@@ -300,7 +326,13 @@ new #[Layout('layouts::app')] class extends Component {
             $this->unitWeights,
         );
 
+        $this->semiRecipeId = $this->semiRecipeId ?: null;
+        $this->yieldAmount = trim(str_replace(',', '.', $this->yieldAmount));
+
         $this->validate([
+            'semiRecipeId' => ['nullable', 'integer', Rule::exists('recipes', 'id')],
+            'yieldAmount' => ['nullable', 'numeric', 'gt:0', 'max:1000000'],
+            'yieldUnit' => ['required', Rule::in(\App\Models\RecipeIngredientAssignment::UNITS)],
             'name' => ['required', 'string', 'max:255', function (string $attribute, string $value, \Closure $fail) {
                 if (\App\Support\Ingredients\IngredientName::fold($value) !== ''
                     && Ingredient::query()->where('name_key', \App\Support\Ingredients\IngredientName::fold($value))->whereKeyNot($this->editingId)->exists()) {
@@ -313,7 +345,10 @@ new #[Layout('layouts::app')] class extends Component {
         ], attributes: [
             'name' => __('name'),
             'unitWeights.*' => __('unit weight'),
+            'yieldAmount' => __('amount'),
         ]);
+
+        $hasYield = $this->semiRecipeId !== null && $this->yieldAmount !== '';
 
         $unitWeights = collect($this->unitWeights)
             ->only(Ingredient::WEIGHABLE_UNITS)
@@ -327,6 +362,10 @@ new #[Layout('layouts::app')] class extends Component {
             Ingredient::CATEGORY_COLUMN => $this->category,
             Ingredient::SKIP_SHOPPING_COLUMN => $this->skipShopping,
             Ingredient::UNIT_WEIGHTS_COLUMN => $unitWeights ?: null,
+            'recipe_id' => $this->semiRecipeId,
+            'homemade_default' => $this->semiRecipeId !== null && $this->homemadeDefault,
+            'recipe_yield_amount' => $hasYield ? (float) $this->yieldAmount : null,
+            'recipe_yield_unit' => $hasYield ? $this->yieldUnit : null,
         ];
 
         $this->editingId
@@ -418,6 +457,9 @@ new #[Layout('layouts::app')] class extends Component {
                 <span class="block text-[15px] text-ink truncate">{{ $ingredient->name }}</span>
                 <span class="flex flex-wrap items-center gap-1.5 text-[12.5px] text-muted">
                     {{ Ingredient::categoryLabel($ingredient->category ?? Ingredient::CATEGORY_UNCATEGORIZED) }}
+                    @if ($ingredient->isSemiProduct())
+                    <span class="rounded-full bg-divider px-1.5 py-px text-[11px] font-semibold text-ink-soft">{{ __('semi-product') }}</span>
+                    @endif
                     @if ($ingredient->purchase_timing === Ingredient::PURCHASE_TIMING_ADVANCE)
                     <span class="rounded-full bg-sage-light px-1.5 py-px text-[11px] font-semibold text-forest">{{ __('for the whole week') }}</span>
                     @endif
@@ -455,6 +497,9 @@ new #[Layout('layouts::app')] class extends Component {
                 <tr wire:key="ingredient-row-{{ $ingredient->id }}" wire:click="openEdit({{ $ingredient->id }})" @class(['cursor-pointer hover:bg-field-bg', 'relative bg-selected [&>td:first-child]:shadow-[inset_3px_0_0_var(--color-terracotta)]' => $isSelected])>
                     <td class="px-4 py-3 text-[15px] text-ink">
                         <button type="button" class="text-left" aria-label="{{ __('Edit') }}: {{ $ingredient->name }}">{{ $ingredient->name }}</button>
+                        @if ($ingredient->isSemiProduct())
+                        <span class="ml-1.5 rounded-full bg-divider px-1.5 py-0.5 text-[11px] font-semibold text-ink-soft">{{ __('semi-product') }}</span>
+                        @endif
                     </td>
                     <td class="px-4 py-3 text-[14px] text-ink-soft whitespace-nowrap">{{ Ingredient::categoryLabel($ingredient->category ?? Ingredient::CATEGORY_UNCATEGORIZED) }}</td>
                     <td class="px-4 py-3 text-[13px]">

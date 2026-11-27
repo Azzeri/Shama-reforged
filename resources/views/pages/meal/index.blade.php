@@ -112,7 +112,7 @@ new #[Layout('layouts::app')] class extends Component {
         }
 
         $meals = Meal::query()
-            ->with('recipes:id,name,servings')
+            ->with(['recipes:id,name,servings', 'recipes.ingredients' => fn ($query) => $query->whereNotNull('ingredients.recipe_id')])
             ->whereBetween(Meal::DATE_COLUMN, [$start->copy()->startOfDay(), $end->copy()->endOfDay()])
             ->orderBy(Meal::DATE_COLUMN)
             ->get();
@@ -164,11 +164,11 @@ new #[Layout('layouts::app')] class extends Component {
         }
 
         return match ($recipe->pivot->mode) {
-            RecipeMealAssignment::MODE_FULL => __('cooking') . ' · ' . Recipe::servingsLabel((int) $recipe->servings),
+            RecipeMealAssignment::MODE_FULL => implode(' · ', array_filter([__('cooking') . ' · ' . Recipe::servingsLabel((int) $recipe->servings), \App\Support\MealPlan\SemiProducts::caption($recipe)])),
             RecipeMealAssignment::MODE_LEFTOVER => isset($this->cookingDates[$recipe->pivot->cooked_from_id])
                 ? Meal::fromDayLabel($this->cookingDates[$recipe->pivot->cooked_from_id]) . ' · ' . __('no shopping')
                 : __('leftovers') . ' · ' . __('no shopping'),
-            default => null,
+            default => \App\Support\MealPlan\SemiProducts::caption($recipe),
         };
     }
 

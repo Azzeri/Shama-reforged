@@ -16,7 +16,7 @@ class RecipeIngredientAssignment extends Pivot
 
     public $incrementing = true;
 
-    protected $fillable = ['recipe_id', 'ingredient_id', 'quantity', 'amount', 'amount_me', 'amount_wife', 'unit', 'is_optional', 'substitute'];
+    protected $fillable = ['recipe_id', 'ingredient_id', 'quantity', 'amount', 'amount_me', 'amount_wife', 'unit', 'is_optional', 'substitute', 'semi_source'];
 
     /**
      * Units a shopping list total can be summed in. A plain list (not a DB

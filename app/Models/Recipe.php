@@ -277,7 +277,7 @@ class Recipe extends Model
     {
         return $this->belongsToMany(Ingredient::class, 'recipe_ingredient_assignments')
             ->using(RecipeIngredientAssignment::class)
-            ->withPivot('id', 'quantity', 'amount', 'amount_me', 'amount_wife', 'unit', 'is_optional', 'substitute')
+            ->withPivot('id', 'quantity', 'amount', 'amount_me', 'amount_wife', 'unit', 'is_optional', 'substitute', 'semi_source')
             ->withTimestamps();
     }
 
@@ -285,7 +285,7 @@ class Recipe extends Model
     {
         return $this->belongsToMany(Meal::class, 'recipe_meal_assignments')
             ->using(RecipeMealAssignment::class)
-            ->withPivot('id', 'mode', 'skip_shopping', 'cooked_from_id')
+            ->withPivot('id', 'mode', 'skip_shopping', 'semi_choices', 'cooked_from_id')
             ->withTimestamps();
     }
 

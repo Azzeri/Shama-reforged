@@ -7,10 +7,11 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Str;
 
-#[Fillable(['name', 'purchase_timing', 'skip_shopping', 'category', 'unit_weights'])]
+#[Fillable(['name', 'purchase_timing', 'skip_shopping', 'category', 'unit_weights', 'recipe_id', 'homemade_default', 'recipe_yield_amount', 'recipe_yield_unit'])]
 class Ingredient extends Model
 {
     use HasFactory;
@@ -145,6 +146,8 @@ class Ingredient extends Model
         return [
             self::UNIT_WEIGHTS_COLUMN => 'array',
             self::SKIP_SHOPPING_COLUMN => 'boolean',
+            'homemade_default' => 'boolean',
+            'recipe_yield_amount' => 'float',
         ];
     }
 
@@ -207,6 +210,21 @@ class Ingredient extends Model
         return Attribute::make(
             set: fn (string $value) => Str::ucfirst(trim($value)),
         );
+    }
+
+    /**
+     * A semi-product: an ingredient that can also be made at home from the
+     * linked recipe (see App\Support\MealPlan\SemiProducts).
+     */
+    public function isSemiProduct(): bool
+    {
+        return $this->recipe_id !== null;
+    }
+
+    /** The recipe that makes this ingredient. */
+    public function recipe(): BelongsTo
+    {
+        return $this->belongsTo(Recipe::class);
     }
 
     public function recipes(): BelongsToMany

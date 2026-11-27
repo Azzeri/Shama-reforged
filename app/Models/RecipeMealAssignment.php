@@ -16,6 +16,9 @@ use Illuminate\Database\Eloquent\Relations\Pivot;
  *
  * skip_shopping ("have it ready", e.g. a portion from the freezer): the entry
  * stays in the plan but puts nothing on the shopping list, whatever its mode.
+ *
+ * semi_choices: how the recipe's semi-products are obtained for this meal
+ * (ingredient id => buy | make | have), see App\Support\MealPlan\SemiProducts.
  */
 class RecipeMealAssignment extends Pivot
 {
@@ -31,13 +34,13 @@ class RecipeMealAssignment extends Pivot
 
     public $incrementing = true;
 
-    protected $fillable = ['recipe_id', 'meal_id', 'mode', 'skip_shopping', 'cooked_from_id'];
+    protected $fillable = ['recipe_id', 'meal_id', 'mode', 'skip_shopping', 'semi_choices', 'cooked_from_id'];
 
     protected $attributes = ['skip_shopping' => false];
 
     protected function casts(): array
     {
-        return ['skip_shopping' => 'boolean'];
+        return ['skip_shopping' => 'boolean', 'semi_choices' => 'array'];
     }
 
     /** "mam gotowe · bez zakupów" */

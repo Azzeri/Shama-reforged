@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Recipe;
+use App\Support\MealPlan\SemiProducts;
 use App\Support\ShoppingList\Quantity;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -21,7 +22,23 @@ new #[Layout('layouts::app')] class extends Component {
 
     public function render()
     {
+        // Semi-products link to the recipe that makes them.
+        $this->recipe->loadMissing('ingredients.recipe:id,name');
+
         return $this->view()->title($this->recipe->name);
+    }
+
+    /** "Ready / I make it myself" for a semi-product, remembered for this recipe. */
+    public function setSemiSource(int $ingredientId, string $source): void
+    {
+        $ingredient = $this->recipe->ingredients->firstWhere('id', $ingredientId);
+
+        if (! $ingredient || ! $ingredient->isSemiProduct() || ! in_array($source, SemiProducts::SOURCES, true)) {
+            return;
+        }
+
+        $this->recipe->ingredients()->updateExistingPivot($ingredientId, ['semi_source' => $source]);
+        $this->recipe->unsetRelation('ingredients');
     }
 
     #[Computed]
@@ -81,6 +98,7 @@ new #[Layout('layouts::app')] class extends Component {
 
 @php
     $base = max(1, (int) $recipe->servings);
+    $semiIds = SemiProducts::of($recipe)->pluck('id')->all();
 @endphp
 
 <div @class(['space-y-4', 'lg:max-w-[1040px]' => ! $embedded])>
@@ -158,17 +176,43 @@ new #[Layout('layouts::app')] class extends Component {
             @php
                 $pivot = $ingredient->pivot;
                 $total = $pivot->totalAmount();
+                $isSemi = in_array($ingredient->id, $semiIds, true) && $ingredient->recipe;
             @endphp
-            <li class="flex items-start gap-3 px-4 py-2.5 min-h-12">
+            <li wire:key="ingredient-{{ $ingredient->id }}" class="flex items-start gap-3 px-4 py-2.5 min-h-12">
                 <div class="flex-1 min-w-0">
                     <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                         <span class="text-[15px] text-ink">{{ $ingredient->name }}</span>
+                        @if ($isSemi)
+                        <span class="rounded-full bg-divider px-1.5 py-px text-[11px] font-semibold text-ink-soft">{{ __('semi-product') }}</span>
+                        @endif
                         @if ($pivot->is_optional)
                         <span class="rounded-full border border-dashed border-faint px-1.5 text-[11px] text-muted">{{ __('optionally') }}</span>
                         @endif
                     </div>
                     @if (filled($pivot->substitute))
                     <div class="text-[13px] text-muted">{{ __('or') }}: {{ $pivot->substitute }}</div>
+                    @endif
+                    @if ($isSemi)
+                    @php $made = SemiProducts::sourceFor($ingredient) === SemiProducts::MAKE; @endphp
+                    <div class="mt-1.5 flex flex-col items-start gap-1">
+                        <div role="radiogroup" aria-label="{{ __(':name: ready or home-made', ['name' => $ingredient->name]) }}" class="grid grid-cols-2 gap-1 rounded-[12px] bg-sand p-1">
+                            @foreach ([[SemiProducts::BUY, __('Ready')], [SemiProducts::MAKE, __('I make it myself')]] as [$source, $text])
+                            @php $on = $made === ($source === SemiProducts::MAKE); @endphp
+                            <button type="button" role="radio" aria-checked="{{ $on ? 'true' : 'false' }}" wire:click="setSemiSource({{ $ingredient->id }}, '{{ $source }}')"
+                                @class(['min-h-9 rounded-[9px] px-3.5 text-[13px] whitespace-nowrap', 'bg-surface text-ink font-semibold shadow-[0_1px_2px_rgba(31,27,22,0.12)]' => $on, 'text-ink-soft font-medium' => ! $on])>{{ $text }}</button>
+                            @endforeach
+                        </div>
+                        @if ($made)
+                        <a href="{{ route('recipes.show', $ingredient->recipe) }}" wire:navigate class="inline-flex min-h-9 items-center gap-1 text-[13px] font-semibold text-terracotta">
+                            {{ __('Recipe') }}: {{ $ingredient->recipe->name }}
+                            <x-icon.chevron-right class="size-3.5" />
+                        </a>
+                        @endif
+                        <span class="text-[12px] leading-normal text-muted">
+                            {{ $made ? __('The ingredients of that recipe go on the shopping list.') : __('The ready product goes on the shopping list.') }}
+                            {{ __('Remembered for this recipe.') }}
+                        </span>
+                    </div>
                     @endif
                 </div>
                 <div class="shrink-0 text-right">

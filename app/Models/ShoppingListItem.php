@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Date;
 
-#[Fillable(['name', 'quantity', 'is_checked', 'checked_at', 'notes', 'needed_on', 'shopping_list_id', 'recipe_id', 'meal_id', 'ingredient_id', 'amount', 'unit', 'is_optional', 'substitute', 'buy_anyway'])]
+#[Fillable(['name', 'quantity', 'is_checked', 'checked_at', 'notes', 'needed_on', 'shopping_list_id', 'recipe_id', 'meal_id', 'ingredient_id', 'amount', 'unit', 'is_optional', 'substitute', 'buy_anyway', 'semi_ingredient_id'])]
 class ShoppingListItem extends Model
 {
     use HasFactory;

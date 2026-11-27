@@ -5,6 +5,7 @@ use App\Models\Recipe;
 use App\Models\RecipeMealAssignment;
 use App\Models\ShoppingListItem;
 use App\Models\Tag;
+use App\Support\MealPlan\SemiProducts;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -23,6 +24,10 @@ use Livewire\Component;
  * recipe" + the following days that eat the leftovers — or "have it ready"
  * (e.g. a portion from the freezer), which keeps it off the shopping list.
  * The cart button on a planned recipe switches that later.
+ *
+ * A recipe with semi-products (ingredients that have their own recipe) also
+ * asks, per semi-product, whether it is bought ready, made at home or already
+ * there; that choice belongs to this one meal.
  */
 new #[Layout('layouts::app')] class extends Component {
     /** Meal types shown only when they already have content or were added by hand. */
@@ -64,6 +69,9 @@ new #[Layout('layouts::app')] class extends Component {
     /** @var list<string> Y-m-d */
     public array $leftoverDates = [];
 
+    /** Step 2: ingredient id => buy | make | have for the chosen recipe's semi-products. */
+    public array $semiChoices = [];
+
     public function mount(string $date): void
     {
         $this->date = Carbon::parse($date)->toDateString();
@@ -83,7 +91,7 @@ new #[Layout('layouts::app')] class extends Component {
     private function loadMeals(): void
     {
         $existingByType = Meal::query()
-            ->with('recipes:id,name,servings')
+            ->with(['recipes:id,name,servings', 'recipes.ingredients' => fn ($query) => $query->whereNotNull('ingredients.recipe_id')])
             ->whereDate(Meal::DATE_COLUMN, $this->date)
             ->orderBy('id')
             ->get()
@@ -106,11 +114,11 @@ new #[Layout('layouts::app')] class extends Component {
                     // Leftovers never need shopping, so there is nothing to switch.
                     'canSkip' => $recipe->pivot->mode !== RecipeMealAssignment::MODE_LEFTOVER,
                     'caption' => $recipe->pivot->skip_shopping ? RecipeMealAssignment::readyCaption() : match ($recipe->pivot->mode) {
-                        RecipeMealAssignment::MODE_FULL => __('cooking') . ' · ' . Recipe::servingsLabel((int) $recipe->servings),
+                        RecipeMealAssignment::MODE_FULL => implode(' · ', array_filter([__('cooking') . ' · ' . Recipe::servingsLabel((int) $recipe->servings), SemiProducts::caption($recipe)])),
                         RecipeMealAssignment::MODE_LEFTOVER => ($cookingDates->has($recipe->pivot->cooked_from_id)
                             ? Meal::fromDayLabel($cookingDates[$recipe->pivot->cooked_from_id])
                             : __('leftovers')) . ' · ' . __('no shopping'),
-                        default => null,
+                        default => SemiProducts::caption($recipe),
                     },
                 ]))->values()->all(),
                 'note' => $mealsOfType->first()?->note ?? '',
@@ -200,7 +208,21 @@ new #[Layout('layouts::app')] class extends Component {
     #[Computed]
     public function chosenRecipe(): ?Recipe
     {
-        return $this->chosenRecipeId ? Recipe::query()->find($this->chosenRecipeId) : null;
+        return $this->chosenRecipeId ? Recipe::query()->with('ingredients.recipe:id,name')->find($this->chosenRecipeId) : null;
+    }
+
+    /** Semi-products of the chosen recipe, each with its own recipe loaded. */
+    #[Computed]
+    public function chosenSemis(): Collection
+    {
+        return $this->chosenRecipe ? SemiProducts::of($this->chosenRecipe)->filter(fn ($ingredient) => $ingredient->recipe)->values() : collect();
+    }
+
+    public function setSemiChoice(int $ingredientId, string $choice): void
+    {
+        if (in_array($choice, SemiProducts::CHOICES, true) && $this->chosenSemis->contains('id', $ingredientId)) {
+            $this->semiChoices[$ingredientId] = $choice;
+        }
     }
 
     /** Days after this one that can eat the leftovers. */
@@ -229,13 +251,13 @@ new #[Layout('layouts::app')] class extends Component {
         }
 
         $this->pickingType = $type;
-        $this->reset('recipeSearch', 'chosenRecipeId', 'leftoverDates');
+        $this->reset('recipeSearch', 'chosenRecipeId', 'leftoverDates', 'semiChoices');
         $this->chosenMode = RecipeMealAssignment::MODE_SINGLE;
     }
 
     public function closeRecipePicker(): void
     {
-        $this->reset('pickingType', 'recipeSearch', 'chosenRecipeId', 'leftoverDates', 'previewRecipeId');
+        $this->reset('pickingType', 'recipeSearch', 'chosenRecipeId', 'leftoverDates', 'previewRecipeId', 'semiChoices');
     }
 
     public function previewRecipe(int $recipeId): void
@@ -250,7 +272,8 @@ new #[Layout('layouts::app')] class extends Component {
 
     /**
      * Step 1 → 2. Recipes that are a single meal anyway (servings ≤ what one
-     * meal uses) have nothing to choose and are added right away.
+     * meal uses) and have no semi-products have nothing to choose and are
+     * added right away.
      */
     public function chooseRecipe(int $recipeId): void
     {
@@ -260,24 +283,27 @@ new #[Layout('layouts::app')] class extends Component {
             return;
         }
 
-        if ($recipe->servings <= Recipe::servingsPerMeal()) {
-            $this->chosenRecipeId = $recipe->id;
-            $this->chosenMode = RecipeMealAssignment::MODE_SINGLE;
+        $this->chosenRecipeId = $recipe->id;
+        $this->chosenMode = RecipeMealAssignment::MODE_SINGLE;
+        $this->leftoverDates = [];
+        unset($this->chosenRecipe, $this->chosenSemis);
+
+        // Each semi-product starts on what is remembered for this recipe, else on the ingredient's default.
+        $this->semiChoices = $this->chosenSemis->mapWithKeys(fn ($ingredient) => [$ingredient->id => SemiProducts::sourceFor($ingredient)])->all();
+
+        if ($recipe->servings <= Recipe::servingsPerMeal() && $this->semiChoices === []) {
             $this->addChosenRecipe();
 
             return;
         }
 
-        $this->chosenRecipeId = $recipe->id;
-        $this->chosenMode = RecipeMealAssignment::MODE_SINGLE;
-        $this->leftoverDates = [];
         $this->previewRecipeId = null;
-        unset($this->chosenRecipe);
     }
 
     public function backToRecipeList(): void
     {
-        $this->reset('chosenRecipeId', 'leftoverDates');
+        $this->reset('chosenRecipeId', 'leftoverDates', 'semiChoices');
+        unset($this->chosenRecipe, $this->chosenSemis);
     }
 
     public function setMode(string $mode): void
@@ -319,11 +345,15 @@ new #[Layout('layouts::app')] class extends Component {
             : [];
 
         $ready = $this->chosenMode === self::CHOICE_READY;
+        // "Have it ready" needs no shopping at all, so the semi-product choices do not apply.
+        $semiChoices = $ready ? [] : $this->chosenSemis
+            ->mapWithKeys(fn ($ingredient) => [$ingredient->id => $this->semiChoices[$ingredient->id] ?? SemiProducts::sourceFor($ingredient)])
+            ->all();
 
-        DB::transaction(function () use ($recipe, $type, $mode, $leftoverDates, $ready) {
+        DB::transaction(function () use ($recipe, $type, $mode, $leftoverDates, $ready, $semiChoices) {
             $cooking = RecipeMealAssignment::query()->firstOrCreate(
                 ['meal_id' => $this->mealFor($this->date, $type)->id, 'recipe_id' => $recipe->id],
-                ['mode' => $mode, 'skip_shopping' => $ready],
+                ['mode' => $mode, 'skip_shopping' => $ready, 'semi_choices' => $semiChoices ?: null],
             );
 
             foreach ($leftoverDates as $date) {
@@ -686,6 +716,33 @@ new #[Layout('layouts::app')] class extends Component {
                     @endforeach
                 </div>
                 <p class="text-[12px] leading-normal text-muted">{{ __('On these days the recipe appears in the plan without extra shopping.') }}</p>
+            </div>
+            @endif
+
+            @if ($chosenMode !== self::CHOICE_READY && $this->chosenSemis->isNotEmpty())
+            <div class="space-y-2">
+                <x-ui.section-label>{{ __('Semi-products') }}</x-ui.section-label>
+                @foreach ($this->chosenSemis as $semi)
+                @php
+                    $choice = $semiChoices[$semi->id] ?? SemiProducts::sourceFor($semi);
+                    $semiHint = match ($choice) {
+                        SemiProducts::MAKE => __('The ingredients of “:recipe” go on the shopping list.', ['recipe' => $semi->recipe->name]),
+                        SemiProducts::HAVE => __('Nothing goes on the shopping list, e.g. when you have it frozen.'),
+                        default => __('The ready product goes on the shopping list.'),
+                    };
+                @endphp
+                <div wire:key="semi-{{ $semi->id }}" class="space-y-1.5 rounded-[14px] border border-line px-3 py-2.5">
+                    <span class="block text-[15px] font-semibold text-ink">{{ $semi->name }}</span>
+                    <div role="radiogroup" aria-label="{{ __(':name: buying ready, making it myself or already have it', ['name' => $semi->name]) }}" class="grid grid-cols-3 gap-1 rounded-[12px] bg-sand p-1">
+                        @foreach ([SemiProducts::BUY => __('Buying ready'), SemiProducts::MAKE => __('Making it myself'), SemiProducts::HAVE => __('Already have it')] as $value => $text)
+                        @php $on = $choice === $value; @endphp
+                        <button type="button" role="radio" aria-checked="{{ $on ? 'true' : 'false' }}" wire:click="setSemiChoice({{ $semi->id }}, '{{ $value }}')"
+                            @class(['min-h-10 rounded-[9px] px-1.5 text-[13px] whitespace-nowrap', 'bg-surface text-ink font-semibold shadow-[0_1px_2px_rgba(31,27,22,0.12)]' => $on, 'text-ink-soft font-medium' => ! $on])>{{ $text }}</button>
+                        @endforeach
+                    </div>
+                    <span class="block text-[12px] leading-normal text-muted">{{ $semiHint }}</span>
+                </div>
+                @endforeach
             </div>
             @endif
 

@@ -65,6 +65,10 @@ class MergeIngredients
                     Ingredient::PURCHASE_TIMING_COLUMN,
                     Ingredient::UNIT_WEIGHTS_COLUMN,
                     Ingredient::SKIP_SHOPPING_COLUMN,
+                    'recipe_id',
+                    'homemade_default',
+                    'recipe_yield_amount',
+                    'recipe_yield_unit',
                 ]))->save();
             }
 
