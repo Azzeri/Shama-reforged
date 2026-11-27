@@ -8,14 +8,50 @@ use Illuminate\Support\Collection;
 /**
  * Long lists (recipes, ingredients) in Polish alphabetical order, split by
  * first letter: Ł comes after L and is its own group, like Ś and Ż.
+ *
+ * Uses intl's Collator; without the extension a simple Polish ordering
+ * takes over, so a server missing intl never breaks the lists.
  */
 final class Alphabet
 {
+    private const POLISH = 'aąbcćdeęfghijklłmnńoópqrsśtuvwxyzźż';
+
     private static ?Collator $collator = null;
 
-    private static function collator(): Collator
+    private static function collator(): ?Collator
     {
+        if (! class_exists(Collator::class)) {
+            return null;
+        }
+
         return self::$collator ??= new Collator('pl_PL');
+    }
+
+    /** Fallback comparison: Polish letter order, case-insensitive. */
+    private static function compare(string $a, string $b): int
+    {
+        $ka = self::key($a);
+        $kb = self::key($b);
+
+        for ($i = 0, $n = min(count($ka), count($kb)); $i < $n; $i++) {
+            if ($ka[$i] !== $kb[$i]) {
+                return $ka[$i] <=> $kb[$i];
+            }
+        }
+
+        return count($ka) <=> count($kb) ?: strcmp($a, $b);
+    }
+
+    /** @return list<int> Spaces, digits and punctuation first, then Polish letters, then any other letter. */
+    private static function key(string $name): array
+    {
+        static $order = null;
+        $order ??= array_flip(mb_str_split(self::POLISH));
+
+        return array_map(
+            fn (string $char) => isset($order[$char]) ? 0x1000 + $order[$char] : (mb_ord($char) < 0x80 ? mb_ord($char) : 0x2000 + mb_ord($char)),
+            mb_str_split(mb_strtolower($name)),
+        );
     }
 
     /**
@@ -29,7 +65,9 @@ final class Alphabet
     {
         $collator = self::collator();
 
-        return $items->sort(fn ($a, $b) => $collator->compare($name($a), $name($b)))->values();
+        return $items->sort(fn ($a, $b) => $collator
+            ? $collator->compare($name($a), $name($b))
+            : self::compare($name($a), $name($b)))->values();
     }
 
     /** "Ł" for "Łosoś"; "#" for a name that doesn't start with a letter. */

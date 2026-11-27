@@ -20,10 +20,11 @@ services:
       dockerfile_inline: |
         FROM php:8.6-fpm
         # PHP 8.6 images no longer ship mbstring (Laravel needs it): libonig + ext.
-        RUN apt-get update && apt-get install -y libpng-dev libjpeg-dev libfreetype6-dev libonig-dev zip git unzip tzdata \
+        # intl (libicu): Polish alphabetical order of the recipe / ingredient lists.
+        RUN apt-get update && apt-get install -y libpng-dev libjpeg-dev libfreetype6-dev libonig-dev libicu-dev zip git unzip tzdata \
             && ln -snf /usr/share/zoneinfo/Europe/Warsaw /etc/localtime && echo "Europe/Warsaw" > /etc/timezone \
             && docker-php-ext-configure gd --with-freetype --with-jpeg \
-            && docker-php-ext-install pdo_mysql gd mbstring
+            && docker-php-ext-install pdo_mysql gd mbstring intl
         RUN echo "date.timezone=Europe/Warsaw" > /usr/local/etc/php/conf.d/timezone.ini
         # OPcache (built into PHP 8.5+, enabled by default): without it PHP would
         # recompile the whole framework on every request.
