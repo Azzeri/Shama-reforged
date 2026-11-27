@@ -21,6 +21,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::livewire('/ingredients', 'pages::ingredient.index')->name('ingredients.index');
     Route::livewire('/meals', 'pages::meal.index')->name('meals.index');
+    Route::livewire('/meals/review', 'pages::meal.review')->name('meals.review');
     Route::livewire('/meals/day/{date}/edit', 'pages::meal.day-edit')->name('meals.day.edit');
     // The read-only day view is gone — old links land in the day editor.
     Route::get('/meals/day/{date}', fn (string $date) => redirect()->route('meals.day.edit', $date))->name('meals.day');

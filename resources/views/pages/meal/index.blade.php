@@ -52,6 +52,13 @@ new #[Layout('layouts::app')] class extends Component {
 
     public array $selectedDaysForShoppingList = [];
 
+    /** Health numbers of the shown 7 days, for the "Week review" entry card. */
+    #[Computed]
+    public function reviewHealth(): array
+    {
+        return app(\App\Actions\MealPlan\BuildWeekReview::class)->health($this->rangeStart);
+    }
+
     public function render()
     {
         return $this->view()
@@ -259,6 +266,9 @@ new #[Layout('layouts::app')] class extends Component {
             </div>
 
             <div class="ml-auto flex items-center gap-2">
+                <a href="{{ route('meals.review', $week ? ['week' => $week] : []) }}" wire:navigate class="hidden lg:inline-flex h-10 items-center px-3 text-[14px] font-semibold text-ink">
+                    {{ __('Week review') }}
+                </a>
                 <a href="{{ route('ai-report.edit') }}" wire:navigate class="hidden lg:inline-flex h-10 items-center gap-1.5 px-3 text-[14px] font-semibold text-ink">
                     <x-icon.sparkle class="size-4" />
                     {{ __('AI plan') }}
@@ -275,6 +285,21 @@ new #[Layout('layouts::app')] class extends Component {
         </div>
 
         <div class="space-y-3 lg:hidden">
+        @php $reviewHealth = $this->reviewHealth; @endphp
+        <a href="{{ route('meals.review', $week ? ['week' => $week] : []) }}" wire:navigate
+            class="flex min-h-[56px] items-center gap-3 rounded-[20px] border border-line bg-surface px-3.5 py-2.5">
+            <span class="flex-1 min-w-0 flex flex-col gap-0.5">
+                <span class="text-[15px] font-semibold text-ink">{{ __('Week review') }}</span>
+                <span class="text-[13px] text-muted">
+                    @if ($reviewHealth['rated'] > 0)
+                    {{ __('Healthy :percent% · goal :goal%', ['percent' => $reviewHealth['healthyPercent'], 'goal' => $reviewHealth['minPercent']]) }}
+                    @else
+                    {{ __('Health and variety of the plan') }}
+                    @endif
+                </span>
+            </span>
+            <x-ui.chevron-right />
+        </a>
         @if ($this->isCurrentRange)
         <div class="flex justify-center">
             <button type="button" wire:click="togglePastDays" class="inline-flex h-9 items-center gap-1 px-3 text-[13px] font-medium text-muted">
