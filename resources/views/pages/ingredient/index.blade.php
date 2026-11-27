@@ -524,19 +524,15 @@ new #[Layout('layouts::app')] class extends Component {
         @if ($this->mergeTarget)
         <x-slot:footer>
             <div x-data="{ confirming: false }" class="min-h-12 flex items-center gap-3">
-                <template x-if="! confirming">
-                    <div class="flex w-full items-center gap-3">
-                        <button type="button" wire:click="changeMergeTarget" class="h-12 px-2 text-[15px] font-semibold text-ink">{{ __('Back') }}</button>
-                        <button type="button" x-on:click="confirming = true" class="ml-auto h-12 rounded-[14px] bg-terracotta px-6 text-[15px] font-semibold text-white">{{ __('Merge') }}</button>
-                    </div>
-                </template>
-                <template x-if="confirming">
-                    <div class="flex w-full items-center gap-2">
-                        <span class="flex-1 min-w-0 text-[14px] leading-snug text-ink">{{ __('Merge “:source” with “:target”? This cannot be undone.', ['source' => $source->name, 'target' => $this->mergeTarget->name]) }}</span>
-                        <button type="button" x-on:click="confirming = false" class="h-11 px-3 text-[14px] font-semibold text-ink">{{ __('No') }}</button>
-                        <button type="button" wire:click="merge" class="h-11 rounded-[14px] bg-terracotta px-4 text-[14px] font-semibold text-white">{{ __('Merge') }}</button>
-                    </div>
-                </template>
+                <div x-show="! confirming" class="flex w-full items-center gap-3">
+                    <button type="button" wire:click="changeMergeTarget" class="h-12 px-2 text-[15px] font-semibold text-ink">{{ __('Back') }}</button>
+                    <button type="button" x-on:click="confirming = true" class="ml-auto h-12 rounded-[14px] bg-terracotta px-6 text-[15px] font-semibold text-white">{{ __('Merge') }}</button>
+                </div>
+                <div x-show="confirming" style="display: none" class="flex w-full items-center gap-2">
+                    <span class="flex-1 min-w-0 text-[14px] leading-snug text-ink">{{ __('Merge “:source” with “:target”? This cannot be undone.', ['source' => $source->name, 'target' => $this->mergeTarget->name]) }}</span>
+                    <button type="button" x-on:click="confirming = false" class="h-11 px-3 text-[14px] font-semibold text-ink">{{ __('No') }}</button>
+                    <button type="button" wire:click="merge" class="h-11 rounded-[14px] bg-terracotta px-4 text-[14px] font-semibold text-white">{{ __('Merge') }}</button>
+                </div>
             </div>
         </x-slot:footer>
         @endif
