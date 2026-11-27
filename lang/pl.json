@@ -646,5 +646,11 @@
     ":count day ago|:count days ago": ":count dzień temu|:count dni temu|:count dni temu",
     ":count wk ago": ":count tyg. temu",
     ":count mo ago": ":count mies. temu",
-    "last: :when": "ostatnio: :when"
+    "last: :when": "ostatnio: :when",
+    "have it ready": "mam gotowe",
+    "I already have it ready": "Mam już gotowe",
+    "E.g. a portion from the freezer. Nothing goes on the shopping list.": "Np. porcja z zamrażarki. Nic nie trafi na listę zakupów.",
+    "Count :name on the shopping list": "Licz :name do listy zakupów",
+    "Have it ready: leave :name off the shopping list": "Mam gotowe: nie licz :name do listy zakupów",
+    "Already have a portion ready, e.g. from the freezer? Tap the cart next to a recipe and its ingredients will stay off the shopping list.": "Masz już gotową porcję, np. z zamrażarki? Dotknij koszyka przy przepisie, a jego składniki nie trafią na listę zakupów."
 }

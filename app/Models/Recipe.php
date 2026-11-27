@@ -285,7 +285,7 @@ class Recipe extends Model
     {
         return $this->belongsToMany(Meal::class, 'recipe_meal_assignments')
             ->using(RecipeMealAssignment::class)
-            ->withPivot('id', 'mode', 'cooked_from_id')
+            ->withPivot('id', 'mode', 'skip_shopping', 'cooked_from_id')
             ->withTimestamps();
     }
 

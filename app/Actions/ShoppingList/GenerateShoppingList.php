@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\DB;
  *
  * Amounts follow the plan entry's mode: one meal = servingsPerMeal of the
  * recipe's servings, a recipe cooked whole = full amounts on the cooking
- * day, leftovers = nothing.
+ * day, leftovers = nothing. Entries marked "have it ready" add nothing.
  */
 class GenerateShoppingList
 {
@@ -68,7 +68,7 @@ class GenerateShoppingList
 
             foreach ($meals as $meal) {
                 foreach ($meal->recipes as $recipe) {
-                    $factor = RecipeMealAssignment::shoppingFactor($recipe->pivot->mode, (int) $recipe->servings);
+                    $factor = RecipeMealAssignment::shoppingFactor($recipe->pivot->mode, (int) $recipe->servings, (bool) $recipe->pivot->skip_shopping);
 
                     if ($factor <= 0) {
                         continue;

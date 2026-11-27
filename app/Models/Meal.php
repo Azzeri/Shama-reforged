@@ -77,7 +77,7 @@ class Meal extends Model
     {
         return $this->belongsToMany(Recipe::class, 'recipe_meal_assignments')
             ->using(RecipeMealAssignment::class)
-            ->withPivot('id', 'mode', 'cooked_from_id')
+            ->withPivot('id', 'mode', 'skip_shopping', 'cooked_from_id')
             ->orderBy('recipe_meal_assignments.id')
             ->withTimestamps();
     }

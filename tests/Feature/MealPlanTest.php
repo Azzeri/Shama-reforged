@@ -170,3 +170,71 @@ test('a recipe can be previewed from the picker and chosen from the preview', fu
 
     expect(mpEntries('2026-11-18'))->toBe([['lunch', 'Zupa pomidorowa', 'single']]);
 });
+
+test('"I already have it ready" plans the recipe without putting anything on the shopping list', function () {
+    $beef = Ingredient::query()->create(['name' => 'Wołowina']);
+    $recipe = Recipe::query()->create(['name' => 'Gulasz wołowy', 'servings' => 6]);
+    $recipe->ingredients()->attach($beef->id, ['amount' => 900, 'unit' => 'g']);
+
+    Livewire::test('pages::meal.day-edit', ['date' => '2026-11-19'])
+        ->call('openRecipePicker', 'supper')
+        ->call('chooseRecipe', $recipe->id)
+        ->call('setMode', 'ready')
+        ->call('addChosenRecipe')
+        ->assertSee('mam gotowe · bez zakupów');
+
+    $assignment = RecipeMealAssignment::query()->sole();
+
+    expect($assignment->mode)->toBe(RecipeMealAssignment::MODE_SINGLE)
+        ->and($assignment->skip_shopping)->toBeTrue()
+        ->and(app(GenerateShoppingList::class)(['2026-11-19'])['added'])->toBe(0)
+        ->and(ShoppingListItem::query()->count())->toBe(0);
+
+    Livewire::test('pages::meal.index', ['week' => '2026-11-18'])->assertSee('mam gotowe · bez zakupów');
+});
+
+test('the cart button switches "have it ready": on removes unbought ingredients from the list, off counts the meal again', function () {
+    $beef = Ingredient::query()->create(['name' => 'Wołowina']);
+    $onion = Ingredient::query()->create(['name' => 'Cebula']);
+    $recipe = Recipe::query()->create(['name' => 'Gulasz wołowy', 'servings' => 2]);
+    $recipe->ingredients()->attach($beef->id, ['amount' => 300, 'unit' => 'g']);
+    $recipe->ingredients()->attach($onion->id, ['amount' => 1, 'unit' => 'szt']);
+
+    $page = Livewire::test('pages::meal.day-edit', ['date' => '2026-11-19'])
+        ->call('openRecipePicker', 'dinner')
+        ->call('chooseRecipe', $recipe->id);
+
+    app(GenerateShoppingList::class)(['2026-11-19']);
+    ShoppingListItem::query()->where('name', 'Cebula')->update(['is_checked' => true]);
+
+    $assignment = RecipeMealAssignment::query()->sole();
+    $page->call('toggleSkipShopping', $assignment->id)->assertSee('mam gotowe · bez zakupów');
+
+    // The onion was already bought, so it stays; the beef is gone and regenerating does not bring it back.
+    app(GenerateShoppingList::class)(['2026-11-19']);
+
+    expect($assignment->fresh()->skip_shopping)->toBeTrue()
+        ->and(ShoppingListItem::query()->pluck('name')->all())->toBe(['Cebula']);
+
+    $page->call('toggleSkipShopping', $assignment->id)->assertDontSee('mam gotowe · bez zakupów');
+    app(GenerateShoppingList::class)(['2026-11-19']);
+
+    expect($assignment->fresh()->skip_shopping)->toBeFalse()
+        ->and(ShoppingListItem::query()->orderBy('name')->pluck('name')->all())->toBe(['Cebula', 'Wołowina']);
+});
+
+test('leftover days cannot be switched to "have it ready"', function () {
+    $recipe = Recipe::query()->create(['name' => 'Pierogi ruskie', 'servings' => 6]);
+
+    $page = Livewire::test('pages::meal.day-edit', ['date' => '2026-11-21'])
+        ->call('openRecipePicker', 'dinner')
+        ->call('chooseRecipe', $recipe->id)
+        ->call('setMode', RecipeMealAssignment::MODE_FULL)
+        ->call('toggleLeftoverDate', '2026-11-22')
+        ->call('addChosenRecipe');
+
+    $leftover = RecipeMealAssignment::query()->where('mode', RecipeMealAssignment::MODE_LEFTOVER)->sole();
+    $page->call('toggleSkipShopping', $leftover->id);
+
+    expect($leftover->fresh()->skip_shopping)->toBeFalse();
+});

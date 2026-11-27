@@ -201,7 +201,7 @@ TXT;
                     RecipeMealAssignment::MODE_FULL => ' [gotowany cały przepis]',
                     RecipeMealAssignment::MODE_LEFTOVER => ' [resztki]',
                     default => '',
-                })->all();
+                }.($r->pivot->skip_shopping ? ' [mam gotowe, bez zakupów]' : ''))->all();
 
                 if (filled($meal->note)) {
                     $parts[] = "notatka: {$meal->note}";

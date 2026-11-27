@@ -156,9 +156,13 @@ new #[Layout('layouts::app')] class extends Component {
     /** assignment id => date of the cooking day, for leftover captions. */
     private array $cookingDates = [];
 
-    /** "gotowanie · 6 porcji" / "z soboty · bez zakupów" under a recipe in the plan. */
+    /** "gotowanie · 6 porcji" / "z soboty · bez zakupów" / "mam gotowe · bez zakupów" under a recipe in the plan. */
     public function recipeCaption(Recipe $recipe): ?string
     {
+        if ($recipe->pivot->skip_shopping) {
+            return RecipeMealAssignment::readyCaption();
+        }
+
         return match ($recipe->pivot->mode) {
             RecipeMealAssignment::MODE_FULL => __('cooking') . ' · ' . Recipe::servingsLabel((int) $recipe->servings),
             RecipeMealAssignment::MODE_LEFTOVER => isset($this->cookingDates[$recipe->pivot->cooked_from_id])
