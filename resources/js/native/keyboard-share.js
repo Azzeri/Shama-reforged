@@ -1,7 +1,8 @@
 /*
  * Keyboard: --keyboard-inset holds the height the on-screen keyboard covers
  * (visualViewport), so bottom sheets and dialogs can sit above it instead of
- * behind it.
+ * behind it; --visible-height is what is left above the keyboard, so a sheet
+ * lifted above it is also shortened to fit (html.keyboard-open meanwhile).
  *
  * Share: window.shareOrCopy({ title, text, url }) opens the iOS share sheet,
  * or copies to the clipboard where there is none; a short toast confirms.
@@ -17,6 +18,8 @@ const updateKeyboardInset = () => {
 
     const covered = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
     root.style.setProperty('--keyboard-inset', `${Math.round(covered)}px`);
+    root.style.setProperty('--visible-height', `${Math.round(viewport.height)}px`);
+    root.classList.toggle('keyboard-open', covered > 80);
 };
 
 window.visualViewport?.addEventListener('resize', updateKeyboardInset);

@@ -210,6 +210,31 @@ dialog[data-flux-flyout] {
     margin-bottom: var(--keyboard-inset, 0px);
 }
 
+/*
+ * ...and fit into what the keyboard leaves visible: a 90dvh sheet pushed up by
+ * the keyboard would otherwise put its top (the field being typed in) off screen.
+ */
+@media (max-width: 1023.98px) {
+    html.keyboard-open [data-sheet-panel],
+    html.keyboard-open dialog[data-flux-flyout] {
+        max-height: calc(var(--visible-height, 100dvh) - 0.5rem) !important;
+    }
+
+    html.keyboard-open [data-sheet-panel].h-dvh {
+        height: var(--visible-height, 100dvh);
+        max-height: var(--visible-height, 100dvh) !important;
+    }
+
+    /* The home indicator is under the keyboard now. */
+    html.keyboard-open dialog[data-flux-flyout] {
+        padding-bottom: 1rem !important;
+    }
+
+    html.keyboard-open [data-sheet-panel] {
+        padding-bottom: 0;
+    }
+}
+
 /* Desktop: bottom sheets become centred dialogs (440 px, rounded, shadow). */
 @media (min-width: 1024px) {
     dialog[data-flux-flyout] {
